@@ -1,0 +1,80 @@
+services:
+  # ==========================================
+  # Database Service (MongoDB)
+  # ==========================================
+  mongodb:
+    image: mongo:6.0
+    container_name: taskflow_mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - taskflow_network
+
+  # ==========================================
+  # Caching Service (Redis)
+  # ==========================================
+  redis:
+    image: redis:7.0-alpine
+    container_name: taskflow_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - taskflow_network
+
+  # ==========================================
+  # Backend API Service
+  # ==========================================
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: taskflow_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/taskflow
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - taskflow_network
+
+  # ==========================================
+  # Frontend UI Service
+  # ==========================================
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: taskflow_frontend_ui
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - taskflow_network
+
+# ==========================================
+# Persistent volumes config
+# ==========================================
+volumes:
+  mongo_data:
+  redis_data:
+
+# ==========================================
+# Network configuration
+# ==========================================
+networks:
+  taskflow_network:
+    driver: bridge
