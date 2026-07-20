@@ -1,0 +1,12 @@
+# Nested dependency and build directories
+**/node_modules
+**/dist
+**/dist-ssr
+**/build
+**/.git
+**/.agents
+**/.system_generated
+
+# Lockfiles
+**/bun.lock
+**/package-lock.json
