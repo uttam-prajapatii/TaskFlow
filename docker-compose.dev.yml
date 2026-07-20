@@ -4,12 +4,12 @@ services:
   # ==========================================
   mongodb:
     image: mongo:6.0
-    container_name: taskflow_mongodb
+    container_name: taskflow_mongodb_dev
     restart: always
     ports:
-      - '27017:27017'
+      - "27017:27017"
     volumes:
-      - mongo_data:/data/db
+      - mongo_data_dev:/data/db
     networks:
       - taskflow_network
 
@@ -18,31 +18,34 @@ services:
   # ==========================================
   redis:
     image: redis:7.0-alpine
-    container_name: taskflow_redis
+    container_name: taskflow_redis_dev
     restart: always
     ports:
-      - '6379:6379'
+      - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis_data_dev:/data
     networks:
       - taskflow_network
 
   # ==========================================
-  # Backend API Service
+  # Backend API Service (Development)
   # ==========================================
   backend:
     build:
       context: ./Backend
-      dockerfile: Dockerfile
-    container_name: taskflow_backend
+      dockerfile: Dockerfile.dev
+    container_name: taskflow_backend_dev
     restart: always
     ports:
-      - '5000:5000'
+      - "5000:5000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=5000
       - MONGO_URI=mongodb://mongodb:27017/taskflow
       - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./Backend:/app
+      - /app/node_modules
     depends_on:
       - mongodb
       - redis
@@ -50,16 +53,19 @@ services:
       - taskflow_network
 
   # ==========================================
-  # Frontend UI Service
+  # Frontend UI Service (Development)
   # ==========================================
   frontend:
     build:
       context: ./Frontend
-      dockerfile: Dockerfile
-    container_name: taskflow_frontend_ui
+      dockerfile: Dockerfile.dev
+    container_name: taskflow_frontend_ui_dev
     restart: always
     ports:
-      - '3000:80'
+      - "5173:5173"
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
@@ -69,8 +75,8 @@ services:
 # Persistent volumes config
 # ==========================================
 volumes:
-  mongo_data:
-  redis_data:
+  mongo_data_dev:
+  redis_data_dev:
 
 # ==========================================
 # Network configuration
