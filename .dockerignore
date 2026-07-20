@@ -1,0 +1,24 @@
+# Ignore dependencies and build output
+**/node_modules
+**/dist
+**/dist-ssr
+**/build
+**/.git
+**/.github
+**/.vscode
+**/.idea
+
+# Ignore Lockfiles (we copy them explicitly when needed, but ignore in context)
+**/bun.lock
+**/package-lock.json
+
+# Ignore configs and env files
+**/.env*
+**/.agents
+**/.system_generated
+**/.prettier*
+
+# Ignore docs and docker configs
+**/README.md
+**/docker-compose*.yml
+**/Dockerfile*

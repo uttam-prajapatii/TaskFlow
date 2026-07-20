@@ -20,7 +20,7 @@ RUN bun run build
 # ==========================================
 # Stage 2: Serve using high-performance Nginx
 # ==========================================
-FROM nginx:1.25-alpine
+FROM nginx:alpine
 
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
