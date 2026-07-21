@@ -3,7 +3,6 @@ import cors from 'cors';
 import requestLogger from './middlewares/requestLogger.js';
 import errorHandler from './middlewares/errorHandler.js';
 import { NotFoundError } from './utils/errors.js';
-import logger from './utils/logger.js';
 
 const app = express();
 
