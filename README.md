@@ -1,54 +1,90 @@
-# TaskFlow Docker Deployment Guide
+# 🚀 TaskFlow Development & Deployment Guide
 
-This project contains Docker configurations to support both **local development** and **production environments** for both Frontend (Vite + React) and Backend (Bun + Express) services.
+A modern containerized workspace for TaskFlow featuring a React (Vite) Frontend and Bun (Express) Backend, integrated with MongoDB and Redis.
 
 ---
 
-## Local Development (with Live Reloading)
+## 🛠️ Getting Started
 
-For local development, we use bind mounts to sync code changes instantly. This runs Vite's dev server and Bun's backend hot-reloader.
+### 1. Set Up Environment Variables
+Before running the project, create your environment configuration files:
 
-To build and start the development stack:
+* **Docker (Root)**: Copy the root template to `.env`:
+  ```bash
+  cp .env.example .env
+  ```
+* **Local Backend (Backend)**: Copy the backend local template to `Backend/.env`:
+  ```bash
+  cp Backend/.env.example Backend/.env
+  ```
+
+### 2. Run the Stack (Docker Compose)
+Start the entire local development stack (Frontend, Backend, Database, Cache) with live reloading active:
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 ```
+> [!TIP]
+> If you have recently changed dependencies in `package.json`, use the `-V` / `--renew-anon-volumes` flag to clear the package cache inside the container:
+> `docker compose -f docker-compose.dev.yml up --build -V`
 
-- **Frontend Application**: `http://localhost:5173` (Hot Module Replacement active)
-- **Backend API**: `http://localhost:5000` (Bun reload-on-save active)
-- **MongoDB**: `http://localhost:27017`
-- **Redis**: `http://localhost:6379`
-
-### When to Rebuild in Dev?
-- **Code Changes**: Do NOT rebuild. Saving files on your host machine will instantly sync to the container and trigger a hot reload.
-- **Dependency Changes**: Rebuild is required whenever you add packages to `package.json` or update lockfiles. Run:
-  ```bash
-  docker compose -f docker-compose.dev.yml build --no-cache
-  ```
+* **Frontend UI**: `http://localhost:5173` (Hot Module Replacement active)
+* **Backend API**: `http://localhost:5000` (Watch mode active)
+* **MongoDB**: `localhost:27017`
+* **Redis**: `localhost:6379`
 
 ---
 
-## Production Deployment
+## 📋 Useful Commands
 
-For production, we use multi-stage builds. The Frontend is compiled to static assets and served by a high-performance Nginx server, and the Backend is bundled in production mode.
-
-To build and run the production stack:
-
+### Viewing Logs
+View real-time logs for all running containers or target the backend logs specifically:
 ```bash
-docker compose -f docker-compose.prod.yml up --build -d
+# Follow logs for all services
+docker compose -f docker-compose.dev.yml logs -f
+
+# Follow logs specifically for the backend service
+docker compose -f docker-compose.dev.yml logs -f backend
 ```
 
-- **Frontend Application**: `http://localhost:3000` (Served via Nginx)
-- **Backend API**: `http://localhost:5000` (Production environment)
+### Local Dev Rebuilds
+If you modify dependencies inside `package.json`, you must force-rebuild the containers to load the changes:
+```bash
+docker compose -f docker-compose.dev.yml build --no-cache
+```
+
+### Stopping the Stack
+```bash
+# Stop and retain volumes
+docker compose -f docker-compose.dev.yml down
+
+# Stop and wipe database/cache volumes
+docker compose -f docker-compose.dev.yml down -v
+```
 
 ---
 
-## Structure of Docker Configuration
+## ⚙️ Environment Variables Reference
 
-- **`docker-compose.dev.yml`**: Development orchestration mapping source volumes and running development Dockerfiles.
-- **`docker-compose.prod.yml`**: Production orchestration using pre-built optimized image configurations.
-- **`Frontend/Dockerfile.dev`**: Fast-build development container running Vite.
-- **`Frontend/Dockerfile`**: Two-stage production build container serving through Nginx.
-- **`Backend/Dockerfile.dev`**: Development container running Bun in watch mode.
-- **`Backend/Dockerfile`**: Production container running backend using Bun in production mode.
-- **`.dockerignore`**: Excludes dependencies (`node_modules`) and local build directories (`dist`) from the build context to speed up docker context sending.
+| Variable Name | Default Value | Description |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `development` | Target run environment (`development`, `production`). |
+| `BACKEND_PORT` | `5000` | Port bound to the host for the backend service. |
+| `FRONTEND_DEV_PORT`| `5173` | Port bound to the host for Frontend React app in dev mode. |
+| `FRONTEND_PROD_PORT`| `3000` | Port bound to the host for Frontend React app in prod mode. |
+| `MONGO_URI` | `mongodb://mongodb:27017/taskflow` | Database connection connection URI. |
+| `REDIS_URL` | `redis://redis:6379` | Cache connection URI. |
+| `VITE_API_URL` | `http://localhost:5000` | Target endpoint for frontend client requests. |
+
+---
+
+## 🏗️ Project Structure
+
+* **`docker-compose.dev.yml`**: Dev orchestration using volume binds for live reloading.
+* **`docker-compose.prod.yml`**: Production orchestration using optimized multi-stage images.
+* **`Backend/`**: Express API service running on Bun.
+  * `src/utils/logger.js`: Winston log manager (outputs to `logs/combined.log` & `logs/error.log`).
+  * `src/utils/errors.js`: Custom `AppError` subclasses.
+  * `src/middlewares/`: Unified error logging and HTTP request trackers.
+* **`Frontend/`**: React application built on Vite.
+
