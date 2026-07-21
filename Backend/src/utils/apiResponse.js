@@ -23,14 +23,14 @@ class ApiResponse {
   /**
    * Standard 200 OK Success Factory
    */
-  static success(res, data = null, message = 'Success') {
+  static success(res, message = 'Success',data = null) {
     return new ApiResponse(200, data, message).send(res);
   }
 
   /**
    * Standard 201 Created Success Factory
    */
-  static created(res, data = null, message = 'Resource created successfully') {
+  static created(res,message = 'Resource created successfully', data = null) {
     return new ApiResponse(201, data, message).send(res);
   }
 }
