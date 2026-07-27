@@ -71,7 +71,7 @@ class AuthController {
    */
   refresh = asyncHandler(async (req, res) => {
     const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
-    const refreshToken = req.body.refreshToken || (req.cookies && req.cookies[refreshCookieName]);
+    const refreshToken = req.body.refreshToken || (req?.cookies[refreshCookieName]);
     const tokens = await authService.refresh(refreshToken);
     
     // Rotate cookies
@@ -85,7 +85,7 @@ class AuthController {
    */
   logout = asyncHandler(async (req, res) => {
     const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
-    const refreshToken = req.body.refreshToken || (req.cookies && req.cookies[refreshCookieName]);
+    const refreshToken = req.body.refreshToken || (req?.cookies[refreshCookieName]);
     await authService.logout(refreshToken);
     
     // Clear cookies

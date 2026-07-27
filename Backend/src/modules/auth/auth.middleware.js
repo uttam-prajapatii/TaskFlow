@@ -10,13 +10,12 @@ import asyncHandler from '../../utils/asyncHandler.js';
 export const protect = asyncHandler(async (req, res, next) => {
   let token;
 
+  const accessCookieName = process.env.JWT_ACCESS_COOKIE_NAME || 'accessToken';
+
   // 1. Extract token from Authorization header (Bearer <token>) or from cookies
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
+  if (req.headers.authorization?.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
-  } else if (req.cookies && req.cookies[accessCookieName]) {
+  } else if (req.cookies?.[accessCookieName]) {
     token = req.cookies[accessCookieName];
   }
 
