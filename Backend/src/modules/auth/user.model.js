@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    fullName: {
+      type: String,
+      required: [true, 'Full name is required'],
+      trim: true,
+    },
     password: {
       type: String,
       required: [true, 'Password is required'],

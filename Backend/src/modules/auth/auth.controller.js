@@ -44,8 +44,8 @@ class AuthController {
    * Register a new user.
    */
   register = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
-    const result = await authService.register(email, password);
+    const { email, password, fullName } = req.body;
+    const result = await authService.register(email, password, fullName);
     
     // Set cookies for hybrid authentication
     this.setTokenCookies(res, result.tokens);

@@ -4,7 +4,11 @@ import { BadRequestError } from '../../utils/errors.js';
  * Middleware to validate and sanitize registration inputs.
  */
 export const validateRegister = (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, fullName } = req.body;
+
+  if (!fullName || typeof fullName !== 'string') {
+    return next(new BadRequestError('Full name is required'));
+  }
 
   if (!email || typeof email !== 'string') {
     return next(new BadRequestError('Valid email is required'));
@@ -14,8 +18,20 @@ export const validateRegister = (req, res, next) => {
     return next(new BadRequestError('Password is required'));
   }
 
+  // 0. Validate and sanitize full name
+  const trimmedName = fullName.trim();
+  if (trimmedName.length < 2 || trimmedName.length > 50) {
+    return next(new BadRequestError('Full name must be between 2 and 50 characters long'));
+  }
+
+  // Permissive name regex allowing letters, spaces, hyphens, and apostrophes
+  const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+  if (!nameRegex.test(trimmedName)) {
+    return next(new BadRequestError('Full name can only contain letters, spaces, hyphens, and apostrophes'));
+  }
+
   // 1. Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
   if (!emailRegex.test(email)) {
     return next(new BadRequestError('Invalid email format'));
   }
@@ -34,7 +50,7 @@ export const validateRegister = (req, res, next) => {
   }
 
   // - Contains at least one number
-  const hasNumber = /[0-9]/.test(password);
+  const hasNumber = /\d/.test(password);
   if (!hasNumber) {
     return next(new BadRequestError('Password must contain at least one number'));
   }
@@ -47,6 +63,7 @@ export const validateRegister = (req, res, next) => {
 
   // Sanitize inputs
   req.body.email = email.trim().toLowerCase();
+  req.body.fullName = trimmedName;
 
   next();
 };

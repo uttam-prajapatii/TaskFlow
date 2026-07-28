@@ -8,7 +8,7 @@ class AuthService {
   /**
    * Register a new user and return auth tokens.
    */
-  async register(email, password) {
+  async register(email, password, fullName) {
     const existingUser = await authRepository.findUserByEmail(email);
     if (existingUser) {
       logger.warn(`Registration failed: email ${email} is already registered.`);
@@ -19,6 +19,7 @@ class AuthService {
     const user = await authRepository.createUser({
       email,
       password: hashedPassword,
+      fullName,
     });
 
     logger.info(`User registered successfully: ${email}`, { userId: user._id });
@@ -29,6 +30,7 @@ class AuthService {
     const userResponse = {
       _id: user._id,
       email: user.email,
+      fullName: user.fullName,
       isActive: user.isActive,
       createdAt: user.createdAt,
     };
@@ -66,6 +68,7 @@ class AuthService {
     const userResponse = {
       _id: user._id,
       email: user.email,
+      fullName: user.fullName,
       isActive: user.isActive,
       createdAt: user.createdAt,
     };
