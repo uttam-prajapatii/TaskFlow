@@ -47,11 +47,13 @@ describe('Authentication System Tests', () => {
     test('should register a user with valid email and strong password', async () => {
       const email = 'test@example.com';
       const password = 'Password123!';
+      const fullName = 'John Doe';
 
-      const result = await authService.register(email, password);
+      const result = await authService.register(email, password, fullName);
 
       expect(result.user).toBeDefined();
       expect(result.user.email).toBe(email);
+      expect(result.user.fullName).toBe(fullName);
       expect(result.user.password).toBeUndefined(); // select: false/removed
       expect(result.tokens.accessToken).toBeDefined();
       expect(result.tokens.refreshToken).toBeDefined();
@@ -59,6 +61,7 @@ describe('Authentication System Tests', () => {
       const userInDb = await User.findOne({ email });
       expect(userInDb).toBeDefined();
       expect(userInDb.email).toBe(email);
+      expect(userInDb.fullName).toBe(fullName);
     });
 
     test('should reject duplicate registration', async () => {
@@ -190,7 +193,7 @@ describe('Authentication System Tests', () => {
         userId: regResult.user._id,
         isRevoked: false,
       });
-      expect(activeTokens.length).toBe(0);
+    expect(activeTokens).toHaveLength(0);
     });
 
     test('should handle concurrent/race condition refreshes safely', async () => {
