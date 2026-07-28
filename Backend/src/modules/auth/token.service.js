@@ -22,7 +22,7 @@ class TokenService {
       throw new Error(`Invalid expiry format: ${expiryStr}`);
     }
 
-    const value = parseInt(match[1], 10);
+    const value = Number.parseInt(match[1], 10);
     const unit = match[2];
     let ms = 0;
 
@@ -110,7 +110,6 @@ class TokenService {
     // 1. Verify token structure/expiry
     const decoded = this.verifyToken(oldRawToken, refreshSecret);
     const userId = decoded.sub;
-    const oldJti = decoded.jti;
     const tokenHash = this.hashToken(oldRawToken);
 
     // 2. Perform atomic lookup-and-revoke
