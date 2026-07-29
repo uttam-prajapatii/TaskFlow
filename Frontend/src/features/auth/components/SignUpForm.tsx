@@ -1,18 +1,60 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import OAuthButtons from './OAuthButtons.tsx';
-import FormInput from './FormInput.tsx';
+import React, { useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import OAuthButtons from './OAuthButtons';
+import FormInput from './FormInput';
+import useAuth from '../../../hooks/useAuth';
 
 const SignUpForm: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.SubmitEvent) => {
-    e.preventDefault();
-    console.log('Submitting Sign Up:', { name, email, password, agreeTerms });
-  };
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+  }, []);
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  }, []);
+
+  const handleAgreeTermsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setAgreeTerms(e.target.checked);
+  }, []);
+
+  const handleTermsClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+  }, []);
+
+  const handlePrivacyClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (isSubmitting) return;
+
+      setIsSubmitting(true);
+      try {
+        await register({ fullName: name, email, password });
+        navigate('/dashboard');
+      } catch (error) {
+        console.debug('Registration submission failed:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [email, isSubmitting, name, navigate, password, register]
+  );
 
   return (
     <div className="w-full max-w-[380px] mx-auto animate-[fadeUp_0.35s_ease]">
@@ -40,7 +82,7 @@ const SignUpForm: React.FC = () => {
           type="text"
           placeholder="Alex Rivera"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={handleNameChange}
           required
           autoComplete="name"
         />
@@ -51,7 +93,7 @@ const SignUpForm: React.FC = () => {
           type="email"
           placeholder="you@company.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={handleEmailChange}
           required
           autoComplete="email"
         />
@@ -62,7 +104,7 @@ const SignUpForm: React.FC = () => {
           type="password"
           placeholder="At least 8 characters"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={handlePasswordChange}
           required
           autoComplete="new-password"
         />
@@ -72,7 +114,7 @@ const SignUpForm: React.FC = () => {
             type="checkbox"
             id="su-terms"
             checked={agreeTerms}
-            onChange={(e) => setAgreeTerms(e.target.checked)}
+            onChange={handleAgreeTermsChange}
             required
             className="w-3.5 h-3.5 accent-flame-2 rounded border-line text-flame-2 focus:ring-flame-2 mt-1 shrink-0 cursor-pointer"
           />
@@ -80,27 +122,31 @@ const SignUpForm: React.FC = () => {
             By creating an account, you agree to TaskFlow's{' '}
             <button
               type="button"
+              onClick={handleTermsClick}
               className="text-flame-2 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer inline align-baseline"
-              onClick={(e) => e.stopPropagation()}
             >
               Terms of Service
-            </button>{' '}
-            and{' '}
+            </button>
+            {' '}and{' '}
             <button
               type="button"
+              onClick={handlePrivacyClick}
               className="text-flame-2 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer inline align-baseline"
-              onClick={(e) => e.stopPropagation()}
-            >Privacy Policy 
-            </button>{''}
+            >
+              Privacy Policy
+            </button>
             .
           </label>
         </div>
 
         <button
           type="submit"
-          className="w-full py-3 rounded-xl border-0 bg-gradient-to-r from-flame-1 via-flame-2 to-flame-3 text-white font-display font-bold text-[15px] tracking-wide cursor-pointer shadow-[0_14px_28px_-12px_rgba(255,80,30,0.55)] hover:shadow-[0_18px_32px_-12px_rgba(255,80,30,0.62)] hover:-translate-y-[1px] active:translate-y-0 hover:brightness-105 transition-all duration-200"
+          disabled={isSubmitting}
+          className={`w-full py-3 rounded-xl border-0 bg-gradient-to-r from-flame-1 via-flame-2 to-flame-3 text-white font-display font-bold text-[15px] tracking-wide cursor-pointer shadow-[0_14px_28px_-12px_rgba(255,80,30,0.55)] hover:shadow-[0_18px_32px_-12px_rgba(255,80,30,0.62)] hover:-translate-y-[1px] active:translate-y-0 hover:brightness-105 transition-all duration-200 ${
+            isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+          }`}
         >
-          Create account
+          {isSubmitting ? 'Creating account...' : 'Create account'}
         </button>
       </form>
 

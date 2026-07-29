@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 
 const OAuthButtons: React.FC = () => {
-  const handleGoogleLogin = () => {
-    console.log('Initiating Google OAuth login...');
-  };
+  const handleGoogleLogin = useCallback(() => {
+    console.debug('Initiating Google OAuth login...');
+  }, []);
 
-  const handleGitHubLogin = () => {
-    console.log('Initiating GitHub OAuth login...');
-  };
+  const handleGitHubLogin = useCallback(() => {
+    console.debug('Initiating GitHub OAuth login...');
+  }, []);
 
   return (
     <div className="flex gap-2.5 mb-[22px]">

@@ -1,17 +1,53 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import OAuthButtons from './OAuthButtons.tsx';
-import FormInput from './FormInput.tsx';
+import React, { useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import OAuthButtons from './OAuthButtons';
+import FormInput from './FormInput';
+import useAuth from '../../../hooks/useAuth';
 
 const SignInForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.SubmitEvent) => {
-    e.preventDefault();
-    console.log('Submitting Sign In:', { email, password, rememberMe });
-  };
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  }, []);
+
+  const handleRememberMeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setRememberMe(e.target.checked);
+  }, []);
+
+  const handleForgotPassword = useCallback(() => {
+    // Action handler for forgot password feature
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (isSubmitting) return;
+
+      setIsSubmitting(true);
+      try {
+        await login({ email, password });
+        navigate('/dashboard');
+      } catch (error) {
+        // SonarQube S108: Explicitly handling catch block.
+        // Toast notifications are dispatched centrally by API interceptors and AuthContext.
+        console.debug('Sign in submission failed:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [email, isSubmitting, login, navigate, password]
+  );
 
   return (
     <div className="w-full max-w-[380px] mx-auto animate-[fadeUp_0.35s_ease]">
@@ -39,7 +75,7 @@ const SignInForm: React.FC = () => {
           type="email"
           placeholder="you@company.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={handleEmailChange}
           required
           autoComplete="email"
         />
@@ -50,7 +86,7 @@ const SignInForm: React.FC = () => {
           type="password"
           placeholder="Enter your password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={handlePasswordChange}
           required
           autoComplete="current-password"
         />
@@ -60,21 +96,29 @@ const SignInForm: React.FC = () => {
             <input
               type="checkbox"
               checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
+              onChange={handleRememberMeChange}
               className="w-3.5 h-3.5 accent-flame-2 rounded border-line text-flame-2 focus:ring-flame-2"
             />
             Remember me
           </label>
-          <a href="#" className="text-flame-2 font-semibold hover:underline">
+          {/* S6844: Replace anchor tag used as action button with <button type="button"> */}
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            className="text-flame-2 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer text-left"
+          >
             Forgot password?
-          </a>
+          </button>
         </div>
 
         <button
           type="submit"
-          className="w-full py-3 rounded-xl border-0 bg-gradient-to-r from-flame-1 via-flame-2 to-flame-3 text-white font-display font-bold text-[15px] tracking-wide cursor-pointer shadow-[0_14px_28px_-12px_rgba(255,80,30,0.55)] hover:shadow-[0_18px_32px_-12px_rgba(255,80,30,0.62)] hover:-translate-y-[1px] active:translate-y-0 hover:brightness-105 transition-all duration-200"
+          disabled={isSubmitting}
+          className={`w-full py-3 rounded-xl border-0 bg-gradient-to-r from-flame-1 via-flame-2 to-flame-3 text-white font-display font-bold text-[15px] tracking-wide cursor-pointer shadow-[0_14px_28px_-12px_rgba(255,80,30,0.55)] hover:shadow-[0_18px_32px_-12px_rgba(255,80,30,0.62)] hover:-translate-y-[1px] active:translate-y-0 hover:brightness-105 transition-all duration-200 ${
+            isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+          }`}
         >
-          Sign in
+          {isSubmitting ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
 

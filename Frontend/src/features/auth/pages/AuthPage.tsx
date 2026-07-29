@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import BrandPanel from '../components/BrandPanel.tsx';
-import SignInForm from '../components/SignInForm.tsx';
-import SignUpForm from '../components/SignUpForm.tsx';
+import BrandPanel from '../components/BrandPanel';
+import SignInForm from '../components/SignInForm';
+import SignUpForm from '../components/SignUpForm';
+import useAuth from '../../../hooks/useAuth';
 
 interface AuthPageProps {
   mode: 'signin' | 'signup';
@@ -10,7 +11,22 @@ interface AuthPageProps {
 
 const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
   const isSignIn = mode === 'signin';
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  const handleNavigateLogin = useCallback(() => {
+    navigate('/login');
+  }, [navigate]);
+
+  const handleNavigateRegister = useCallback(() => {
+    navigate('/register');
+  }, [navigate]);
 
   return (
     <div className="w-full min-h-screen bg-white grid grid-cols-1 md:grid-cols-[1.05fr_1fr] select-none">
@@ -25,7 +41,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
           {/* Navigation Tabs */}
           <div className="flex gap-1 bg-paper-dim rounded-xl p-1 mb-[34px] select-none">
             <button
-              onClick={() => navigate('/login')}
+              onClick={handleNavigateLogin}
               type="button"
               className={`flex-1 text-center py-2.5 font-display font-semibold text-sm border-none bg-transparent rounded-lg cursor-pointer transition-all duration-200 ${
                 isSignIn
@@ -36,7 +52,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
               Sign in
             </button>
             <button
-              onClick={() => navigate('/register')}
+              onClick={handleNavigateRegister}
               type="button"
               className={`flex-1 text-center py-2.5 font-display font-semibold text-sm border-none bg-transparent rounded-lg cursor-pointer transition-all duration-200 ${
                 !isSignIn

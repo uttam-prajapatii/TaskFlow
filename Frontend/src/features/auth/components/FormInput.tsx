@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 
 interface FormInputProps {
   label: string;
@@ -29,6 +29,10 @@ const FormInput: React.FC<FormInputProps> = ({
     inputType = showPassword ? 'text' : 'password';
   }
 
+  const handleToggleShowPassword = useCallback(() => {
+    setShowPassword((prev) => !prev);
+  }, []);
+
   return (
     <div className="mb-4">
       <label htmlFor={id} className="block text-[12.5px] font-semibold text-ink-soft mb-1.5 tracking-wide select-none">
@@ -48,7 +52,7 @@ const FormInput: React.FC<FormInputProps> = ({
         {isPassword && (
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={handleToggleShowPassword}
             className="absolute right-3 cursor-pointer text-[#B8A79C] hover:text-ink-soft select-none flex items-center justify-center"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
