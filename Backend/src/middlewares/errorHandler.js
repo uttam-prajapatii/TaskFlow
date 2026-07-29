@@ -1,5 +1,4 @@
 import logger from '../utils/logger.js';
-import { AppError } from '../utils/errors.js';
 
 /**
  * Global centralized Express error handling middleware
