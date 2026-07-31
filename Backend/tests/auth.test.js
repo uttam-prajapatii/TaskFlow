@@ -67,12 +67,13 @@ describe('Authentication System Tests', () => {
     test('should reject duplicate registration', async () => {
       const email = 'duplicate@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      await authService.register(email, password);
+      await authService.register(email, password, fullName);
 
       let errorThrown;
       try {
-        await authService.register(email, password);
+        await authService.register(email, password, fullName);
       } catch (err) {
         errorThrown = err;
       }
@@ -89,8 +90,9 @@ describe('Authentication System Tests', () => {
     test('should login with correct credentials', async () => {
       const email = 'login@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      await authService.register(email, password);
+      await authService.register(email, password, fullName);
       const result = await authService.login(email, password);
 
       expect(result.user.email).toBe(email);
@@ -101,8 +103,9 @@ describe('Authentication System Tests', () => {
     test('should reject invalid password with generic error message', async () => {
       const email = 'login_fail@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      await authService.register(email, password);
+      await authService.register(email, password, fullName);
 
       let errorThrown;
       try {
@@ -135,8 +138,9 @@ describe('Authentication System Tests', () => {
     test('should refresh tokens with a valid refresh token', async () => {
       const email = 'refresh@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password);
+      const regResult = await authService.register(email, password, fullName);
       const oldRefreshToken = regResult.tokens.refreshToken;
 
       // Wait a moment so creation timestamps differ if needed, then refresh
@@ -155,8 +159,9 @@ describe('Authentication System Tests', () => {
     test('should detect refresh token reuse and revoke all sessions', async () => {
       const email = 'reuse@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password);
+      const regResult = await authService.register(email, password, fullName);
       const oldRefreshToken = regResult.tokens.refreshToken;
 
       // 1st refresh: rotates successfully
@@ -199,8 +204,9 @@ describe('Authentication System Tests', () => {
     test('should handle concurrent/race condition refreshes safely', async () => {
       const email = 'race@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password);
+      const regResult = await authService.register(email, password, fullName);
       const oldRefreshToken = regResult.tokens.refreshToken;
 
       // Simulate a concurrent second request hitting within the 2-second grace period.
@@ -238,8 +244,9 @@ describe('Authentication System Tests', () => {
     test('should revoke token on logout', async () => {
       const email = 'logout@example.com';
       const password = 'Password123!';
+      const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password);
+      const regResult = await authService.register(email, password, fullName);
       const refreshToken = regResult.tokens.refreshToken;
 
       await authService.logout(refreshToken);
@@ -267,7 +274,8 @@ describe('Authentication System Tests', () => {
     test('should extract access token from cookies in protect middleware', async () => {
       const email = 'cookie-auth@example.com';
       const password = 'Password123!';
-      const regResult = await authService.register(email, password);
+      const fullName = 'Test User';
+      const regResult = await authService.register(email, password, fullName);
       const accessCookieName = process.env.JWT_ACCESS_COOKIE_NAME || 'accessToken';
       
       const req = {
@@ -294,7 +302,8 @@ describe('Authentication System Tests', () => {
     test('should read refresh token from cookies in controllers', async () => {
       const email = 'cookie-refresh@example.com';
       const password = 'Password123!';
-      const regResult = await authService.register(email, password);
+      const fullName = 'Test User';
+      const regResult = await authService.register(email, password, fullName);
       const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
       
       const req = {
