@@ -57,6 +57,78 @@ class WorkspaceController {
     await workspaceService.softDeleteWorkspace(workspaceId, req.user._id);
     return ApiResponse.success(res, 'Workspace deleted successfully', null);
   });
+
+  /**
+   * List all members of a workspace.
+   */
+  listMembers = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    const members = await workspaceService.listMembers(workspaceId, req.user._id);
+    return ApiResponse.success(res, 'Workspace members retrieved successfully', members);
+  });
+
+  /**
+   * Invite a member to the workspace.
+   */
+  inviteMember = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    const invite = await workspaceService.inviteMember(workspaceId, req.user._id, req.body);
+    return ApiResponse.created(res, 'Member invited successfully', invite);
+  });
+
+  /**
+   * List pending invitations.
+   */
+  listPendingInvites = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    const invites = await workspaceService.listPendingInvites(workspaceId, req.user._id);
+    return ApiResponse.success(res, 'Pending invitations retrieved successfully', invites);
+  });
+
+  /**
+   * Accept invitation.
+   */
+  acceptInvite = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const result = await workspaceService.acceptInvite(token, req.user);
+    return ApiResponse.success(res, result.message, result);
+  });
+
+  /**
+   * Revoke (soft-delete) invitation.
+   */
+  revokeInvite = asyncHandler(async (req, res) => {
+    const { workspaceId, inviteId } = req.params;
+    await workspaceService.revokeInvite(workspaceId, inviteId, req.user._id);
+    return ApiResponse.success(res, 'Invitation revoked successfully', null);
+  });
+
+  /**
+   * Change role of a member.
+   */
+  changeMemberRole = asyncHandler(async (req, res) => {
+    const { workspaceId, userId } = req.params;
+    const members = await workspaceService.changeMemberRole(workspaceId, req.user._id, userId, req.body.role);
+    return ApiResponse.success(res, 'Member role updated successfully', members);
+  });
+
+  /**
+   * Remove a member.
+   */
+  removeMember = asyncHandler(async (req, res) => {
+    const { workspaceId, userId } = req.params;
+    await workspaceService.removeMember(workspaceId, req.user._id, userId);
+    return ApiResponse.success(res, 'Member removed successfully', null);
+  });
+
+  /**
+   * Leave a workspace self.
+   */
+  leaveWorkspace = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    await workspaceService.leaveWorkspace(workspaceId, req.user._id);
+    return ApiResponse.success(res, 'You have left the workspace successfully', null);
+  });
 }
 
 export default new WorkspaceController();

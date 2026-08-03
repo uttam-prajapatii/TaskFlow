@@ -1,4 +1,5 @@
 import { Workspace } from './workspace.model.js';
+import { WorkspaceInvite } from './workspaceInvite.model.js';
 
 class WorkspaceRepository {
   /**
@@ -100,6 +101,82 @@ class WorkspaceRepository {
   async softDeleteWorkspace(id) {
     return Workspace.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
+      {
+        isDeleted: true,
+        deletedAt: new Date()
+      },
+      { new: true }
+    ).exec();
+  }
+
+  // ==========================================
+  // Workspace Invite Operations
+  // ==========================================
+
+  /**
+   * Create a new workspace invitation.
+   */
+  async createInvite(inviteData) {
+    return WorkspaceInvite.create(inviteData);
+  }
+
+  /**
+   * Find an active pending invitation by token (excluding soft-deleted ones).
+   */
+  async findInviteByToken(token) {
+    return WorkspaceInvite.findOne({
+      token,
+      status: 'pending',
+      isDeleted: { $ne: true },
+      expiresAt: { $gt: new Date() }
+    }).exec();
+  }
+
+  /**
+   * Find an invitation by ID and workspace ID (excluding soft-deleted ones).
+   */
+  async findInviteByIdAndWorkspace(inviteId, workspaceId) {
+    return WorkspaceInvite.findOne({
+      _id: inviteId,
+      workspaceId,
+      isDeleted: { $ne: true }
+    }).exec();
+  }
+
+  /**
+   * Find an active pending invitation for a specific workspace and email.
+   */
+  async findPendingInviteByWorkspaceAndEmail(workspaceId, email) {
+    return WorkspaceInvite.findOne({
+      workspaceId,
+      email: email.toLowerCase(),
+      status: 'pending',
+      isDeleted: { $ne: true },
+      expiresAt: { $gt: new Date() }
+    }).exec();
+  }
+
+  /**
+   * List all pending non-expired invitations for a workspace.
+   */
+  async listPendingInvites(workspaceId) {
+    return WorkspaceInvite.find({
+      workspaceId,
+      status: 'pending',
+      isDeleted: { $ne: true },
+      expiresAt: { $gt: new Date() }
+    })
+      .populate('invitedBy', 'fullName email')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Soft-delete an invitation.
+   */
+  async softDeleteInvite(inviteId) {
+    return WorkspaceInvite.findByIdAndUpdate(
+      inviteId,
       {
         isDeleted: true,
         deletedAt: new Date()

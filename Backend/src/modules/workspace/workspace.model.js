@@ -40,6 +40,10 @@ const WorkspaceSchema = new Schema({
       type: String,
       enum: ['workspace', 'private'],
       default: 'workspace'
+    },
+    inviteExpiryDays: {
+      type: Number,
+      default: 7
     }
   },
   isArchived: {

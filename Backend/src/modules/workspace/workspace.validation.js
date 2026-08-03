@@ -66,7 +66,7 @@ function validateSettings(settings) {
     return new BadRequestError('Settings must be an object');
   }
 
-  const { allowViewerComments, defaultBoardVisibility } = settings;
+  const { allowViewerComments, defaultBoardVisibility, inviteExpiryDays } = settings;
 
   if (allowViewerComments !== undefined && typeof allowViewerComments !== 'boolean') {
     return new BadRequestError('allowViewerComments must be a boolean');
@@ -78,6 +78,10 @@ function validateSettings(settings) {
       !['workspace', 'private'].includes(defaultBoardVisibility))
   ) {
     return new BadRequestError("defaultBoardVisibility must be either 'workspace' or 'private'");
+  }
+
+  if (inviteExpiryDays !== undefined && (typeof inviteExpiryDays !== 'number' || inviteExpiryDays <= 0)) {
+    return new BadRequestError('inviteExpiryDays must be a positive number');
   }
 
   return null;
@@ -107,6 +111,50 @@ export const validateUpdateWorkspace = (req, res, next) => {
   }
   if (description !== undefined) {
     req.body.description = description.trim();
+  }
+
+  next();
+};
+
+/**
+ * Middleware to validate inputs when inviting a new member.
+ */
+export const validateInviteMember = (req, res, next) => {
+  const { email, role, inviteExpiryDays } = req.body;
+
+  if (!email || typeof email !== 'string') {
+    return next(new BadRequestError('Valid email is required'));
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+  if (!emailRegex.test(email.trim())) {
+    return next(new BadRequestError('Invalid email format'));
+  }
+
+  if (role !== undefined) {
+    if (typeof role !== 'string' || !['admin', 'member', 'viewer'].includes(role)) {
+      return next(new BadRequestError("Role must be 'admin', 'member', or 'viewer'"));
+    }
+  }
+
+  if (inviteExpiryDays !== undefined) {
+    if (typeof inviteExpiryDays !== 'number' || inviteExpiryDays <= 0) {
+      return next(new BadRequestError('inviteExpiryDays must be a positive number'));
+    }
+  }
+
+  req.body.email = email.trim().toLowerCase();
+  next();
+};
+
+/**
+ * Middleware to validate inputs when changing a member's role.
+ */
+export const validateChangeRole = (req, res, next) => {
+  const { role } = req.body;
+
+  if (!role || typeof role !== 'string' || !['admin', 'member', 'viewer'].includes(role)) {
+    return next(new BadRequestError("Valid role is required ('admin', 'member', or 'viewer')"));
   }
 
   next();

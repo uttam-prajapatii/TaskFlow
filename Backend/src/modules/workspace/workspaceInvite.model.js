@@ -27,10 +27,18 @@ const InviteSchema = new Schema({
     default: 'pending' },
   expiresAt: { 
     type: Date, 
-    required: true }
+    required: true },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  }
 }, { timestamps: true });
 
-// TTL index — auto-remove expired invites
-InviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// TTL index — auto-remove expired invites after 7 days
+InviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
 
 export const WorkspaceInvite = mongoose.model('WorkspaceInvites', InviteSchema);
