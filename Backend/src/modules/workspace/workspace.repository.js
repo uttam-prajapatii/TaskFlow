@@ -44,7 +44,7 @@ class WorkspaceRepository {
     if (page === undefined || limit === undefined) {
       let builder = Workspace.find(query);
       if (view === 'compact') {
-        builder = builder.select('_id slug name');
+        builder = builder.select('_id slug name logoUrl');
       } else {
         builder = builder.populate('ownerId', 'fullName email')
           .populate('members.userId', 'fullName email');
@@ -57,7 +57,7 @@ class WorkspaceRepository {
 
     let builder = Workspace.find(query);
     if (view === 'compact') {
-      builder = builder.select('_id slug name');
+      builder = builder.select('_id slug name logoUrl');
     } else {
       builder = builder.populate('ownerId', 'fullName email')
         .populate('members.userId', 'fullName email');
