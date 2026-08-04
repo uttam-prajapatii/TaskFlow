@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You have been invited to TaskFlow</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #334155;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f8fafc;
+      padding: 40px 20px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      padding: 32px;
+      text-align: center;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      margin: 0;
+      text-decoration: none;
+    }
+    .logo span {
+      color: #a5b4fc;
+    }
+    .content {
+      padding: 40px 32px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    p {
+      font-size: 16px;
+      line-height: 24px;
+      margin-top: 0;
+      margin-bottom: 24px;
+      color: #475569;
+    }
+    .button-container {
+      margin: 32px 0;
+      text-align: center;
+    }
+    .button {
+      display: inline-block;
+      background-color: #4f46e5;
+      color: #ffffff !important;
+      font-weight: 600;
+      font-size: 16px;
+      padding: 12px 32px;
+      text-decoration: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2), 0 2px 4px -2px rgba(79, 70, 229, 0.2);
+      transition: background-color 0.2s;
+    }
+    .button:hover {
+      background-color: #4338ca;
+    }
+    .divider {
+      border: 0;
+      border-top: 1px solid #e2e8f0;
+      margin: 32px 0 24px 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 0 32px 32px 32px;
+    }
+    .footer p {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+    .footer a {
+      color: #6366f1;
+      text-decoration: none;
+    }
+    .card {
+      background-color: #f1f5f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 1px solid #e2e8f0;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .card-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <div class="logo">Task<span>Flow</span></div>
+      </div>
+      <div class="content">
+        <h1>Workspace Invitation</h1>
+        <p>Hello,</p>
+        <p>You have been invited to collaborate on TaskFlow! Join the workspace to start tracking tasks and managing projects with your team.</p>
+        
+        <div class="card">
+          <div class="card-title">Workspace Name</div>
+          <div class="card-value">{{workspaceName}}</div>
+        </div>
+
+        <p>Click the button below to accept your invitation and access the workspace:</p>
+        
+        <div class="button-container">
+          <a href="{{inviteUrl}}" class="button" target="_blank">Join Workspace</a>
+        </div>
+
+        <p>If you don't have a TaskFlow account, you will be prompted to register using this email address.</p>
+        
+        <hr class="divider">
+        
+        <div class="footer">
+          <p>This invitation will expire in 7 days.</p>
+          <p>&copy; {{YEAR}} TaskFlow. All rights reserved.</p>
+          <p><a href="{{APP_BASE_URL}}">Go to TaskFlow</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
