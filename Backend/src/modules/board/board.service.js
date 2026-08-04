@@ -9,8 +9,7 @@ import {
   isWorkspaceMember,
   isWorkspaceViewer,
   canViewBoard,
-  canUpdateBoard,
-  getStrId
+  canUpdateBoard
 } from './board.utils.js';
 
 class BoardService {
