@@ -2,7 +2,7 @@ import React from 'react';
 
 const BrandPanel: React.FC = () => {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-flame-1 via-flame-2 to-flame-3 text-white p-14 flex flex-col justify-between min-h-[500px] md:min-h-full select-none">
+    <div className="relative overflow-hidden bg-gradient-to-br from-flame-1 via-flame-2 to-flame-3 text-white p-14 flex flex-col justify-between h-full w-full select-none">
       {/* Decorative Grain overlay */}
       <div className="absolute inset-0 z-2 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_55%)] pointer-events-none" />
 

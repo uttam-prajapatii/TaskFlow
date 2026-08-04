@@ -50,7 +50,7 @@ const SignInForm: React.FC = () => {
   );
 
   return (
-    <div className="w-full max-w-[380px] mx-auto animate-[fadeUp_0.35s_ease]">
+    <div className="w-full animate-[fadeUp_0.35s_ease]">
       <div className="mb-7">
         <h2 className="font-display text-[26px] font-bold text-ink tracking-tight mb-1.5">
           Welcome back
