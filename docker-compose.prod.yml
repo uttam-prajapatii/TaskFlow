@@ -56,6 +56,32 @@ services:
       - taskflow_network
 
   # ==========================================
+  # Email Queue Worker Service (Production)
+  # ==========================================
+  worker:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: taskflow_worker_prod
+    restart: always
+    command: bun src/modules/email/email.worker.js
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - MONGO_URI=${MONGO_URI}
+      - REDIS_URL=${REDIS_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS}
+      - APP_BASE_URL=${APP_BASE_URL}
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - taskflow_network
+
+  # ==========================================
   # Frontend UI Service (Production)
   # ==========================================
   frontend:
