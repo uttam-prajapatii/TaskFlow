@@ -1,6 +1,12 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import logger from '../../utils/logger.js';
 import { renderTemplate } from './email.utils.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize SMTP Transporter
 const smtpHost = process.env.SMTP_HOST || 'localhost';
@@ -50,13 +56,31 @@ transporter.verify((error) => {
  */
 export async function sendEmail({ to, subject, templateName, variables }) {
   try {
-    const htmlContent = await renderTemplate(templateName, variables);
+    let logoPath = path.join(__dirname, 'templates', 'logo.png');
+    if (!fs.existsSync(logoPath)) {
+      logoPath = path.join(__dirname, '../../../../Frontend/public/logo.png');
+    }
+    const hasLogoFile = fs.existsSync(logoPath);
+
+    let htmlContent = await renderTemplate(templateName, variables);
+
+    // Replace data URI or LOGO_URL with cid:taskflow-logo for SMTP email clients
+    if (hasLogoFile) {
+      htmlContent = htmlContent.replace(/src="data:image\/png;base64,[^"]+"/g, 'src="cid:taskflow-logo"');
+    }
 
     const mailOptions = {
       from: process.env.EMAIL_FROM_ADDRESS || 'noreply@taskflow.app',
       to,
       subject,
       html: htmlContent,
+      attachments: hasLogoFile ? [
+        {
+          filename: 'logo.png',
+          path: logoPath,
+          cid: 'taskflow-logo',
+        }
+      ] : [],
     };
 
     const info = await transporter.sendMail(mailOptions);
