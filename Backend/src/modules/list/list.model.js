@@ -30,9 +30,18 @@ const ListSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: { type: Date, default: Date.now }
 });
 
 ListSchema.index({ boardId: 1, position: 1 });
+ListSchema.index({ deletedAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
 
 export const List = mongoose.model('List', ListSchema);
