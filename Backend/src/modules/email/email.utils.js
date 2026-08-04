@@ -5,6 +5,27 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+let cachedLogoDataUri = null;
+
+function getLogoSrc() {
+  if (cachedLogoDataUri) return cachedLogoDataUri;
+  try {
+    // Look for logo.png in templates folder first, then Frontend/public/logo.png
+    let logoPath = path.join(__dirname, 'templates', 'logo.png');
+    if (!fs.existsSync(logoPath)) {
+      logoPath = path.join(__dirname, '../../../../Frontend/public/logo.png');
+    }
+    if (fs.existsSync(logoPath)) {
+      const logoBuffer = fs.readFileSync(logoPath);
+      cachedLogoDataUri = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      return cachedLogoDataUri;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return `${process.env.APP_BASE_URL || 'https://taskflow.app'}/logo.png`;
+}
+
 /**
  * Loads an HTML email template and replaces placeholders with provided variables.
  * 
@@ -21,10 +42,14 @@ export async function renderTemplate(templateName, variables = {}) {
   let htmlContent = await fs.promises.readFile(templatePath, 'utf8');
 
   // Inject defaults
+  const baseUrl = process.env.APP_BASE_URL || 'https://taskflow.app';
+  const logoSrc = getLogoSrc();
+  
   const allVariables = {
-    ...variables,
-    APP_BASE_URL: process.env.APP_BASE_URL || 'https://taskflow.app',
+    APP_BASE_URL: baseUrl,
+    LOGO_URL: logoSrc,
     YEAR: new Date().getFullYear(),
+    ...variables,
   };
 
   // Replace {{variableName}} in template content
