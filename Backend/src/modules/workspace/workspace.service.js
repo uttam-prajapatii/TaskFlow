@@ -4,6 +4,7 @@ import User from '../auth/user.model.js';
 import { generateUniqueSlug, getStrId, generateRandomToken } from './workspace.utils.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import logger from '../../utils/logger.js';
+import { enqueueEmail } from '../email/email.queue.js';
 
 class WorkspaceService {
   /**
@@ -229,6 +230,21 @@ class WorkspaceService {
       token,
       expiresAt
     });
+
+    // Enqueue workspace invitation email job
+    try {
+      await enqueueEmail('sendInvite', {
+        toEmail: targetEmail,
+        workspaceName: workspace.name,
+        inviteToken: token,
+      });
+    } catch (emailError) {
+      logger.error(`Failed to enqueue workspace invitation email to ${targetEmail}: ${emailError.message}`, {
+        workspaceId,
+        inviteId: invite._id,
+      });
+    }
+
     logger.info(`Member invitation created: ${targetEmail}`, { workspaceId, role: role || 'member', invitedBy: userId, inviteId: invite._id });
     return invite;
   }
