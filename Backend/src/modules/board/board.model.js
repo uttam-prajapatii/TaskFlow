@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
-import "./list.model.js";
+import "../list/list.model.js";
+import "../task/task.model.js";
+import "../auth/user.model.js";
+
 const { Schema } = mongoose;
 
 const BoardSchema = new Schema({
