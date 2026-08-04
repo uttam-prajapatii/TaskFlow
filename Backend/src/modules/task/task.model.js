@@ -72,6 +72,14 @@ const TaskSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -81,6 +89,7 @@ TaskSchema.index({ listId: 1, position: 1 });
 TaskSchema.index({ boardId: 1, isArchived: 1 });
 TaskSchema.index({ assignees: 1 });
 TaskSchema.index({ title: 'text', description: 'text' }); // full-text search
+TaskSchema.index({ deletedAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
 
 TaskSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
