@@ -1,45 +1,9 @@
 import authService from './auth.service.js';
 import ApiResponse from '../../utils/apiResponse.js';
 import asyncHandler from '../../utils/asyncHandler.js';
+import { setTokenCookies, clearTokenCookies, getRefreshTokenFromRequest } from './auth.utils.js';
 
 class AuthController {
-  /**
-   * Register a new user.
-   */
-  /**
-   * Helper to set access and refresh token cookies
-   */
-  setTokenCookies(res, tokens) {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const accessCookieName = process.env.JWT_ACCESS_COOKIE_NAME || 'accessToken';
-    const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
-
-    res.cookie(accessCookieName, tokens.accessToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      maxAge: 15 * 60 * 1000, // 15 mins
-    });
-
-    res.cookie(refreshCookieName, tokens.refreshToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-  }
-
-  /**
-   * Helper to clear auth cookies
-   */
-  clearTokenCookies(res) {
-    const accessCookieName = process.env.JWT_ACCESS_COOKIE_NAME || 'accessToken';
-    const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
-
-    res.clearCookie(accessCookieName);
-    res.clearCookie(refreshCookieName);
-  }
-
   /**
    * Register a new user.
    */
@@ -48,7 +12,7 @@ class AuthController {
     const result = await authService.register(email, password, fullName);
     
     // Set cookies for hybrid authentication
-    this.setTokenCookies(res, result.tokens);
+    setTokenCookies(res, result.tokens);
 
     return ApiResponse.created(res, 'User registered successfully', result);
   });
@@ -61,7 +25,7 @@ class AuthController {
     const result = await authService.login(email, password);
     
     // Set cookies for hybrid authentication
-    this.setTokenCookies(res, result.tokens);
+    setTokenCookies(res, result.tokens);
 
     return ApiResponse.success(res, 'Logged in successfully', result);
   });
@@ -70,12 +34,11 @@ class AuthController {
    * Refresh the access and refresh tokens.
    */
   refresh = asyncHandler(async (req, res) => {
-    const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
-    const refreshToken = req.body.refreshToken || (req?.cookies[refreshCookieName]);
+    const refreshToken = getRefreshTokenFromRequest(req);
     const tokens = await authService.refresh(refreshToken);
     
     // Rotate cookies
-    this.setTokenCookies(res, tokens);
+    setTokenCookies(res, tokens);
 
     return ApiResponse.success(res, 'Tokens refreshed successfully', tokens);
   });
@@ -84,12 +47,11 @@ class AuthController {
    * Log out and revoke the refresh token.
    */
   logout = asyncHandler(async (req, res) => {
-    const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
-    const refreshToken = req.body.refreshToken || (req?.cookies[refreshCookieName]);
+    const refreshToken = getRefreshTokenFromRequest(req);
     await authService.logout(refreshToken);
     
     // Clear cookies
-    this.clearTokenCookies(res);
+    clearTokenCookies(res);
 
     return ApiResponse.success(res, 'Logged out successfully', null);
   });

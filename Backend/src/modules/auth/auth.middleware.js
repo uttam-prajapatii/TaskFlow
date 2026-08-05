@@ -2,22 +2,15 @@ import tokenService from './token.service.js';
 import authRepository from './auth.repository.js';
 import { UnauthorizedError } from '../../utils/errors.js';
 import asyncHandler from '../../utils/asyncHandler.js';
+import { getAccessTokenFromRequest } from './auth.utils.js';
 
 /**
  * Protect middleware: Ensures the request contains a valid access token,
  * verifies it, and attaches the active user to `req.user`.
  */
 export const protect = asyncHandler(async (req, res, next) => {
-  let token;
-
-  const accessCookieName = process.env.JWT_ACCESS_COOKIE_NAME || 'accessToken';
-
   // 1. Extract token from Authorization header (Bearer <token>) or from cookies
-  if (req.headers.authorization?.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  } else if (req.cookies?.[accessCookieName]) {
-    token = req.cookies[accessCookieName];
-  }
+  const token = getAccessTokenFromRequest(req);
 
   if (!token) {
     throw new UnauthorizedError('Access token is missing');

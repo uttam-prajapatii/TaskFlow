@@ -6,6 +6,7 @@ import tokenService from '../src/modules/auth/token.service.js';
 import User from '../src/modules/auth/user.model.js';
 import RefreshToken from '../src/modules/auth/refreshToken.model.js';
 import { UnauthorizedError, BadRequestError } from '../src/utils/errors.js';
+import { cookieConfig } from '../src/modules/auth/auth.utils.js';
 
 // Load environment variables for the test context
 process.env.NODE_ENV = 'test';
@@ -276,7 +277,7 @@ describe('Authentication System Tests', () => {
       const password = 'Password123!';
       const fullName = 'Test User';
       const regResult = await authService.register(email, password, fullName);
-      const accessCookieName = process.env.JWT_ACCESS_COOKIE_NAME || 'accessToken';
+      const accessCookieName = cookieConfig.accessToken.name;
       
       const req = {
         headers: {},
@@ -304,7 +305,7 @@ describe('Authentication System Tests', () => {
       const password = 'Password123!';
       const fullName = 'Test User';
       const regResult = await authService.register(email, password, fullName);
-      const refreshCookieName = process.env.JWT_REFRESH_COOKIE_NAME || 'refreshToken';
+      const refreshCookieName = cookieConfig.refreshToken.name;
       
       const req = {
         body: {},
