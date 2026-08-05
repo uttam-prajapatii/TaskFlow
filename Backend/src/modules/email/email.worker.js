@@ -4,7 +4,7 @@ import IORedis from 'ioredis';
 import mongoose from 'mongoose';
 import connectDB from '../../config/db.js';
 import logger from '../../utils/logger.js';
-import { Task } from '../workspace/task.model.js';
+import { Task } from '../task/task.model.js';
 import { FailedEmailJob } from './failedEmailJob.model.js';
 import { emailQueue, enqueueEmail } from './email.queue.js';
 import {
@@ -133,7 +133,7 @@ worker.on('failed', async (job, error) => {
   // Write to database collection for manual review when the job has permanently failed
   if (job.attemptsMade >= maxAttempts) {
     logger.error(`Job permanently failed after all retry attempts. name=${job.name} jobId=${job.id}`);
-    
+
     try {
       await FailedEmailJob.create({
         jobId: job.id,
