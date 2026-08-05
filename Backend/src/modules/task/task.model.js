@@ -55,7 +55,7 @@ const TaskSchema = new Schema({
   },
   attachments: {
     type: [Schema.Types.ObjectId],
-    ref: 'Attachment',
+    ref: 'TaskAttachment',
     default: []
   },
   position: {

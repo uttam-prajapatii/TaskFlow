@@ -74,6 +74,18 @@ class TaskController {
     const tasks = await taskService.searchTasks(boardId, req.user._id, req.query);
     return ApiResponse.success(res, 'Search completed successfully', tasks);
   });
+
+  uploadAttachment = asyncHandler(async (req, res) => {
+    const { taskId } = req.params;
+    const attachment = await taskService.uploadAttachment(taskId, req.user._id, req.file);
+    return ApiResponse.created(res, 'Attachment uploaded successfully', attachment);
+  });
+
+  deleteAttachment = asyncHandler(async (req, res) => {
+    const { taskId, attachmentId } = req.params;
+    await taskService.deleteAttachment(taskId, attachmentId, req.user._id);
+    return ApiResponse.success(res, 'Attachment deleted successfully', null);
+  });
 }
 
 export default new TaskController();

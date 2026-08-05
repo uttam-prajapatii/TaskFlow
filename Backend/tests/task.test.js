@@ -6,6 +6,7 @@ import { Workspace } from '../src/modules/workspace/workspace.model.js';
 import { Board } from '../src/modules/board/board.model.js';
 import { List } from '../src/modules/list/list.model.js';
 import { Task } from '../src/modules/task/task.model.js';
+import { TaskAttachment } from '../src/modules/task/taskAttachment.model.js';
 import taskService from '../src/modules/task/task.service.js';
 import listService from '../src/modules/list/list.service.js';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../src/utils/errors.js';
@@ -36,6 +37,7 @@ describe('Task Management Automated Tests', () => {
     await Board.deleteMany({});
     await List.deleteMany({});
     await Task.deleteMany({});
+    await TaskAttachment.deleteMany({});
     await mongoose.connection.close();
   });
 
@@ -45,6 +47,7 @@ describe('Task Management Automated Tests', () => {
     await Board.deleteMany({});
     await List.deleteMany({});
     await Task.deleteMany({});
+    await TaskAttachment.deleteMany({});
 
     // Create test users
     owner = await User.create({ email: 'owner@test.com', password: 'password123', fullName: 'Workspace Owner', isActive: true });
@@ -368,6 +371,76 @@ describe('Task Management Automated Tests', () => {
       }
       expect(error).toBeDefined();
       expect(error).toBeInstanceOf(BadRequestError);
+    });
+  });
+
+  describe('Task Attachments', () => {
+    let task;
+    let mockFile;
+
+    beforeEach(async () => {
+      task = await taskService.createTask(listTodo._id, member._id, { title: 'Attachment Target Task' });
+      mockFile = {
+        buffer: Buffer.from('mock file content'),
+        originalname: 'spec_document.pdf',
+        mimetype: 'application/pdf',
+        size: 100
+      };
+    });
+
+    test('should allow workspace member to upload an attachment and push to task array', async () => {
+      const attachment = await taskService.uploadAttachment(task._id, member._id, mockFile);
+      
+      expect(attachment).toBeDefined();
+      expect(attachment.fileName).toBe('spec_document.pdf');
+      expect(attachment.mimeType).toBe('application/pdf');
+      expect(attachment.sizeBytes).toBe(100);
+      expect(attachment.uploadedBy.toString()).toBe(member._id.toString());
+      expect(attachment.storageKey).toContain(`taskflow/workspaces/${workspace._id.toString()}/boards/${board._id.toString()}/tasks/${task._id.toString()}`);
+
+      // Verify task references it
+      const updatedTask = await Task.findById(task._id);
+      expect(updatedTask.attachments).toHaveLength(1);
+      expect(updatedTask.attachments[0].toString()).toBe(attachment._id.toString());
+    });
+
+    test('should block workspace viewer from uploading an attachment', async () => {
+      let error;
+      try {
+        await taskService.uploadAttachment(task._id, viewer._id, mockFile);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(ForbiddenError);
+    });
+
+    test('should allow workspace member to delete task attachment', async () => {
+      const attachment = await taskService.uploadAttachment(task._id, member._id, mockFile);
+      
+      // Delete
+      await taskService.deleteAttachment(task._id, attachment._id, member._id);
+
+      // Verify db document deleted
+      const checkDoc = await TaskAttachment.findById(attachment._id);
+      expect(checkDoc).toBeNull();
+
+      // Verify reference pulled from task
+      const updatedTask = await Task.findById(task._id);
+      expect(updatedTask.attachments).toHaveLength(0);
+    });
+
+    test('should block workspace viewer from deleting task attachment', async () => {
+      const attachment = await taskService.uploadAttachment(task._id, member._id, mockFile);
+
+      let error;
+      try {
+        await taskService.deleteAttachment(task._id, attachment._id, viewer._id);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(ForbiddenError);
     });
   });
 });
