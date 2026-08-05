@@ -1,4 +1,5 @@
 import { Task } from './task.model.js';
+import { TaskAttachment } from './taskAttachment.model.js';
 
 class TaskRepository {
   /**
@@ -111,6 +112,27 @@ class TaskRepository {
       { $pull: { assignees: userId } },
       { new: true }
     ).exec();
+  }
+
+  /**
+   * Create a new task attachment.
+   */
+  async createAttachment(attachmentData) {
+    return TaskAttachment.create(attachmentData);
+  }
+
+  /**
+   * Find a task attachment by ID.
+   */
+  async findAttachmentById(id) {
+    return TaskAttachment.findById(id).exec();
+  }
+
+  /**
+   * Hard-delete a task attachment.
+   */
+  async deleteAttachment(id) {
+    return TaskAttachment.findByIdAndDelete(id).exec();
   }
 }
 

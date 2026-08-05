@@ -185,3 +185,11 @@ export const validateAddAssignee = (req, res, next) => {
   }
   next();
 };
+
+export const validateAttachmentIdParam = (req, res, next) => {
+  const { attachmentId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(attachmentId)) {
+    return next(new BadRequestError('Invalid attachment ID format'));
+  }
+  next();
+};

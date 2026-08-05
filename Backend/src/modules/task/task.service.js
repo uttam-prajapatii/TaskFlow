@@ -1,11 +1,13 @@
 import mongoose from 'mongoose';
+import path from 'path';
 import taskRepository from './task.repository.js';
 import listRepository from '../list/list.repository.js';
 import boardRepository from '../board/board.repository.js';
 import workspaceRepository from '../workspace/workspace.repository.js';
 import logger from '../../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
-import { getTaskAccessRights, isParentArchived, formatGroupedTasks, getStrId } from './task.utils.js';
+import { getTaskAccessRights, isParentArchived, formatGroupedTasks, getStrId, getCloudinaryResourceType } from './task.utils.js';
+import { uploadStream, deleteFromCloudinary } from '../../config/cloudinary.js';
 
 class TaskService {
   /**
@@ -496,6 +498,110 @@ class TaskService {
       filters.dueDate = { $ne: null, $lt: beforeDate };
     }
     return taskRepository.findTasksByBoard(boardId, filters);
+  }
+
+  /**
+   * Upload an attachment to a task.
+   */
+  async uploadAttachment(taskId, userId, file) {
+    if (!file) {
+      throw new BadRequestError('No file uploaded');
+    }
+
+    const { task, board, workspace, access } = await this.getValidatedTaskContext(taskId, userId);
+
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to add attachments on this board');
+    }
+
+    if (isParentArchived({ board, workspace })) {
+      throw new ForbiddenError('Cannot upload attachment because the board or workspace is archived');
+    }
+
+    // Structured path: taskflow/workspaces/{workspaceId}/boards/{boardId}/tasks/{taskId}/filename_timestamp
+    const workspaceId = getStrId(workspace._id);
+    const boardId = getStrId(board._id);
+    const taskIdStr = getStrId(task._id);
+
+    const folder = `taskflow/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskIdStr}`;
+    const parsed = path.parse(file.originalname);
+    const cleanName = parsed.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const publicId = `${cleanName}_${Date.now()}`;
+
+    let uploadResult;
+    try {
+      uploadResult = await uploadStream(file.buffer, {
+        folder,
+        public_id: publicId
+      });
+    } catch (err) {
+      logger.error('Failed to upload file to Cloudinary', err);
+      throw err;
+    }
+
+    const attachment = await taskRepository.createAttachment({
+      taskId: task._id,
+      fileName: file.originalname,
+      storageKey: uploadResult.public_id,
+      fileUrl: uploadResult.secure_url,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      uploadedBy: userId
+    });
+
+    task.attachments.push(attachment._id);
+    await task.save();
+
+    logger.info(`Attachment uploaded successfully to task: ${task.title}`, {
+      taskId,
+      attachmentId: attachment._id,
+      uploadedBy: userId
+    });
+
+    return attachment;
+  }
+
+  /**
+   * Delete an attachment from a task.
+   */
+  async deleteAttachment(taskId, attachmentId, userId) {
+    this.validateId(attachmentId, 'attachment');
+    const { task, board, workspace, access } = await this.getValidatedTaskContext(taskId, userId);
+
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to delete attachments on this board');
+    }
+
+    if (isParentArchived({ board, workspace })) {
+      throw new ForbiddenError('Cannot delete attachment because the board or workspace is archived');
+    }
+
+    const attachment = await taskRepository.findAttachmentById(attachmentId);
+    if (!attachment) {
+      throw new NotFoundError('Attachment not found');
+    }
+
+    if (getStrId(attachment.taskId) !== getStrId(task._id)) {
+      throw new BadRequestError('Attachment does not belong to this task');
+    }
+
+    const resourceType = getCloudinaryResourceType(attachment.mimeType);
+    try {
+      await deleteFromCloudinary(attachment.storageKey, resourceType);
+    } catch (err) {
+      logger.warn(`Failed to delete resource ${attachment.storageKey} on Cloudinary: ${err.message}. Proceeding with DB cleanup.`);
+    }
+
+    await taskRepository.deleteAttachment(attachmentId);
+
+    task.attachments.pull(attachmentId);
+    await task.save();
+
+    logger.info(`Attachment deleted successfully from task: ${task.title}`, {
+      taskId,
+      attachmentId,
+      deletedBy: userId
+    });
   }
 }
 
