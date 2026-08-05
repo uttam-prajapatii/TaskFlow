@@ -487,7 +487,14 @@ class TaskService {
       const labels = queryParams.label.split(',').map((l) => l.trim());
       filters.labels = { $in: labels };
     }
-
+    
+    if (queryParams.dueBefore) {
+      const beforeDate = new Date(queryParams.dueBefore);
+      if (Number.isNaN(beforeDate.getTime())) {
+        throw new BadRequestError('Invalid dueBefore date format');
+      }
+      filters.dueDate = { $ne: null, $lt: beforeDate };
+    }
     return taskRepository.findTasksByBoard(boardId, filters);
   }
 }

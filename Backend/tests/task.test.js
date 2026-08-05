@@ -343,14 +343,31 @@ describe('Task Management Automated Tests', () => {
 
   describe('Search Tasks', () => {
     beforeEach(async () => {
-      await taskService.createTask(listTodo._id, member._id, { title: 'Clean the kitchen', description: 'Sweep floor' });
-      await taskService.createTask(listTodo._id, member._id, { title: 'Write tests', description: 'Verify endpoints' });
+      await taskService.createTask(listTodo._id, member._id, { title: 'Clean the kitchen', description: 'Sweep floor', dueDate: new Date('2026-08-10') });
+      await taskService.createTask(listTodo._id, member._id, { title: 'Write tests', description: 'Verify endpoints', dueDate: new Date('2026-08-20') });
     });
 
     test('should filter by query string q', async () => {
       const results = await taskService.searchTasks(board._id, viewer._id, { q: 'kitchen' });
       expect(results).toHaveLength(1);
       expect(results[0].title).toBe('Clean the kitchen');
+    });
+
+    test('should filter by dueBefore date', async () => {
+      const results = await taskService.searchTasks(board._id, viewer._id, { dueBefore: '2026-08-15' });
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('Clean the kitchen');
+    });
+
+    test('should throw BadRequestError on invalid dueBefore date format', async () => {
+      let error;
+      try {
+        await taskService.searchTasks(board._id, viewer._id, { dueBefore: 'invalid-date' });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(BadRequestError);
     });
   });
 });
