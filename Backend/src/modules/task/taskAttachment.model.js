@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import '../task.model.js'
+import './task.model.js'
 import '../auth/user.model.js'
 
 const { Schema } = mongoose;

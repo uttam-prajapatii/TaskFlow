@@ -69,3 +69,14 @@ export function formatGroupedTasks(lists, tasks) {
     }))
   };
 }
+
+/**
+ * Maps file MIME types to Cloudinary resource types (image, video, raw).
+ */
+export function getCloudinaryResourceType(mimeType) {
+  if (!mimeType) return 'image';
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'video';
+  return 'raw';
+}
