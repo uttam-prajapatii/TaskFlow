@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TaskFlow — Product Launch Board</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode: "class" };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { height: 100%; margin: 0; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 8px; }
+  .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+</head>
+<body class="bg-neutral-100 dark:bg-neutral-950">
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useCallback, useEffect } = React;
+
+/* ---------------------------------------------------------------------
+   Icons — minimal inline SVG set (no external icon dependency)
+--------------------------------------------------------------------- */
+const Icon = ({ path, size = 16, className = "", strokeWidth = 2 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    {path}
+  </svg>
+);
+const paths = {
+  search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>,
+  filter: <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>,
+  sort: <><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></>,
+  userPlus: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="16" x2="22" y1="11" y2="11"/></>,
+  bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
+  plus: <><path d="M5 12h14"/><path d="M12 5v14"/></>,
+  more: <><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></>,
+  message: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
+  paperclip: <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>,
+  check: <><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></>,
+  calendar: <><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>,
+  x: <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
+  layoutGrid: <><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></>,
+  clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+  barChart: <><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></>,
+  archive: <><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></>,
+  edit: <><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></>,
+  trash: <><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>,
+  copy: <><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></>,
+  extLink: <><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></>,
+  list: <><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></>,
+  home: <><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
+  folder: <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>,
+  settings: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>,
+};
+const Ic = (name, props) => <Icon path={paths[name]} {...props} />;
+
+/* ---------------------------------------------------------------------
+   Design tokens
+--------------------------------------------------------------------- */
+const PRIORITY = {
+  urgent: { label: "Urgent", dot: "bg-rose-500", text: "text-rose-700 dark:text-rose-300", bg: "bg-rose-50 dark:bg-rose-500/10", ring: "ring-rose-200 dark:ring-rose-500/20" },
+  high: { label: "High", dot: "bg-orange-500", text: "text-orange-700 dark:text-orange-300", bg: "bg-orange-50 dark:bg-orange-500/10", ring: "ring-orange-200 dark:ring-orange-500/20" },
+  medium: { label: "Medium", dot: "bg-amber-400", text: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-500/10", ring: "ring-amber-200 dark:ring-amber-500/20" },
+  low: { label: "Low", dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-500/10", ring: "ring-emerald-200 dark:ring-emerald-500/20" },
+};
+const LABEL_COLORS = {
+  design: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  backend: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  frontend: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+  bug: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  research: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+  marketing: "bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300",
+};
+const AVATAR_COLORS = ["bg-orange-500", "bg-rose-500", "bg-amber-500", "bg-teal-500", "bg-violet-500", "bg-sky-500"];
+const avatarColor = (name) => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+const initials = (name) => name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+
+/* ---------------------------------------------------------------------
+   Mock data
+--------------------------------------------------------------------- */
+const MEMBERS = [
+  { id: "u1", name: "Sadik Shaikh" },
+  { id: "u2", name: "Priya Nair" },
+  { id: "u3", name: "Rohan Mehta" },
+  { id: "u4", name: "Ayesha Khan" },
+  { id: "u5", name: "Devendra Rao" },
+];
+const initialColumns = [
+  { id: "todo", title: "Todo", color: "bg-slate-400" },
+  { id: "in_progress", title: "In Progress", color: "bg-orange-500" },
+  { id: "review", title: "Review", color: "bg-violet-500" },
+  { id: "done", title: "Done", color: "bg-emerald-500" },
+];
+let taskSeq = 100;
+const mkTask = (over) => ({
+  id: "t" + (taskSeq++), title: "Untitled task", description: "", priority: "medium",
+  labels: [], dueDate: null, assignees: [], attachments: 0, comments: 0,
+  checklist: { done: 0, total: 0 }, status: "todo", createdAt: Date.now(), ...over,
+});
+const initialTasks = [
+  mkTask({ id: "t1", title: "Redesign onboarding flow", description: "Simplify the 5-step signup into 2 steps with progressive disclosure.", priority: "high", labels: ["design"], dueDate: "2026-08-10", assignees: ["u1", "u2"], attachments: 3, comments: 5, checklist: { done: 2, total: 5 }, status: "todo" }),
+  mkTask({ id: "t2", title: "Fix Safari drag ghost image", description: "Drag preview renders blank on Safari 17.", priority: "urgent", labels: ["bug", "frontend"], dueDate: "2026-08-06", assignees: ["u3"], attachments: 0, comments: 2, checklist: { done: 0, total: 0 }, status: "todo" }),
+  mkTask({ id: "t3", title: "Draft Q3 pricing page copy", description: "New tiers: Starter, Pro, Enterprise.", priority: "low", labels: ["marketing"], dueDate: null, assignees: ["u4"], attachments: 1, comments: 0, checklist: { done: 0, total: 3 }, status: "todo" }),
+  mkTask({ id: "t4", title: "Implement optimistic task move", description: "Use React Query onMutate to update cache before server confirms.", priority: "high", labels: ["frontend", "backend"], dueDate: "2026-08-08", assignees: ["u1"], attachments: 0, comments: 8, checklist: { done: 4, total: 4 }, status: "in_progress" }),
+  mkTask({ id: "t5", title: "Set up rate limiting on task endpoints", description: "", priority: "medium", labels: ["backend"], dueDate: "2026-08-12", assignees: ["u5"], attachments: 0, comments: 1, checklist: { done: 1, total: 6 }, status: "in_progress" }),
+  mkTask({ id: "t6", title: "User research: churn interviews", description: "5 interviews with churned accounts from last quarter.", priority: "medium", labels: ["research"], dueDate: "2026-08-14", assignees: ["u2", "u4"], attachments: 6, comments: 3, checklist: { done: 0, total: 0 }, status: "review" }),
+  mkTask({ id: "t7", title: "Board column drag reorder", description: "", priority: "low", labels: ["frontend"], dueDate: null, assignees: ["u3"], attachments: 0, comments: 0, checklist: { done: 3, total: 3 }, status: "review" }),
+  mkTask({ id: "t8", title: "Migrate auth to refresh tokens", description: "Access token 15m, refresh token 30d, rotate on use.", priority: "urgent", labels: ["backend"], dueDate: "2026-08-05", assignees: ["u1", "u5"], attachments: 2, comments: 12, checklist: { done: 8, total: 8 }, status: "done" }),
+  mkTask({ id: "t9", title: "Dark mode contrast audit", description: "", priority: "low", labels: ["design"], dueDate: null, assignees: ["u2"], attachments: 0, comments: 0, checklist: { done: 0, total: 0 }, status: "done" }),
+];
+
+/* ---------------------------------------------------------------------
+   Small components
+--------------------------------------------------------------------- */
+function Avatar({ userId, size = 22 }) {
+  const m = MEMBERS.find((x) => x.id === userId);
+  if (!m) return null;
+  return (
+    <div title={m.name} className={avatarColor(m.name) + " rounded-full flex items-center justify-center text-white font-medium ring-2 ring-white dark:ring-neutral-900 shrink-0"}
+         style={{ width: size, height: size, fontSize: size * 0.4 }}>
+      {initials(m.name)}
+    </div>
+  );
+}
+function PriorityBadge({ level }) {
+  const p = PRIORITY[level];
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${p.bg} ${p.text} ring-1 ${p.ring}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${p.dot}`} />{p.label}
+    </span>
+  );
+}
+function LabelChip({ name }) {
+  const cls = LABEL_COLORS[name] || "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
+  return <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${cls}`}>{name}</span>;
+}
+const TODAY = new Date("2026-08-05");
+const isOverdue = (d) => d && new Date(d) < TODAY;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null;
+
+/* ---------------------------------------------------------------------
+   Task card
+--------------------------------------------------------------------- */
+function TaskCard({ task, onOpen, onDragStart, onDragEnd, onMenuAction, isDragging }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const overdue = isOverdue(task.dueDate) && task.status !== "done";
+  const pct = task.checklist.total > 0 ? Math.round((task.checklist.done / task.checklist.total) * 100) : null;
+
+  return (
+    <div draggable onDragStart={(e) => onDragStart(e, task)} onDragEnd={onDragEnd} onClick={() => onOpen(task)}
+         tabIndex={0} role="button" aria-label={`Open task ${task.title}`}
+         onKeyDown={(e) => { if (e.key === "Enter") onOpen(task); }}
+         className={`group relative bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3.5 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md hover:border-orange-200 dark:hover:border-orange-900/50 transition-all duration-150 ${isDragging ? "opacity-40 scale-95" : "opacity-100 scale-100"}`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <PriorityBadge level={task.priority} />
+        <div className="relative">
+          <button onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 -m-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-opacity" aria-label="Task menu">
+            {Ic("more", { size: 15, className: "text-neutral-400" })}
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }} />
+              <div className="absolute right-0 top-6 z-20 w-40 bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 shadow-lg py-1">
+                {[
+                  { k: "open", label: "Open", icon: "extLink" },
+                  { k: "edit", label: "Edit", icon: "edit" },
+                  { k: "duplicate", label: "Duplicate", icon: "copy" },
+                  { k: "archive", label: "Archive", icon: "archive" },
+                  { k: "delete", label: "Delete", icon: "trash", danger: true },
+                ].map((item) => (
+                  <button key={item.k} onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onMenuAction(item.k, task); }}
+                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-[13px] hover:bg-neutral-50 dark:hover:bg-neutral-800 ${item.danger ? "text-rose-600 dark:text-rose-400" : "text-neutral-700 dark:text-neutral-300"}`}>
+                    {Ic(item.icon, { size: 13 })}{item.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <h4 className="text-[13.5px] font-medium text-neutral-900 dark:text-neutral-100 leading-snug mb-1">{task.title}</h4>
+      {task.description && <p className="text-[12px] text-neutral-500 dark:text-neutral-400 line-clamp-2 mb-2.5">{task.description}</p>}
+
+      {task.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2.5">{task.labels.map((l) => <LabelChip key={l} name={l} />)}</div>
+      )}
+
+      {pct !== null && (
+        <div className="mb-2.5">
+          <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400 mb-1">
+            <span className="flex items-center gap-1">{Ic("check", { size: 11 })} {task.checklist.done}/{task.checklist.total}</span>
+            <span>{pct}%</span>
+          </div>
+          <div className="h-1 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all" style={{ width: pct + "%" }} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-2.5 text-neutral-400 dark:text-neutral-500">
+          {task.dueDate && (
+            <span className={`flex items-center gap-1 text-[11px] ${overdue ? "text-rose-600 dark:text-rose-400 font-medium" : ""}`}>
+              {Ic("calendar", { size: 12 })} {fmtDate(task.dueDate)}
+            </span>
+          )}
+          {task.attachments > 0 && <span className="flex items-center gap-0.5 text-[11px]">{Ic("paperclip", { size: 11 })} {task.attachments}</span>}
+          {task.comments > 0 && <span className="flex items-center gap-0.5 text-[11px]">{Ic("message", { size: 11 })} {task.comments}</span>}
+        </div>
+        {task.assignees.length > 0 && (
+          <div className="flex -space-x-1.5">
+            {task.assignees.slice(0, 3).map((a) => <Avatar key={a} userId={a} size={20} />)}
+            {task.assignees.length > 3 && (
+              <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[9px] font-medium text-neutral-600 dark:text-neutral-300 ring-2 ring-white dark:ring-neutral-900">
+                +{task.assignees.length - 3}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   Column
+--------------------------------------------------------------------- */
+function Column({ column, tasks, onOpen, onDragStart, onDragEnd, onDrop, draggingId, dragOverCol, onDragOverCol, onAddTask, onMenuAction }) {
+  const isOver = dragOverCol === column.id;
+  return (
+    <div onDragOver={(e) => { e.preventDefault(); onDragOverCol(column.id); }} onDrop={(e) => onDrop(e, column.id)}
+         className="flex flex-col w-[300px] shrink-0 h-full">
+      <div className="flex items-center justify-between px-1 mb-3">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${column.color}`} />
+          <h3 className="text-[13px] font-semibold text-neutral-700 dark:text-neutral-200">{column.title}</h3>
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-medium">{tasks.length}</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button onClick={() => onAddTask(column.id)} className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-orange-500 transition-colors" aria-label={`Add task to ${column.title}`}>
+            {Ic("plus", { size: 15 })}
+          </button>
+          <button className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400" aria-label="Column menu">
+            {Ic("more", { size: 15 })}
+          </button>
+        </div>
+      </div>
+      <div className={`flex-1 rounded-xl p-2 space-y-2 overflow-y-auto transition-colors ${isOver ? "bg-orange-50/60 dark:bg-orange-500/5 ring-2 ring-orange-200 dark:ring-orange-500/20" : "bg-neutral-50/60 dark:bg-neutral-900/40"}`}
+           style={{ minHeight: 120, maxHeight: "calc(100vh - 260px)" }}>
+        {tasks.length === 0 ? (
+          <div className="h-24 flex flex-col items-center justify-center text-center text-neutral-300 dark:text-neutral-700 text-[11px] gap-1">
+            {Ic("list", { size: 20 })}<span>Drop tasks here</span>
+          </div>
+        ) : tasks.map((t) => (
+          <TaskCard key={t.id} task={t} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} onMenuAction={onMenuAction} isDragging={draggingId === t.id} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   Create / edit modal
+--------------------------------------------------------------------- */
+function TaskModal({ open, onClose, onSave, initial, columns }) {
+  const blank = { title: "", description: "", priority: "medium", status: "todo", dueDate: "", assignees: [], labels: [] };
+  const [form, setForm] = useState(initial || blank);
+  const [errors, setErrors] = useState({});
+  useEffect(() => { if (open) setForm(initial || blank); }, [open, initial]);
+  if (!open) return null;
+
+  const validate = () => {
+    const e = {};
+    if (!form.title.trim()) e.title = "Title is required";
+    else if (form.title.length > 120) e.title = "Title must be under 120 characters";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+  const submit = () => { if (validate()) onSave(form); };
+  const toggleAssignee = (id) => setForm((f) => ({ ...f, assignees: f.assignees.includes(id) ? f.assignees.filter((a) => a !== id) : [...f.assignees, id] }));
+  const toggleLabel = (l) => setForm((f) => ({ ...f, labels: f.labels.includes(l) ? f.labels.filter((x) => x !== l) : [...f.labels, l] }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-neutral-200 dark:border-neutral-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 sticky top-0 bg-white dark:bg-neutral-900 z-10">
+          <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">{initial ? "Edit task" : "New task"}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400">{Ic("x", { size: 16 })}</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Title</label>
+            <input autoFocus value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                   placeholder="e.g. Design the empty-state illustrations"
+                   className={`w-full px-3 py-2 text-[13.5px] rounded-lg border bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition ${errors.title ? "border-rose-400" : "border-neutral-200 dark:border-neutral-700"}`} />
+            {errors.title && <p className="text-[11px] text-rose-500 mt-1">{errors.title}</p>}
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Description</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Add more detail…" rows={3}
+                      className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition resize-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Priority</label>
+              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                      className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400">
+                {Object.entries(PRIORITY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Status</label>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400">
+                {columns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Due date</label>
+            <input type="date" value={form.dueDate || ""} onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                   className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400" />
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Labels</label>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.keys(LABEL_COLORS).map((l) => (
+                <button key={l} onClick={() => toggleLabel(l)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition ring-1 ${form.labels.includes(l) ? LABEL_COLORS[l] + " ring-transparent" : "bg-transparent text-neutral-400 ring-neutral-200 dark:ring-neutral-700 hover:ring-neutral-300"}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Assignees</label>
+            <div className="flex flex-wrap gap-1.5">
+              {MEMBERS.map((m) => (
+                <button key={m.id} onClick={() => toggleAssignee(m.id)}
+                        className={`flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-[11.5px] font-medium transition ring-1 ${form.assignees.includes(m.id) ? "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 ring-orange-200 dark:ring-orange-500/20" : "text-neutral-500 ring-neutral-200 dark:ring-neutral-700 hover:ring-neutral-300"}`}>
+                  <Avatar userId={m.id} size={16} />{m.name.split(" ")[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-neutral-100 dark:border-neutral-800">
+          <button onClick={onClose} className="px-3.5 py-2 text-[13px] font-medium rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">Cancel</button>
+          <button onClick={submit} className="px-4 py-2 text-[13px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/30 transition">
+            {initial ? "Save changes" : "Create task"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   Details drawer
+--------------------------------------------------------------------- */
+function TaskDrawer({ task, onClose, onEdit, columns }) {
+  const [comment, setComment] = useState("");
+  if (!task) return null;
+  const col = columns.find((c) => c.id === task.status);
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full max-w-md h-full bg-white dark:bg-neutral-900 shadow-2xl border-l border-neutral-200 dark:border-neutral-800 flex flex-col" style={{ animation: "slideIn 0.25s ease-out" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${col && col.color}`} />
+            <span className="text-[12px] font-medium text-neutral-500 dark:text-neutral-400">{col && col.title}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => onEdit(task)} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400" aria-label="Edit task">{Ic("edit", { size: 15 })}</button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400" aria-label="Close">{Ic("x", { size: 16 })}</button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          <div>
+            <h2 className="text-[17px] font-semibold text-neutral-900 dark:text-neutral-100 leading-snug mb-2">{task.title}</h2>
+            <p className="text-[13px] text-neutral-500 dark:text-neutral-400 leading-relaxed">{task.description || "No description provided."}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+            <div>
+              <p className="text-neutral-400 dark:text-neutral-500 mb-1">Priority</p>
+              <PriorityBadge level={task.priority} />
+            </div>
+            <div>
+              <p className="text-neutral-400 dark:text-neutral-500 mb-1">Due date</p>
+              <p className={`flex items-center gap-1 font-medium ${isOverdue(task.dueDate) ? "text-rose-500" : "text-neutral-700 dark:text-neutral-200"}`}>
+                {Ic("calendar", { size: 13 })} {fmtDate(task.dueDate) || "No due date"}
+              </p>
+            </div>
+          </div>
+          <div>
+            <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5">Labels</p>
+            <div className="flex flex-wrap gap-1.5">
+              {task.labels.length ? task.labels.map((l) => <LabelChip key={l} name={l} />) : <span className="text-[12px] text-neutral-300">None</span>}
+            </div>
+          </div>
+          <div>
+            <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5">Assignees</p>
+            <div className="flex flex-wrap gap-2">
+              {task.assignees.length ? task.assignees.map((a) => {
+                const m = MEMBERS.find((x) => x.id === a);
+                return (
+                  <span key={a} className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-neutral-50 dark:bg-neutral-800 text-[12px] text-neutral-600 dark:text-neutral-300">
+                    <Avatar userId={a} size={18} /> {m && m.name}
+                  </span>
+                );
+              }) : <span className="text-[12px] text-neutral-300">Unassigned</span>}
+            </div>
+          </div>
+          {task.checklist.total > 0 && (
+            <div>
+              <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">{Ic("check", { size: 12 })} Checklist · {task.checklist.done}/{task.checklist.total}</p>
+              <div className="h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full" style={{ width: (task.checklist.done / task.checklist.total) * 100 + "%" }} />
+              </div>
+            </div>
+          )}
+          <div>
+            <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">{Ic("paperclip", { size: 12 })} Attachments · {task.attachments}</p>
+          </div>
+          <div>
+            <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-2 flex items-center gap-1">{Ic("clock", { size: 12 })} Activity</p>
+            <div className="space-y-2.5 text-[12px]">
+              <div className="flex gap-2">
+                <Avatar userId={task.assignees[0] || "u1"} size={20} />
+                <p className="text-neutral-500 dark:text-neutral-400">
+                  <span className="text-neutral-700 dark:text-neutral-200 font-medium">{(MEMBERS.find((m) => m.id === (task.assignees[0] || "u1")) || {}).name}</span> moved this to {col && col.title}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Avatar userId="u2" size={20} />
+                <p className="text-neutral-500 dark:text-neutral-400"><span className="text-neutral-700 dark:text-neutral-200 font-medium">Priya Nair</span> created this task</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-neutral-100 dark:border-neutral-800">
+          <div className="flex items-center gap-2">
+            <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment…"
+                   className="flex-1 px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400" />
+            <button className="px-3 py-2 text-[12.5px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   Sidebar / top bar / board header
+--------------------------------------------------------------------- */
+function Sidebar() {
+  const items = [
+    { icon: "home", label: "Dashboard" },
+    { icon: "folder", label: "Workspaces", href: "taskflow-workspace.html" },
+    { icon: "layoutGrid", label: "Boards", active: true, href: "taskflow-kanban.html" },
+    { icon: "list", label: "My Tasks" },
+    { icon: "calendar", label: "Calendar" },
+    { icon: "barChart", label: "Analytics" },
+    { icon: "bell", label: "Notifications" },
+    { icon: "settings", label: "Settings" },
+  ];
+  return (
+    <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 h-full">
+      <a href="taskflow-workspace.html" className="flex items-center gap-2 px-5 py-5">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+          <div className="w-2.5 h-2.5 rounded-sm bg-white" />
+        </div>
+        <span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">TaskFlow</span>
+      </a>
+      <nav className="flex-1 px-3 space-y-0.5">
+        {items.map((it) => {
+          const cls = it.active
+            ? "bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400"
+            : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900";
+          const inner = <>{Ic(it.icon, { size: 16 })}{it.label}</>;
+          if (it.href) {
+            return (
+              <a key={it.label} href={it.href} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition ${cls}`}>
+                {inner}
+              </a>
+            );
+          }
+          return (
+            <button key={it.label} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition ${cls}`}>
+              {inner}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="p-3">
+        <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-900 cursor-pointer">
+          <Avatar userId="u1" size={28} />
+          <div className="flex-1 min-w-0">
+            <p className="text-[12.5px] font-medium text-neutral-800 dark:text-neutral-100 truncate">Sadik Shaikh</p>
+            <p className="text-[11px] text-neutral-400 truncate">sadik@taskflow.app</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function TopBar({ search, setSearch, sortBy, setSortBy, filterPriority, setFilterPriority }) {
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const sortOptions = [
+    { k: "newest", label: "Newest" }, { k: "oldest", label: "Oldest" },
+    { k: "priority", label: "Priority" }, { k: "dueDate", label: "Due date" }, { k: "alpha", label: "Alphabetical" },
+  ];
+  return (
+    <div className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-neutral-100 dark:border-neutral-900">
+        <div className="flex items-center gap-1.5 text-[12.5px] text-neutral-400">
+          <span>Acme Inc</span><span>/</span><span className="text-neutral-700 dark:text-neutral-200 font-medium">Product Launch</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/25 transition">
+            {Ic("userPlus", { size: 13 })} Invite
+          </button>
+          <button className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 relative" aria-label="Notifications">
+            {Ic("bell", { size: 16 })}
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-orange-500" />
+          </button>
+          <Avatar userId="u1" size={26} />
+        </div>
+      </div>
+      <div className="flex items-center justify-between px-5 py-3">
+        <h1 className="text-[17px] font-semibold text-neutral-900 dark:text-neutral-100">Product Launch Board</h1>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400">{Ic("search", { size: 14 })}</span>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks…"
+                   className="pl-8 pr-3 py-1.5 w-56 text-[12.5px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition" />
+          </div>
+          <div className="relative">
+            <button onClick={() => { setFilterOpen((v) => !v); setSortOpen(false); }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium border transition ${filterPriority ? "border-orange-300 text-orange-600 bg-orange-50 dark:bg-orange-500/10" : "border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800"}`}>
+              {Ic("filter", { size: 13 })} Filter
+            </button>
+            {filterOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setFilterOpen(false)} />
+                <div className="absolute right-0 top-9 z-20 w-44 bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 shadow-lg py-1.5">
+                  <p className="px-3 py-1 text-[11px] font-medium text-neutral-400">Priority</p>
+                  {Object.entries(PRIORITY).map(([k, v]) => (
+                    <button key={k} onClick={() => { setFilterPriority(filterPriority === k ? null : k); setFilterOpen(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-[12.5px] hover:bg-neutral-50 dark:hover:bg-neutral-800 ${filterPriority === k ? "text-orange-600 font-medium" : "text-neutral-600 dark:text-neutral-300"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${v.dot}`} /> {v.label}
+                    </button>
+                  ))}
+                  {filterPriority && <button onClick={() => { setFilterPriority(null); setFilterOpen(false); }} className="w-full text-left px-3 py-1.5 text-[12px] text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800">Clear filter</button>}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="relative">
+            <button onClick={() => { setSortOpen((v) => !v); setFilterOpen(false); }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium border border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition">
+              {Ic("sort", { size: 13 })} Sort
+            </button>
+            {sortOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} />
+                <div className="absolute right-0 top-9 z-20 w-40 bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-800 shadow-lg py-1">
+                  {sortOptions.map((o) => (
+                    <button key={o.k} onClick={() => { setSortBy(o.k); setSortOpen(false); }}
+                            className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-neutral-50 dark:hover:bg-neutral-800 ${sortBy === o.k ? "text-orange-600 font-medium" : "text-neutral-600 dark:text-neutral-300"}`}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BoardHeader({ tasks }) {
+  const total = tasks.length;
+  const done = tasks.filter((t) => t.status === "done").length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="px-5 pt-4 pb-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[12.5px] text-neutral-500 dark:text-neutral-400 max-w-lg">Coordinate design, engineering, and marketing work ahead of the v2.0 launch.</p>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
+            <p className="text-[11px] text-neutral-400">{done}/{total} complete</p>
+            <div className="w-28 h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden mt-1">
+              <div className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all" style={{ width: pct + "%" }} />
+            </div>
+          </div>
+          <div className="flex -space-x-1.5">{MEMBERS.slice(0, 4).map((m) => <Avatar key={m.id} userId={m.id} size={24} />)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------
+   Root
+--------------------------------------------------------------------- */
+function KanbanBoard() {
+  const [dark, setDark] = useState(false);
+  const [columns] = useState(initialColumns);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [filterPriority, setFilterPriority] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalInitial, setModalInitial] = useState(null);
+  const [modalDefaultStatus, setModalDefaultStatus] = useState("todo");
+  const [activeTask, setActiveTask] = useState(null);
+  const [undoToast, setUndoToast] = useState(null);
+
+  const moveTask = useCallback((taskId, newStatus) => {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
+  }, []);
+
+  const handleDragStart = (e, task) => { setDraggingId(task.id); e.dataTransfer.effectAllowed = "move"; };
+  const handleDragEnd = () => { setDraggingId(null); setDragOverCol(null); };
+  const handleDrop = (e, columnId) => {
+    e.preventDefault();
+    if (draggingId) moveTask(draggingId, columnId);
+    setDraggingId(null); setDragOverCol(null);
+  };
+
+  const openCreate = (status) => { setModalInitial(null); setModalDefaultStatus(status); setModalOpen(true); };
+  const openEdit = (task) => { setModalInitial(task); setModalOpen(true); setActiveTask(null); };
+
+  const saveTask = (form) => {
+    if (modalInitial) {
+      setTasks((prev) => prev.map((t) => (t.id === modalInitial.id ? { ...t, ...form } : t)));
+    } else {
+      setTasks((prev) => [...prev, mkTask({ ...form, status: form.status || modalDefaultStatus })]);
+    }
+    setModalOpen(false);
+  };
+
+  const handleMenuAction = (action, task) => {
+    if (action === "open") setActiveTask(task);
+    if (action === "edit") openEdit(task);
+    if (action === "duplicate") setTasks((prev) => [...prev, mkTask({ ...task, id: undefined, title: task.title + " (copy)" })]);
+    if (action === "archive") { setTasks((prev) => prev.filter((t) => t.id !== task.id)); setUndoToast({ label: `"${task.title}" archived`, task }); }
+    if (action === "delete") { setTasks((prev) => prev.filter((t) => t.id !== task.id)); setUndoToast({ label: `"${task.title}" deleted`, task }); }
+  };
+  const undoLast = () => { if (undoToast && undoToast.task) setTasks((prev) => [...prev, undoToast.task]); setUndoToast(null); };
+
+  const filtered = useMemo(() => {
+    let list = tasks;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.labels.some((l) => l.includes(q)));
+    }
+    if (filterPriority) list = list.filter((t) => t.priority === filterPriority);
+    const sorted = [...list].sort((a, b) => {
+      if (sortBy === "newest") return b.createdAt - a.createdAt;
+      if (sortBy === "oldest") return a.createdAt - b.createdAt;
+      if (sortBy === "alpha") return a.title.localeCompare(b.title);
+      if (sortBy === "priority") { const order = { urgent: 0, high: 1, medium: 2, low: 3 }; return order[a.priority] - order[b.priority]; }
+      if (sortBy === "dueDate") { if (!a.dueDate) return 1; if (!b.dueDate) return -1; return new Date(a.dueDate) - new Date(b.dueDate); }
+      return 0;
+    });
+    return sorted;
+  }, [tasks, search, filterPriority, sortBy]);
+
+  const tasksByCol = (colId) => filtered.filter((t) => t.status === colId);
+
+  return (
+    <div className={dark ? "dark" : ""}>
+      <style>{"@keyframes slideIn { from { transform: translateX(24px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }"}</style>
+      <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          <TopBar search={search} setSearch={setSearch} sortBy={sortBy} setSortBy={setSortBy} filterPriority={filterPriority} setFilterPriority={setFilterPriority} />
+          <BoardHeader tasks={tasks} />
+          <div className="flex-1 overflow-x-auto px-5 pb-24">
+            {filtered.length === 0 && tasks.length > 0 ? (
+              <div className="h-96 flex flex-col items-center justify-center text-center gap-2">
+                <span className="text-neutral-300">{Ic("search", { size: 28 })}</span>
+                <p className="text-[13px] font-medium text-neutral-500">No matching tasks</p>
+                <p className="text-[12px] text-neutral-400">Try adjusting your search or filters.</p>
+              </div>
+            ) : (
+              <div className="flex gap-4 h-full pt-1">
+                {columns.map((col) => (
+                  <Column key={col.id} column={col} tasks={tasksByCol(col.id)} onOpen={setActiveTask}
+                          onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDrop={handleDrop}
+                          draggingId={draggingId} dragOverCol={dragOverCol} onDragOverCol={setDragOverCol}
+                          onAddTask={openCreate} onMenuAction={handleMenuAction} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => openCreate("todo")}
+                  className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40"
+                  aria-label="New task">
+            {Ic("plus", { size: 20 })}
+          </button>
+          <button onClick={() => setDark((v) => !v)}
+                  className="fixed bottom-6 left-6 lg:left-[248px] px-3 py-2 rounded-lg text-[11.5px] font-medium bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-300 shadow-sm z-40">
+            {dark ? "Light mode" : "Dark mode"}
+          </button>
+        </div>
+      </div>
+
+      <TaskModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={saveTask} initial={modalInitial} columns={columns} />
+      <TaskDrawer task={activeTask} onClose={() => setActiveTask(null)} onEdit={openEdit} columns={columns} />
+
+      {undoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 px-4 py-2.5 rounded-xl shadow-xl text-[12.5px]">
+          <span>{undoToast.label}</span>
+          <button onClick={undoLast} className="font-semibold text-orange-400 dark:text-orange-600">Undo</button>
+          <button onClick={() => setUndoToast(null)} className="text-neutral-400">{Ic("x", { size: 13 })}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<KanbanBoard />);
+</script>
+</body>
+</html>
