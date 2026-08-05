@@ -22,12 +22,8 @@ class BoardService {
     }
   }
 
-  /**
-   * Helper to retrieve and validate workspace existence.
-   */
   async getValidatedWorkspace(workspaceId) {
-    this.validateId(workspaceId, 'workspace');
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -52,20 +48,20 @@ class BoardService {
     }
 
     // Check board name uniqueness within the workspace (including archived boards)
-    const existingBoard = await boardRepository.findBoardByWorkspaceAndName(workspaceId, boardData.name);
+    const existingBoard = await boardRepository.findBoardByWorkspaceAndName(workspace._id, boardData.name);
     if (existingBoard) {
       throw new BadRequestError('A board with this name already exists in the workspace');
     }
 
     const board = await boardRepository.createBoard({
       ...boardData,
-      workspaceId,
+      workspaceId: workspace._id,
       createdBy: userId
     });
 
     logger.info(`Board created successfully: ${board.name}`, {
       boardId: board._id,
-      workspaceId,
+      workspaceId: workspace._id,
       createdBy: userId
     });
 
@@ -107,7 +103,7 @@ class BoardService {
       ];
     }
 
-    return boardRepository.listBoards(workspaceId, filters, { page, limit });
+    return boardRepository.listBoards(workspace._id, filters, { page, limit });
   }
 
   /**

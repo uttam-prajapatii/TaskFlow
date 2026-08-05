@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Workspace } from './workspace.model.js';
 import { WorkspaceInvite } from './workspaceInvite.model.js';
 
@@ -25,6 +26,35 @@ class WorkspaceRepository {
    */
   async findWorkspaceBySlug(slug) {
     return Workspace.findOne({ slug, isDeleted: { $ne: true } }).exec();
+  }
+
+  /**
+   * Find a workspace by name (excluding soft-deleted ones) case-insensitively.
+   */
+  async findWorkspaceByName(name) {
+    return Workspace.findOne({
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+      isDeleted: { $ne: true }
+    }).exec();
+  }
+
+  /**
+   * Find a workspace by ID or slug (excluding soft-deleted ones).
+   * Populates ownerId and members.userId with fullName and email.
+   */
+  async findWorkspaceByIdOrSlug(idOrSlug) {
+    if (!idOrSlug) return null;
+    if (mongoose.Types.ObjectId.isValid(idOrSlug)) {
+      const workspace = await this.findWorkspaceById(idOrSlug);
+      if (workspace) return workspace;
+    }
+    return Workspace.findOne({
+      slug: idOrSlug.toLowerCase().trim(),
+      isDeleted: { $ne: true }
+    })
+      .populate('ownerId', 'fullName email')
+      .populate('members.userId', 'fullName email')
+      .exec();
   }
 
   /**

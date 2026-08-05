@@ -12,6 +12,10 @@ class WorkspaceService {
    * Creator user is assigned as the owner, and also added to the members list with the 'admin' role.
    */
   async createWorkspace(userId, { name, description, settings }) {
+    const existingByName = await workspaceRepository.findWorkspaceByName(name);
+    if (existingByName) {
+      throw new BadRequestError('A workspace with this name already exists');
+    }
     const slug = await generateUniqueSlug(name);
     const workspaceData = {
       name,
@@ -45,11 +49,7 @@ class WorkspaceService {
    * User must be the owner or a member (viewer role or higher) to access.
    */
   async getWorkspaceDetails(workspaceId, userId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -75,11 +75,7 @@ class WorkspaceService {
    * User must be the owner or have the 'admin' role in the members list.
    */
   async updateWorkspace(workspaceId, userId, updateData) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -99,7 +95,16 @@ class WorkspaceService {
 
     const allowedUpdates = {};
     if (updateData.name !== undefined) {
-      allowedUpdates.name = updateData.name;
+      const trimmedName = updateData.name.trim();
+      const existingByName = await workspaceRepository.findWorkspaceByName(trimmedName);
+      if (existingByName && existingByName._id.toString() !== workspace._id.toString()) {
+        throw new BadRequestError('A workspace with this name already exists');
+      }
+
+      if (trimmedName !== workspace.name) {
+        allowedUpdates.name = trimmedName;
+        allowedUpdates.slug = await generateUniqueSlug(trimmedName);
+      }
     }
     if (updateData.description !== undefined) {
       allowedUpdates.description = updateData.description;
@@ -111,8 +116,8 @@ class WorkspaceService {
       };
     }
 
-    const updatedWorkspace = await workspaceRepository.updateWorkspace(workspaceId, allowedUpdates);
-    logger.info(`Workspace updated`, { workspaceId, updatedBy: userId, updatedFields: Object.keys(allowedUpdates) });
+    const updatedWorkspace = await workspaceRepository.updateWorkspace(workspace._id, allowedUpdates);
+    logger.info(`Workspace updated`, { workspaceId: workspace._id, updatedBy: userId, updatedFields: Object.keys(allowedUpdates) });
     return updatedWorkspace;
   }
 
@@ -121,11 +126,7 @@ class WorkspaceService {
    * Only the owner is permitted to perform this action.
    */
   async softDeleteWorkspace(workspaceId, userId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -138,8 +139,8 @@ class WorkspaceService {
       throw new ForbiddenError('Only the workspace owner can delete this workspace');
     }
 
-    await workspaceRepository.softDeleteWorkspace(workspaceId);
-    logger.info(`Workspace soft deleted`, { workspaceId, deletedBy: userId });
+    await workspaceRepository.softDeleteWorkspace(workspace._id);
+    logger.info(`Workspace soft deleted`, { workspaceId: workspace._id, deletedBy: userId });
     return { message: 'Workspace deleted successfully' };
   }
 
@@ -148,11 +149,7 @@ class WorkspaceService {
    * Accessible by viewers or higher.
    */
   async listMembers(workspaceId, userId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -177,11 +174,7 @@ class WorkspaceService {
    * Creator/Inviter must be owner or admin.
    */
   async inviteMember(workspaceId, userId, { email, role, inviteExpiryDays }) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -216,14 +209,14 @@ class WorkspaceService {
     const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
     // Cancel / Soft-delete existing pending invitation to same email if exists
-    const existingInvite = await workspaceRepository.findPendingInviteByWorkspaceAndEmail(workspaceId, targetEmail);
+    const existingInvite = await workspaceRepository.findPendingInviteByWorkspaceAndEmail(workspace._id, targetEmail);
     if (existingInvite) {
       await workspaceRepository.softDeleteInvite(existingInvite._id);
     }
 
     const token = generateRandomToken();
     const invite = await workspaceRepository.createInvite({
-      workspaceId,
+      workspaceId: workspace._id,
       email: targetEmail,
       role: role || 'member',
       invitedBy: userId,
@@ -240,12 +233,12 @@ class WorkspaceService {
       });
     } catch (emailError) {
       logger.error(`Failed to enqueue workspace invitation email to ${targetEmail}: ${emailError.message}`, {
-        workspaceId,
+        workspaceId: workspace._id,
         inviteId: invite._id,
       });
     }
 
-    logger.info(`Member invitation created: ${targetEmail}`, { workspaceId, role: role || 'member', invitedBy: userId, inviteId: invite._id });
+    logger.info(`Member invitation created: ${targetEmail}`, { workspaceId: workspace._id, role: role || 'member', invitedBy: userId, inviteId: invite._id });
     return invite;
   }
 
@@ -254,11 +247,7 @@ class WorkspaceService {
    * Creator must be owner or admin.
    */
   async listPendingInvites(workspaceId, userId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -275,7 +264,7 @@ class WorkspaceService {
       throw new ForbiddenError('Only workspace admins or owners can view pending invitations');
     }
 
-    return workspaceRepository.listPendingInvites(workspaceId);
+    return workspaceRepository.listPendingInvites(workspace._id);
   }
 
   /**
@@ -342,11 +331,11 @@ class WorkspaceService {
    * Creator must be owner or admin.
    */
   async revokeInvite(workspaceId, inviteId, userId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId) || !mongoose.Types.ObjectId.isValid(inviteId)) {
-      throw new BadRequestError('Invalid workspace or invite ID format');
+    if (!mongoose.Types.ObjectId.isValid(inviteId)) {
+      throw new BadRequestError('Invalid invite ID format');
     }
 
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -363,13 +352,13 @@ class WorkspaceService {
       throw new ForbiddenError('Only workspace admins or owners can revoke invitations');
     }
 
-    const invite = await workspaceRepository.findInviteByIdAndWorkspace(inviteId, workspaceId);
+    const invite = await workspaceRepository.findInviteByIdAndWorkspace(inviteId, workspace._id);
     if (!invite || invite?.status !== 'pending') {
       throw new NotFoundError('Pending invitation not found');
     }
 
     await workspaceRepository.softDeleteInvite(inviteId);
-    logger.info(`Invitation revoked`, { workspaceId, inviteId, revokedBy: userId });
+    logger.info(`Invitation revoked`, { workspaceId: workspace._id, inviteId, revokedBy: userId });
     return { message: 'Invitation revoked successfully' };
   }
 
@@ -378,11 +367,11 @@ class WorkspaceService {
    * Creator must be owner or admin.
    */
   async changeMemberRole(workspaceId, callerId, targetUserId, role) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
-      throw new BadRequestError('Invalid workspace or user ID format');
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      throw new BadRequestError('Invalid user ID format');
     }
 
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -420,7 +409,7 @@ class WorkspaceService {
 
     workspace.members[memberIndex].role = role;
     await workspace.save();
-    logger.info(`Member role updated`, { workspaceId, targetUserId, newRole: role, updatedBy: callerId });
+    logger.info(`Member role updated`, { workspaceId: workspace._id, targetUserId, newRole: role, updatedBy: callerId });
 
     return workspace.members;
   }
@@ -430,11 +419,11 @@ class WorkspaceService {
    * Creator must be owner or admin.
    */
   async removeMember(workspaceId, callerId, targetUserId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
-      throw new BadRequestError('Invalid workspace or user ID format');
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      throw new BadRequestError('Invalid user ID format');
     }
 
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -474,7 +463,7 @@ class WorkspaceService {
       (m) => m.userId && getStrId(m.userId) !== targetStrId
     );
     await workspace.save();
-    logger.info(`Member removed from workspace`, { workspaceId, targetUserId, removedBy: callerId });
+    logger.info(`Member removed from workspace`, { workspaceId: workspace._id, targetUserId, removedBy: callerId });
 
     return { message: 'Member removed successfully' };
   }
@@ -483,11 +472,7 @@ class WorkspaceService {
    * Leave a workspace self.
    */
   async leaveWorkspace(workspaceId, userId) {
-    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-      throw new BadRequestError('Invalid workspace ID format');
-    }
-
-    const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
@@ -512,7 +497,7 @@ class WorkspaceService {
       (m) => m.userId && getStrId(m.userId) !== userStrId
     );
     await workspace.save();
-    logger.info(`User left workspace`, { workspaceId, userId });
+    logger.info(`User left workspace`, { workspaceId: workspace._id, userId });
 
     return { message: 'You have left the workspace successfully' };
   }
