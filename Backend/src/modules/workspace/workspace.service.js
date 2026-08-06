@@ -12,7 +12,7 @@ class WorkspaceService {
    * Creator user is assigned as the owner, and also added to the members list with the 'admin' role.
    */
   async createWorkspace(userId, { name, description, settings }) {
-    const existingByName = await workspaceRepository.findWorkspaceByName(name);
+    const existingByName = await workspaceRepository.findWorkspaceByNameAndOwner(name, userId);
     if (existingByName) {
       throw new BadRequestError('A workspace with this name already exists');
     }
@@ -96,7 +96,7 @@ class WorkspaceService {
     const allowedUpdates = {};
     if (updateData.name !== undefined) {
       const trimmedName = updateData.name.trim();
-      const existingByName = await workspaceRepository.findWorkspaceByName(trimmedName);
+      const existingByName = await workspaceRepository.findWorkspaceByNameAndOwner(trimmedName, workspace.ownerId);
       if (existingByName && existingByName._id.toString() !== workspace._id.toString()) {
         throw new BadRequestError('A workspace with this name already exists');
       }

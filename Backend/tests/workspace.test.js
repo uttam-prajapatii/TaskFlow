@@ -19,7 +19,12 @@ describe('Workspace Management System Tests', () => {
   beforeAll(async () => {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/taskflow_test';
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(mongoUri);
+      const conn = await mongoose.connect(mongoUri);
+      try {
+        await conn.connection.db.collection('workspaces').dropIndex('slug_1');
+      } catch (err) {
+        // Ignore if index doesn't exist
+      }
     }
   });
 
@@ -98,11 +103,49 @@ describe('Workspace Management System Tests', () => {
       const ws1 = await workspaceService.createWorkspace(userOwner._id, { name: 'Devs' });
       expect(ws1.slug).toBe('devs');
 
-      // Create second workspace with same name
+      // Create second workspace with same name under a different user (triggers slug suffix)
       const ws2 = await workspaceService.createWorkspace(userAdmin._id, { name: 'Devs' });
       expect(ws2.slug).not.toBe('devs');
       expect(ws2.slug.startsWith('devs-')).toBe(true);
       expect(ws2.slug.length).toBe(11); // 'devs-' (5) + 6 hex chars = 11
+    });
+
+    test('should allow creating a workspace with the same name if the existing one is soft-deleted', async () => {
+      // Create first workspace
+      const ws1 = await workspaceService.createWorkspace(userOwner._id, { name: 'Engineering Team' });
+      expect(ws1.slug).toBe('engineering-team');
+
+      // Soft delete it
+      await workspaceService.softDeleteWorkspace(ws1._id, userOwner._id);
+
+      // Create second workspace with the same name under the same user
+      const ws2 = await workspaceService.createWorkspace(userOwner._id, { name: 'Engineering Team' });
+      expect(ws2.name).toBe('Engineering Team');
+      expect(ws2.slug).toBe('engineering-team'); // Should reuse the slug since the old one is soft-deleted
+    });
+
+    test('should block creating a workspace with duplicate name under the same user', async () => {
+      await workspaceService.createWorkspace(userOwner._id, { name: 'Duplicate Name' });
+
+      let error;
+      try {
+        await workspaceService.createWorkspace(userOwner._id, { name: 'Duplicate Name' });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(BadRequestError);
+      expect(error.message).toBe('A workspace with this name already exists');
+    });
+
+    test('should allow different users to create workspaces with the same name', async () => {
+      const ws1 = await workspaceService.createWorkspace(userOwner._id, { name: 'Shared Name' });
+      const ws2 = await workspaceService.createWorkspace(userAdmin._id, { name: 'Shared Name' });
+
+      expect(ws1.name).toBe('Shared Name');
+      expect(ws2.name).toBe('Shared Name');
+      expect(ws1.slug).toBe('shared-name');
+      expect(ws2.slug).not.toBe('shared-name'); // Slugs are still globally unique among active workspaces
     });
   });
 
@@ -199,7 +242,7 @@ describe('Workspace Management System Tests', () => {
         formatError = err;
       }
       expect(formatError).toBeDefined();
-      expect(formatError).toBeInstanceOf(BadRequestError);
+      expect(formatError).toBeInstanceOf(NotFoundError);
     });
   });
 

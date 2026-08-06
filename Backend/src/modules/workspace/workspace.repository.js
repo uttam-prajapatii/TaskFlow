@@ -29,11 +29,12 @@ class WorkspaceRepository {
   }
 
   /**
-   * Find a workspace by name (excluding soft-deleted ones) case-insensitively.
+   * Find a workspace by name and owner (excluding soft-deleted ones) case-insensitively.
    */
-  async findWorkspaceByName(name) {
+  async findWorkspaceByNameAndOwner(name, ownerId) {
     return Workspace.findOne({
       name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+      ownerId,
       isDeleted: { $ne: true }
     }).exec();
   }
@@ -47,6 +48,10 @@ class WorkspaceRepository {
     if (mongoose.Types.ObjectId.isValid(idOrSlug)) {
       const workspace = await this.findWorkspaceById(idOrSlug);
       if (workspace) return workspace;
+      return null;
+    }
+    if (typeof idOrSlug !== 'string') {
+      return null;
     }
     return Workspace.findOne({
       slug: idOrSlug.toLowerCase().trim(),

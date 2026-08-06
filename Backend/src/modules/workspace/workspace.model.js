@@ -68,7 +68,13 @@ const WorkspaceSchema = new Schema({
 });
 
 // Indexes
-WorkspaceSchema.index({ slug: 1 }, { unique: true });
+WorkspaceSchema.index(
+  { slug: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { isDeleted: false } 
+  }
+);
 WorkspaceSchema.index({ 'members.userId': 1 });
 WorkspaceSchema.index({ ownerId: 1 });
 
