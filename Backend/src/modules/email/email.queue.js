@@ -5,6 +5,14 @@ import logger from '../../utils/logger.js';
 // Parse Redis connection URL
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
+// Log the Redis host (obfuscating credentials)
+try {
+  const parsedUrl = new URL(redisUrl);
+  logger.info(`emailQueue connecting to Redis host: ${parsedUrl.host} (protocol: ${parsedUrl.protocol})`);
+} catch (e) {
+  logger.warn(`emailQueue could not parse REDIS_URL for logging: ${e.message}`);
+}
+
 // Configure persistent redis connection for the queue
 // BullMQ requires maxRetriesPerRequest to be null
 const queueConnection = new IORedis(redisUrl, {
@@ -18,8 +26,14 @@ queueConnection.on('error', (error) => {
   });
 });
 
-queueConnection.on('connect', () => {
-  logger.info(`emailQueue Redis connection established: ${redisUrl}`);
+queueConnection.on('connect', async () => {
+  logger.info(`emailQueue Redis connection established: ${redisUrl.replace(/:[^@]+@/, ':****@')}`);
+  try {
+    const whoami = await queueConnection.call('ACL', 'WHOAMI');
+    logger.info(`emailQueue authenticated Redis user: ${whoami}`);
+  } catch (err) {
+    logger.warn(`emailQueue could not run ACL WHOAMI: ${err.message}`);
+  }
 });
 
 // Configure default job settings

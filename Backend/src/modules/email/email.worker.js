@@ -23,6 +23,14 @@ connectDB();
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
+// Log the Redis host (obfuscating credentials)
+try {
+  const parsedUrl = new URL(redisUrl);
+  logger.info(`emailWorker connecting to Redis host: ${parsedUrl.host} (protocol: ${parsedUrl.protocol})`);
+} catch (e) {
+  logger.warn(`emailWorker could not parse REDIS_URL for logging: ${e.message}`);
+}
+
 // Configure Redis connection for worker
 const workerConnection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
@@ -33,6 +41,16 @@ workerConnection.on('error', (error) => {
   logger.error(`Redis connection error on email worker: ${error.message}`, {
     stack: error.stack,
   });
+});
+
+workerConnection.on('connect', async () => {
+  logger.info(`emailWorker Redis connection established: ${redisUrl.replace(/:[^@]+@/, ':****@')}`);
+  try {
+    const whoami = await workerConnection.call('ACL', 'WHOAMI');
+    logger.info(`emailWorker authenticated Redis user: ${whoami}`);
+  } catch (err) {
+    logger.warn(`emailWorker could not run ACL WHOAMI: ${err.message}`);
+  }
 });
 
 /**
