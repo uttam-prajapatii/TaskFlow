@@ -20,4 +20,4 @@ ENV NODE_ENV=production
 ENV PORT=5000
 
 # Run the backend server using Bun
-CMD ["bun", "src/server.js"]
+CMD ["bun", "run", "start:all"]

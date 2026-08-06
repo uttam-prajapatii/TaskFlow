@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "start": "bun src/server.js",
+    "start:all": "bun src/modules/email/email.worker.js & bun src/server.js",
     "dev": "bun --watch src/server.js",
     "worker:email": "bun src/modules/email/email.worker.js"
   },
