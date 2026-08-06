@@ -26,6 +26,7 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 // Configure Redis connection for worker
 const workerConnection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
+  enableReadyCheck: false,
 });
 
 workerConnection.on('error', (error) => {
@@ -114,6 +115,7 @@ const worker = new Worker('emailQueue', async (job) => {
   await handler(data);
 }, {
   connection: workerConnection,
+  skipVersionCheck: true,
 });
 
 // Event Listeners for logging success/failures

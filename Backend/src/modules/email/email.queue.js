@@ -9,6 +9,7 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 // BullMQ requires maxRetriesPerRequest to be null
 const queueConnection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
+  enableReadyCheck: false,
 });
 
 queueConnection.on('error', (error) => {
@@ -38,6 +39,7 @@ const defaultJobOptions = {
 export const emailQueue = new Queue('emailQueue', {
   connection: queueConnection,
   defaultJobOptions,
+  skipVersionCheck: true,
 });
 
 /**
