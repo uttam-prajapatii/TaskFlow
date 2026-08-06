@@ -12,7 +12,6 @@ const __dirname = path.dirname(__filename);
 const resendApiKey = process.env.RESEND_API_KEY || '';
 const resend = new Resend(resendApiKey);
 
-console.log("Resend API Key : ", resendApiKey);
 if (resendApiKey) {
   logger.info('Resend Email Service configured and ready');
 } else {
