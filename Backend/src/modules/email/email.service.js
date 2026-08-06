@@ -1,48 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import logger from '../../utils/logger.js';
 import { renderTemplate } from './email.utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize SMTP Transporter
-const smtpHost = process.env.SMTP_HOST || 'localhost';
-const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-const smtpUser = process.env.SMTP_USER || '';
-const smtpPass = process.env.SMTP_PASS || '';
+// Initialize Resend
+const resendApiKey = process.env.RESEND_API_KEY || '';
+const resend = new Resend(resendApiKey);
 
-const isSecure = smtpPort === 465;
-
-const transporterConfig = {
-  host: smtpHost,
-  port: smtpPort,
-  secure: isSecure,
-};
-
-// Only add auth if user/pass are provided
-if (smtpUser && smtpPass) {
-  transporterConfig.auth = {
-    user: smtpUser,
-    pass: smtpPass,
-  };
+if (resendApiKey) {
+  logger.info('Resend Email Service configured and ready');
+} else {
+  logger.warn('Resend API Key is missing (RESEND_API_KEY). Emails will fail to send.');
 }
-
-const transporter = nodemailer.createTransport(transporterConfig);
-
-// Verify SMTP connection on startup (asynchronously to not block main thread)
-transporter.verify((error) => {
-  if (error) {
-    logger.warn(`SMTP Mail Transporter connection validation failed: ${error.message}. Emails might not be sent.`, {
-      host: smtpHost,
-      port: smtpPort,
-    });
-  } else {
-    logger.info(`SMTP Mail Transporter configured and ready: ${smtpHost}:${smtpPort}`);
-  }
-});
 
 /**
  * Shared low-level function to load templates, replace variables, and send email.
@@ -64,13 +38,13 @@ export async function sendEmail({ to, subject, templateName, variables }) {
 
     let htmlContent = await renderTemplate(templateName, variables);
 
-    // Replace data URI or LOGO_URL with cid:taskflow-logo for SMTP email clients
+    // Replace data URI or LOGO_URL with cid:taskflow-logo for email clients
     if (hasLogoFile) {
       htmlContent = htmlContent.replace(/src="data:image\/png;base64,[^"]+"/g, 'src="cid:taskflow-logo"');
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM_ADDRESS || 'noreply@taskflow.app',
+      from: process.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
       to,
       subject,
       html: htmlContent,
@@ -78,14 +52,19 @@ export async function sendEmail({ to, subject, templateName, variables }) {
         {
           filename: 'logo.png',
           path: logoPath,
-          cid: 'taskflow-logo',
+          contentId: 'taskflow-logo',
         }
       ] : [],
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    logger.info(`Email sent successfully. messageId=${info.messageId} to=${to} template=${templateName}`);
-    return info;
+    const { data, error } = await resend.emails.send(mailOptions);
+
+    if (error) {
+      throw new Error(`Resend API Error: ${error.message} (status: ${error.statusCode})`);
+    }
+
+    logger.info(`Email sent successfully. id=${data.id} to=${to} template=${templateName}`);
+    return data;
   } catch (error) {
     logger.error(`Error sending email to=${to} template=${templateName}: ${error.message}`, {
       stack: error.stack,
