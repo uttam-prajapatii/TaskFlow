@@ -20,9 +20,21 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
   const [boards, setBoards] = useState<Board[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const setCurrentWorkspace = useCallback((ws: Workspace | null) => {
+    setCurrentWorkspaceState(ws);
+    if (ws) {
+      const id = ws._id || ws.id;
+      if (id) {
+        localStorage.setItem('taskflow_last_workspace_id', id);
+      }
+    } else {
+      localStorage.removeItem('taskflow_last_workspace_id');
+    }
+  }, []);
 
   const fetchWorkspaces = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -30,15 +42,25 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setLoading(true);
       const wsList = await workspaceService.listWorkspaces();
       setWorkspaces(wsList);
-      if (wsList.length > 0 && !currentWorkspace) {
-        setCurrentWorkspace(wsList[0]);
+
+      if (wsList.length > 0) {
+        const lastId = localStorage.getItem('taskflow_last_workspace_id');
+        const matched = lastId ? wsList.find((w) => (w._id || w.id) === lastId) : null;
+        const initialWs = matched || wsList[0];
+        setCurrentWorkspaceState(initialWs);
+        if (initialWs) {
+          localStorage.setItem('taskflow_last_workspace_id', initialWs._id || initialWs.id || '');
+        }
+      } else {
+        setCurrentWorkspaceState(null);
+        localStorage.removeItem('taskflow_last_workspace_id');
       }
     } catch (err) {
       console.error('Failed to fetch workspaces in WorkspaceContext:', err);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, currentWorkspace]);
+  }, [isAuthenticated]);
 
   const fetchBoards = useCallback(async () => {
     if (!currentWorkspace) return;

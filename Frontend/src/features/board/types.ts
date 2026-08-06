@@ -65,8 +65,10 @@ export interface Board {
 
 export interface CreateBoardPayload {
   name: string;
+  title?: string;
   description?: string;
-  workspaceId: string;
+  workspaceId?: string;
+  color?: string;
 }
 
 export interface UpdateBoardPayload {
@@ -88,6 +90,7 @@ export interface CreateTaskPayload {
   dueDate?: string | null;
   labels?: string[];
   assignees?: string[];
+  position?: number;
 }
 
 export interface UpdateTaskPayload {
@@ -103,5 +106,7 @@ export interface UpdateTaskPayload {
 
 export interface MoveTaskPayload {
   targetListId: string;
+  listId?: string;
   targetPosition?: number;
+  position?: number;
 }

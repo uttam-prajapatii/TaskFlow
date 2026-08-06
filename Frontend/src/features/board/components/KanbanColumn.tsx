@@ -10,11 +10,11 @@ interface KanbanColumnProps {
   onOpenTask: (task: Task) => void;
   onDragStart: (e: React.DragEvent, task: Task) => void;
   onDragEnd: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent, targetColumnId: string) => void;
+  onDrop: (e: React.DragEvent, targetColumnId: string, targetIndex?: number) => void;
   draggingTaskId: string | null;
   dragOverColId: string | null;
   onDragOverCol: (columnId: string) => void;
-  onAddTask: (columnId: string) => void;
+  onAddTask: (columnId: string, position?: number) => void;
   onMenuAction: (action: string, task: Task) => void;
   onRenameColumn?: (columnId: string, currentName: string) => void;
   onDeleteColumn?: (columnId: string) => void;
@@ -123,31 +123,53 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
       {/* Task List / Drop Area */}
       <div
-        className={`flex-1 rounded-xl p-2 space-y-2 overflow-y-auto transition-colors ${
+        className={`rounded-2xl p-2.5 space-y-2 overflow-y-auto transition-all ${
           isOver
-            ? 'bg-orange-50/60 dark:bg-orange-500/5 ring-2 ring-orange-200 dark:ring-orange-500/20'
-            : 'bg-neutral-100/60 dark:bg-neutral-900/40'
+            ? 'bg-orange-50/80 dark:bg-orange-500/10 border border-orange-400 dark:border-orange-500/30 ring-2 ring-orange-200 dark:ring-orange-500/20'
+            : 'bg-neutral-200/50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800/80 shadow-2xs'
         }`}
-        style={{ minHeight: 140, maxHeight: 'calc(100vh - 260px)' }}
+        style={{ minHeight: 120, maxHeight: 'calc(100vh - 220px)' }}
       >
         {tasks.length === 0 ? (
-          <div className="h-24 flex flex-col items-center justify-center text-center text-neutral-300 dark:text-neutral-700 text-[11px] gap-1">
-            <Icon name="list" size={20} />
+          <div className="py-5 flex flex-col items-center justify-center text-center text-neutral-400 dark:text-neutral-500 text-[11.5px] gap-1 border border-dashed border-neutral-300/80 dark:border-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/40">
+            <Icon name="list" size={18} className="text-neutral-400" />
             <span>Drop tasks here</span>
           </div>
         ) : (
-          tasks.map((t) => (
-            <KanbanTaskCard
-              key={t._id || t.id}
-              task={t}
-              onOpen={onOpenTask}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onMenuAction={onMenuAction}
-              isDragging={draggingTaskId === (t._id || t.id)}
-            />
+          tasks.map((t, idx) => (
+            <React.Fragment key={t._id || t.id}>
+              <KanbanTaskCard
+                task={t}
+                index={idx}
+                onOpen={onOpenTask}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onDropTask={(e, targetIdx) => onDrop(e, colId, targetIdx)}
+                onMenuAction={onMenuAction}
+                isDragging={draggingTaskId === (t._id || t.id)}
+              />
+              <div className="group/add relative my-1">
+                <button
+                  type="button"
+                  onClick={() => onAddTask(colId, idx + 1)}
+                  className="w-full py-1 px-2.5 rounded-lg border border-dashed border-transparent hover:border-orange-300 dark:hover:border-orange-700/60 hover:bg-orange-50/60 dark:hover:bg-orange-500/10 text-[11px] font-medium text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 flex items-center justify-center gap-1 transition-all opacity-40 hover:opacity-100 cursor-pointer"
+                >
+                  <Icon name="plus" size={12} />
+                  <span>Add task below</span>
+                </button>
+              </div>
+            </React.Fragment>
           ))
         )}
+
+        {/* Add Task Button directly inside list below cards */}
+        <button
+          type="button"
+          onClick={() => onAddTask(colId)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-dashed border-neutral-300/80 dark:border-neutral-700 hover:border-orange-400 hover:bg-orange-50/80 dark:hover:bg-orange-500/10 text-neutral-600 dark:text-neutral-300 hover:text-orange-600 dark:hover:text-orange-400 text-xs font-semibold transition-all cursor-pointer bg-white/80 dark:bg-neutral-800/60 shadow-2xs"
+        >
+          <Icon name="plus" size={14} /> Add task
+        </button>
       </div>
     </div>
   );

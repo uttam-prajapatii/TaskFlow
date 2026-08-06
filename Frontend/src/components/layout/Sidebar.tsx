@@ -1,23 +1,74 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import useAuth from '../../hooks/useAuth';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import Icon from '../UI/Icon';
 import Avatar, { initials } from '../UI/Avatar';
 import DropdownMenu, { type MenuItem } from '../UI/DropdownMenu';
+import CreateWorkspaceModal from '../../features/workspace/components/CreateWorkspaceModal';
+import workspaceService from '../../services/workspace.service';
+import type { CreateWorkspacePayload } from '../../features/workspace/types';
+
+import ConfirmModal from '../UI/ConfirmModal';
 
 export const Sidebar: React.FC = () => {
-  const { user } = useAuth();
-  const { workspaces, currentWorkspace, setCurrentWorkspace } = useWorkspace();
+  const { user, logout } = useAuth();
+  const { workspaces, currentWorkspace, setCurrentWorkspace, refreshWorkspaces } = useWorkspace();
   const navigate = useNavigate();
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
+  const [createWsOpen, setCreateWsOpen] = useState(false);
+  const [creatingWs, setCreatingWs] = useState(false);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [leavingWs, setLeavingWs] = useState(false);
 
   const currentWorkspaceId = currentWorkspace?._id || currentWorkspace?.id || '';
   const currentWsName = currentWorkspace?.name || 'Workspace';
   const visibility = currentWorkspace?.settings?.visibility || currentWorkspace?.visibility || 'private';
 
+  const handleCreateWorkspace = async (payload: CreateWorkspacePayload) => {
+    try {
+      setCreatingWs(true);
+      const created = await workspaceService.createWorkspace(payload);
+      toast.success(`Workspace "${created.name}" created!`);
+      setCreateWsOpen(false);
+      await refreshWorkspaces();
+      setCurrentWorkspace(created);
+      navigate(`/workspaces/${created._id || created.id}`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to create workspace');
+    } finally {
+      setCreatingWs(false);
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    if (!currentWorkspaceId) return;
+    try {
+      setLeavingWs(true);
+      await workspaceService.leaveWorkspace(currentWorkspaceId);
+      toast.success('Left workspace');
+      await refreshWorkspaces();
+      const remaining = workspaces.filter((w) => (w._id || w.id) !== currentWorkspaceId);
+      if (remaining.length > 0) {
+        setCurrentWorkspace(remaining[0]);
+        navigate('/workspace-select');
+      } else {
+        setCurrentWorkspace(null);
+        navigate('/onboarding');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to leave workspace');
+    } finally {
+      setLeavingWs(false);
+      setConfirmLeaveOpen(false);
+    }
+  };
+
   const workspaceNavItems = [
-    { icon: 'home', label: 'Dashboard', to: '/dashboard' },
+    { icon: 'layoutGrid', label: 'Workspaces', to: '/workspace-select' },
     { icon: 'barChart', label: 'Boards', to: '/boards' },
     {
       icon: 'bell',
@@ -28,17 +79,42 @@ export const Sidebar: React.FC = () => {
     {
       icon: 'users',
       label: 'Members',
-      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}` : '/workspaces',
+      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=members` : '/workspaces/manage',
+    },
+    {
+      icon: 'mail',
+      label: 'Invitations',
+      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=invitations` : '/workspaces/manage',
     },
     { icon: 'activity', label: 'Analytics', to: '/analytics' },
-    { icon: 'settings', label: 'Settings', to: '/settings' },
+    {
+      icon: 'settings',
+      label: 'Settings',
+      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=settings` : '/workspaces/manage',
+    },
   ];
 
   const wsMenuItems: MenuItem[] = [
     {
+      label: 'Switch Workspace',
+      icon: 'arrow-left-right',
+      onClick: () => navigate('/workspace-select'),
+    },
+    {
+      label: 'Create Workspace',
+      icon: 'plus',
+      onClick: () => setCreateWsOpen(true),
+    },
+    {
       label: 'Manage Workspaces',
       icon: 'folder',
-      onClick: () => navigate('/workspaces'),
+      onClick: () => navigate('/workspaces/manage'),
+    },
+    {
+      label: 'Leave Current Workspace',
+      icon: 'log-out',
+      danger: true,
+      onClick: () => setConfirmLeaveOpen(true),
     },
     { divider: true },
     ...workspaces.map((ws) => ({
@@ -49,15 +125,19 @@ export const Sidebar: React.FC = () => {
         navigate(`/workspaces/${ws._id || ws.id}`);
       },
     })),
+    { divider: true },
+    {
+      label: 'Sign Out',
+      icon: 'log-out',
+      onClick: () => logout(),
+    },
   ];
 
   return (
     <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 h-screen sticky top-0">
       {/* Brand Header */}
-      <Link to="/boards" className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-400 via-orange-500 to-red-500 flex items-center justify-center shadow-xs">
-          <div className="w-3 h-3 rounded-sm bg-white" />
-        </div>
+      <Link to="/workspace-select" className="flex items-center gap-2.5 px-5 pt-5 pb-3">
+        <img src="/logo.png" alt="TaskFlow Logo" className="w-8 h-8 rounded-lg object-contain block shadow-xs" />
         <span className="text-[17px] font-bold tracking-tight text-neutral-900 dark:text-neutral-100 font-display">
           TaskFlow
         </span>
@@ -135,6 +215,21 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <CreateWorkspaceModal
+        open={createWsOpen}
+        onClose={() => setCreateWsOpen(false)}
+        onCreate={handleCreateWorkspace}
+        creating={creatingWs}
+      />
+
+      <ConfirmModal
+        target={confirmLeaveOpen ? { name: currentWsName } : null}
+        mode="leave"
+        working={leavingWs}
+        onClose={() => setConfirmLeaveOpen(false)}
+        onConfirm={handleLeaveWorkspace}
+      />
     </aside>
   );
 };

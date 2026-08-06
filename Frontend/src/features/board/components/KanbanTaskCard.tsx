@@ -59,18 +59,22 @@ export const formatDate = (dueDate?: string | null) => {
 
 interface KanbanTaskCardProps {
   task: Task;
+  index?: number;
   onOpen: (task: Task) => void;
   onDragStart: (e: React.DragEvent, task: Task) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  onDropTask?: (e: React.DragEvent, index: number) => void;
   onMenuAction: (action: string, task: Task) => void;
   isDragging?: boolean;
 }
 
 export const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
   task,
+  index = 0,
   onOpen,
   onDragStart,
   onDragEnd,
+  onDropTask,
   onMenuAction,
   isDragging = false,
 }) => {
@@ -89,6 +93,19 @@ export const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
       draggable
       onDragStart={(e) => onDragStart(e, task)}
       onDragEnd={onDragEnd}
+      onDragOver={(e) => {
+        if (onDropTask) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      onDrop={(e) => {
+        if (onDropTask) {
+          e.preventDefault();
+          e.stopPropagation();
+          onDropTask(e, index);
+        }
+      }}
       onClick={() => onOpen(task)}
       tabIndex={0}
       role="button"
