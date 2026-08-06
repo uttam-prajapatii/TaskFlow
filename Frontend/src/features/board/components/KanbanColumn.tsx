@@ -45,7 +45,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const [colMenuOpen, setColMenuOpen] = useState(false);
 
   const colId = column._id || column.id!;
-  const title = column.title || column.name || 'Untitled List';
+  const title = column.title || column.title || 'Untitled List';
   const isOver = dragOverColId === colId;
   const dotColor =
     COLUMN_COLORS[colId] ||

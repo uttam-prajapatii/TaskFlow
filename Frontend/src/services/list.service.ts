@@ -1,5 +1,5 @@
 import api from './api';
-import type { BoardList, CreateListPayload } from '../features/board/types';
+import type { BoardList } from '../features/board/types';
 
 export const listService = {
   // Get all lists for a board
