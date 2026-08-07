@@ -5,6 +5,7 @@ import authService from '../src/modules/auth/auth.service.js';
 import tokenService from '../src/modules/auth/token.service.js';
 import User from '../src/modules/auth/user.model.js';
 import RefreshToken from '../src/modules/auth/refreshToken.model.js';
+import redisClient from '../src/config/redis.js';
 import { UnauthorizedError, BadRequestError } from '../src/utils/errors.js';
 import { cookieConfig } from '../src/modules/auth/auth.utils.js';
 
@@ -20,7 +21,6 @@ process.env.JWT_REFRESH_EXPIRY = '7d';
 process.env.JWT_ACCESS_COOKIE_NAME = 'customAccessCookie';
 process.env.JWT_REFRESH_COOKIE_NAME = 'customRefreshCookie';
 
-
 describe('Authentication System Tests', () => {
   beforeAll(async () => {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/taskflow_test';
@@ -30,15 +30,21 @@ describe('Authentication System Tests', () => {
   });
 
   afterAll(async () => {
-    // Clean up test collections and close connection
+    // Clean up test collections and close connections
     await User.deleteMany({});
     await RefreshToken.deleteMany({});
     await mongoose.connection.close();
+    await redisClient.quit();
   });
 
   beforeEach(async () => {
     await User.deleteMany({});
     await RefreshToken.deleteMany({});
+    // Flush the OTP keys from Redis
+    const keys = await redisClient.keys('otp:*');
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
   });
 
   // ==========================================
@@ -56,13 +62,18 @@ describe('Authentication System Tests', () => {
       expect(result.user.email).toBe(email);
       expect(result.user.fullName).toBe(fullName);
       expect(result.user.password).toBeUndefined(); // select: false/removed
-      expect(result.tokens.accessToken).toBeDefined();
-      expect(result.tokens.refreshToken).toBeDefined();
+      expect(result.user.isVerified).toBe(false);
 
       const userInDb = await User.findOne({ email });
       expect(userInDb).toBeDefined();
       expect(userInDb.email).toBe(email);
       expect(userInDb.fullName).toBe(fullName);
+      expect(userInDb.isVerified).toBe(false);
+
+      // Verify OTP is generated in Redis
+      const otp = await redisClient.get(`otp:${email}`);
+      expect(otp).toBeDefined();
+      expect(otp).toHaveLength(6);
     });
 
     test('should reject duplicate registration', async () => {
@@ -88,12 +99,13 @@ describe('Authentication System Tests', () => {
   // Login Tests
   // ==========================================
   describe('User Login', () => {
-    test('should login with correct credentials', async () => {
+    test('should login with correct credentials if verified', async () => {
       const email = 'login@example.com';
       const password = 'Password123!';
       const fullName = 'Test User';
 
       await authService.register(email, password, fullName);
+      await User.updateOne({ email }, { isVerified: true });
       const result = await authService.login(email, password);
 
       expect(result.user.email).toBe(email);
@@ -107,6 +119,7 @@ describe('Authentication System Tests', () => {
       const fullName = 'Test User';
 
       await authService.register(email, password, fullName);
+      await User.updateOne({ email }, { isVerified: true });
 
       let errorThrown;
       try {
@@ -133,6 +146,81 @@ describe('Authentication System Tests', () => {
   });
 
   // ==========================================
+  // OTP Verification Tests
+  // ==========================================
+  describe('OTP Verification Flow', () => {
+    test('should send OTP on login if user is unverified', async () => {
+      const email = 'unverified-login@example.com';
+      const password = 'Password123!';
+      const fullName = 'Unverified User';
+
+      await authService.register(email, password, fullName);
+      
+      const result = await authService.login(email, password);
+      expect(result.isVerified).toBe(false);
+      expect(result.message).toBe('Verification OTP sent to your email');
+
+      // Verify OTP is in Redis
+      const otp = await redisClient.get(`otp:${email}`);
+      expect(otp).toBeDefined();
+      expect(otp).toHaveLength(6);
+    });
+
+    test('should verify OTP and activate account successfully', async () => {
+      const email = 'verify-success@example.com';
+      const password = 'Password123!';
+      const fullName = 'Test User';
+
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      
+      const result = await authService.verifyOtp(email, otp);
+      expect(result.user.isVerified).toBe(true);
+      expect(result.tokens.accessToken).toBeDefined();
+
+      const userInDb = await User.findOne({ email });
+      expect(userInDb.isVerified).toBe(true);
+
+      // Verify OTP is removed from Redis
+      const cachedOtp = await redisClient.get(`otp:${email}`);
+      expect(cachedOtp).toBeNull();
+    });
+
+    test('should reject invalid OTP', async () => {
+      const email = 'verify-invalid@example.com';
+      const password = 'Password123!';
+      const fullName = 'Test User';
+
+      await authService.register(email, password, fullName);
+
+      let errorThrown;
+      try {
+        await authService.verifyOtp(email, '999999');
+      } catch (err) {
+        errorThrown = err;
+      }
+
+      expect(errorThrown).toBeDefined();
+      expect(errorThrown.message).toBe('Invalid verification code');
+    });
+
+    test('should resend OTP code successfully', async () => {
+      const email = 'resend-otp@example.com';
+      const password = 'Password123!';
+      const fullName = 'Test User';
+
+      await authService.register(email, password, fullName);
+      const initialOtp = await redisClient.get(`otp:${email}`);
+
+      await authService.resendOtp(email);
+      const newOtp = await redisClient.get(`otp:${email}`);
+
+      expect(newOtp).toBeDefined();
+      expect(newOtp).not.toBe(initialOtp);
+    });
+  });
+
+  // ==========================================
   // Refresh & Rotation Tests
   // ==========================================
   describe('Token Refresh & Rotation', () => {
@@ -141,17 +229,17 @@ describe('Authentication System Tests', () => {
       const password = 'Password123!';
       const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password, fullName);
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      const regResult = await authService.verifyOtp(email, otp);
       const oldRefreshToken = regResult.tokens.refreshToken;
 
-      // Wait a moment so creation timestamps differ if needed, then refresh
       const refreshResult = await authService.refresh(oldRefreshToken);
 
       expect(refreshResult.accessToken).toBeDefined();
       expect(refreshResult.refreshToken).toBeDefined();
       expect(refreshResult.refreshToken).not.toBe(oldRefreshToken);
 
-      // Verify the old token is marked revoked
       const oldHash = tokenService.hashToken(oldRefreshToken);
       const oldTokenRecord = await RefreshToken.findOne({ tokenHash: oldHash });
       expect(oldTokenRecord.isRevoked).toBe(true);
@@ -162,26 +250,23 @@ describe('Authentication System Tests', () => {
       const password = 'Password123!';
       const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password, fullName);
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      const regResult = await authService.verifyOtp(email, otp);
       const oldRefreshToken = regResult.tokens.refreshToken;
 
-      // 1st refresh: rotates successfully
       await authService.refresh(oldRefreshToken);
 
-      // Simulate waiting beyond the 2-second race-condition grace period
-      // by manually setting the first token's revokedAt time to 5 seconds ago
       const oldHash = tokenService.hashToken(oldRefreshToken);
       await RefreshToken.updateOne(
         { tokenHash: oldHash },
         { revokedAt: new Date(Date.now() - 5000) }
       );
 
-      // Create an additional active session/token for testing cascade revocation
       const anotherSession = await tokenService.generateAuthTokens(
         await User.findOne({ email })
       );
 
-      // 2nd refresh: should trigger reuse compromise detection
       let errorThrown;
       try {
         await authService.refresh(oldRefreshToken);
@@ -194,12 +279,11 @@ describe('Authentication System Tests', () => {
         'Refresh token reuse detected. All sessions revoked. Please log in again.'
       );
 
-      // Verify that all refresh tokens for this user are now revoked
       const activeTokens = await RefreshToken.find({
         userId: regResult.user._id,
         isRevoked: false,
       });
-    expect(activeTokens).toHaveLength(0);
+      expect(activeTokens).toHaveLength(0);
     });
 
     test('should handle concurrent/race condition refreshes safely', async () => {
@@ -207,15 +291,13 @@ describe('Authentication System Tests', () => {
       const password = 'Password123!';
       const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password, fullName);
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      const regResult = await authService.verifyOtp(email, otp);
       const oldRefreshToken = regResult.tokens.refreshToken;
 
-      // Simulate a concurrent second request hitting within the 2-second grace period.
-      // We will perform the first refresh:
       await authService.refresh(oldRefreshToken);
 
-      // A concurrent request arriving immediately with the same token should reject
-      // with a race-condition retry message rather than revoking everything.
       let errorThrown;
       try {
         await authService.refresh(oldRefreshToken);
@@ -226,12 +308,9 @@ describe('Authentication System Tests', () => {
       expect(errorThrown).toBeDefined();
       expect(errorThrown.message).toBe('Token is rotating, please retry');
 
-      // Ensure that other session refresh tokens are NOT cascade-revoked!
       const user = await User.findOne({ email });
-      // Create another session token
       const checkTokenPair = await tokenService.generateAuthTokens(user);
 
-      // Verify this session is still valid (not revoked by the concurrent request)
       const freshHash = tokenService.hashToken(checkTokenPair.refreshToken);
       const freshRecord = await RefreshToken.findOne({ tokenHash: freshHash });
       expect(freshRecord.isRevoked).toBe(false);
@@ -247,7 +326,9 @@ describe('Authentication System Tests', () => {
       const password = 'Password123!';
       const fullName = 'Test User';
 
-      const regResult = await authService.register(email, password, fullName);
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      const regResult = await authService.verifyOtp(email, otp);
       const refreshToken = regResult.tokens.refreshToken;
 
       await authService.logout(refreshToken);
@@ -256,7 +337,6 @@ describe('Authentication System Tests', () => {
       const record = await RefreshToken.findOne({ tokenHash: hash });
       expect(record.isRevoked).toBe(true);
 
-      // Trying to refresh with the logged out token should fail
       let errorThrown;
       try {
         await authService.refresh(refreshToken);
@@ -276,7 +356,10 @@ describe('Authentication System Tests', () => {
       const email = 'cookie-auth@example.com';
       const password = 'Password123!';
       const fullName = 'Test User';
-      const regResult = await authService.register(email, password, fullName);
+      
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      const regResult = await authService.verifyOtp(email, otp);
       const accessCookieName = cookieConfig.accessToken.name;
       
       const req = {
@@ -292,7 +375,6 @@ describe('Authentication System Tests', () => {
       const { protect } = await import('../src/modules/auth/auth.middleware.js');
       await protect(req, res, next);
       
-      // Delay to let asyncHandler complete its execution
       await new Promise(resolve => setTimeout(resolve, 50));
       
       expect(next).toHaveBeenCalled();
@@ -304,7 +386,10 @@ describe('Authentication System Tests', () => {
       const email = 'cookie-refresh@example.com';
       const password = 'Password123!';
       const fullName = 'Test User';
-      const regResult = await authService.register(email, password, fullName);
+      
+      await authService.register(email, password, fullName);
+      const otp = await redisClient.get(`otp:${email}`);
+      const regResult = await authService.verifyOtp(email, otp);
       const refreshCookieName = cookieConfig.refreshToken.name;
       
       const req = {
@@ -327,7 +412,6 @@ describe('Authentication System Tests', () => {
       const { default: authController } = await import('../src/modules/auth/auth.controller.js');
       await authController.refresh(req, res, next);
       
-      // Delay to let asyncHandler complete its execution
       await new Promise(resolve => setTimeout(resolve, 50));
       
       expect(res.cookie).toHaveBeenCalled();

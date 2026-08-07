@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 let cachedLogoDataUri = null;
 
 function getLogoSrc() {
+  if (process.env.EMAIL_LOGO_URL) {
+    return process.env.EMAIL_LOGO_URL;
+  }
   if (cachedLogoDataUri) return cachedLogoDataUri;
   try {
     // Look for logo.png in templates folder first, then Frontend/public/logo.png

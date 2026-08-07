@@ -191,3 +191,22 @@ export async function sendPasswordResetEmail({ toEmail, resetToken }) {
     },
   });
 }
+
+/**
+ * Sends a registration/verification OTP email.
+ * 
+ * @param {Object} params
+ * @param {string} params.toEmail - Recipient email address
+ * @param {string} params.otp - The 6-digit verification code
+ * @returns {Promise<Object>} Mail sending metadata
+ */
+export async function sendOtpEmail({ toEmail, otp }) {
+  return sendEmail({
+    to: toEmail,
+    subject: `${otp} is your TaskFlow verification code`,
+    templateName: 'otp',
+    variables: {
+      otp,
+    },
+  });
+}

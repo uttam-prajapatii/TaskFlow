@@ -1,9 +1,7 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import logger from '../../utils/logger.js';
-
-// Parse Redis connection URL
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+import { redisUrl, redisConfig } from '../../config/redis.js';
 
 // Log the Redis host (obfuscating credentials)
 try {
@@ -15,10 +13,7 @@ try {
 
 // Configure persistent redis connection for the queue
 // BullMQ requires maxRetriesPerRequest to be null
-const queueConnection = new IORedis(redisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
+const queueConnection = new IORedis(redisUrl, redisConfig);
 
 queueConnection.on('error', (error) => {
   logger.error(`Redis connection error on emailQueue: ${error.message}`, {

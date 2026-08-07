@@ -78,6 +78,7 @@ services:
       - MONGO_URI=${MONGO_URI}
       - REDIS_URL=${REDIS_URL}
       - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS}
+      - EMAIL_LOGO_URL=${EMAIL_LOGO_URL:-https://res.cloudinary.com/kccnqqnu/image/upload/logo_qkcs9p.png}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - APP_BASE_URL=${APP_BASE_URL}
     volumes:
