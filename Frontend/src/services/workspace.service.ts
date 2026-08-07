@@ -86,6 +86,12 @@ export const workspaceService = {
   async leaveWorkspace(workspaceId: string): Promise<void> {
     await api.post(`/api/v1/workspaces/${workspaceId}/leave`);
   },
+
+  // Accept invitation token
+  async acceptInvite(token: string): Promise<{ workspaceId: string; message: string }> {
+    const response = await api.post(`/api/v1/workspaces/invites/${token}/accept`);
+    return response.data;
+  },
 };
 
 export default workspaceService;

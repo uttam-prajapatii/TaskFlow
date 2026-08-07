@@ -84,17 +84,22 @@ class TaskService {
       throw new ForbiddenError('Cannot create a task because the board or workspace is archived');
     }
 
-    // Auto-calculate position at the end of the list
-    const maxPos = await taskRepository.getMaxPosition(listId);
-    const position = maxPos + 1;
+    const existingTasks = await taskRepository.findTasksByList(listId);
+    const maxPos = existingTasks.length;
+    const requestedPos = typeof taskData.position === 'number' && !Number.isNaN(taskData.position)
+      ? Math.max(0, Math.min(taskData.position, maxPos))
+      : maxPos;
 
     const task = await taskRepository.createTask({
       ...taskData,
       listId,
       boardId: list.boardId,
-      position,
+      position: requestedPos,
       createdBy: userId
     });
+
+    existingTasks.splice(requestedPos, 0, task);
+    await taskRepository.updatePositions(existingTasks.map((t) => t._id));
 
     logger.info(`Task created successfully: ${task.title}`, {
       taskId: task._id,

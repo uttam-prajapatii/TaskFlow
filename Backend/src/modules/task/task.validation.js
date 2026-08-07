@@ -115,20 +115,21 @@ export const validateUpdateTask = (req, res, next) => {
 };
 
 export const validateMoveTask = (req, res, next) => {
-  const { listId, position } = req.body;
-
-  if (listId !== undefined) {
-    if (!mongoose.Types.ObjectId.isValid(listId)) {
+  const effectiveListId = req.body.listId || req.body.targetListId;
+  if (effectiveListId !== undefined) {
+    if (!mongoose.Types.ObjectId.isValid(effectiveListId)) {
       return next(new BadRequestError('Invalid list ID format'));
     }
+    req.body.listId = effectiveListId;
   }
 
-  if (position === undefined) {
-    return next(new BadRequestError('Position is required'));
-  }
+  const rawPosition = req.body.position !== undefined ? req.body.position : req.body.targetPosition;
+  const position = rawPosition !== undefined ? rawPosition : 0;
+
   if (typeof position !== 'number' || !Number.isInteger(position) || position < 0) {
     return next(new BadRequestError('Position must be a non-negative integer'));
   }
+  req.body.position = position;
 
   next();
 };

@@ -86,8 +86,8 @@ export const BoardsPage: React.FC = () => {
 
   const handleCreateBoard = async (payload: CreateBoardPayload) => {
     try {
-      setCreating(true);
-      const created = await boardService.createBoard(payload.workspaceId, payload);
+      const targetWsId = payload.workspaceId || selectedWsId || '';
+      const created = await boardService.createBoard(targetWsId, payload);
       toast.success(`Board "${created.name || created.title}" created successfully!`);
       setCreateOpen(false);
       navigate(`/boards/${created._id || created.id}`);

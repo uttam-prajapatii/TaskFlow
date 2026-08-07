@@ -35,6 +35,58 @@ export const taskService = {
     return response.data?.data;
   },
 
+  // Search tasks in a board
+  async searchTasks(boardId: string, query: string): Promise<Task[]> {
+    const response = await api.get(`/api/v1/boards/${boardId}/tasks/search`, {
+      params: { q: query },
+    });
+    return response.data?.data || [];
+  },
+
+  // Archive task
+  async archiveTask(taskId: string): Promise<Task> {
+    const response = await api.post(`/api/v1/tasks/${taskId}/archive`);
+    return response.data?.data;
+  },
+
+  // Restore archived task
+  async restoreTask(taskId: string): Promise<Task> {
+    const response = await api.post(`/api/v1/tasks/${taskId}/restore`);
+    return response.data?.data;
+  },
+
+  // Checklist operations: action can be 'add', 'toggle', 'delete', 'update'
+  async checklistOperation(taskId: string, action: string, payload: Record<string, unknown>): Promise<Task> {
+    const response = await api.patch(`/api/v1/tasks/${taskId}/checklist`, { action, ...payload });
+    return response.data?.data;
+  },
+
+  // Add assignee
+  async addAssignee(taskId: string, userId: string): Promise<Task> {
+    const response = await api.post(`/api/v1/tasks/${taskId}/assignees`, { userId });
+    return response.data?.data;
+  },
+
+  // Remove assignee
+  async removeAssignee(taskId: string, userId: string): Promise<Task> {
+    const response = await api.delete(`/api/v1/tasks/${taskId}/assignees/${userId}`);
+    return response.data?.data;
+  },
+
+  // Upload attachment
+  async uploadAttachment(taskId: string, formData: FormData): Promise<Task> {
+    const response = await api.post(`/api/v1/tasks/${taskId}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data?.data;
+  },
+
+  // Delete attachment
+  async deleteAttachment(taskId: string, attachmentId: string): Promise<Task> {
+    const response = await api.delete(`/api/v1/tasks/${taskId}/attachments/${attachmentId}`);
+    return response.data?.data;
+  },
+
   // Delete task
   async deleteTask(taskId: string): Promise<void> {
     await api.delete(`/api/v1/tasks/${taskId}`);

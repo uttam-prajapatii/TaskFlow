@@ -31,7 +31,7 @@ export const BoardKanbanPage: React.FC = () => {
   // Search, filter & sort state
   const [search, setSearch] = useState('');
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority' | 'dueDate' | 'alpha'>('newest');
+  const [sortBy, setSortBy] = useState<'position' | 'newest' | 'oldest' | 'priority' | 'dueDate' | 'alpha'>('position');
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -44,6 +44,7 @@ export const BoardKanbanPage: React.FC = () => {
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [defaultColForTask, setDefaultColForTask] = useState<string | undefined>(undefined);
+  const [targetPositionForTask, setTargetPositionForTask] = useState<number | undefined>(undefined);
   const [savingTask, setSavingTask] = useState(false);
 
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
@@ -148,7 +149,7 @@ export const BoardKanbanPage: React.FC = () => {
     setDragOverColId(null);
   };
 
-  const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
+  const handleDrop = async (e: React.DragEvent, targetColumnId: string, targetIndex?: number) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('text/plain') || draggingTaskId;
     setDraggingTaskId(null);
@@ -156,19 +157,43 @@ export const BoardKanbanPage: React.FC = () => {
 
     if (!taskId) return;
 
-    // Optimistic UI update
-    setTasks((prev) =>
-      prev.map((t) => {
-        if ((t._id || t.id) === taskId) {
-          return { ...t, status: targetColumnId, listId: targetColumnId };
-        }
-        return t;
+    // Filter existing tasks in destination column (excluding dropped task)
+    const targetColTasks = tasks
+      .filter((t) => {
+        const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+        return (String(taskListId) === String(targetColumnId) || String(t.status) === String(targetColumnId)) && (t._id || t.id) !== taskId;
       })
-    );
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+    const safePosition = targetIndex !== undefined ? Math.max(0, Math.min(targetIndex, targetColTasks.length)) : targetColTasks.length;
+
+    // Optimistic UI update with re-calculated position index
+    setTasks((prev) => {
+      const movedTask = prev.find((t) => (t._id || t.id) === taskId);
+      if (!movedTask) return prev;
+
+      const updatedMoved = { ...movedTask, status: targetColumnId, listId: targetColumnId, position: safePosition };
+      const listCopy = [...targetColTasks];
+      listCopy.splice(safePosition, 0, updatedMoved);
+
+      const reindexedTarget = listCopy.map((t, idx) => ({ ...t, position: idx }));
+
+      const otherColTasks = prev.filter((t) => {
+        const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+        return String(taskListId) !== String(targetColumnId) && String(t.status) !== String(targetColumnId) && (t._id || t.id) !== taskId;
+      });
+
+      return [...otherColTasks, ...reindexedTarget];
+    });
 
     try {
-      await taskService.moveTask(taskId, { targetListId: targetColumnId });
-      toast.success('Task moved');
+      await taskService.moveTask(taskId, {
+        listId: targetColumnId,
+        targetListId: targetColumnId,
+        position: safePosition,
+        targetPosition: safePosition,
+      });
+      toast.success('Task position updated');
     } catch {
       // Revert on error
       loadBoardData();
@@ -188,7 +213,9 @@ export const BoardKanbanPage: React.FC = () => {
       list = list.filter((t) => t.priority === filterPriority);
     }
 
-    if (sortBy === 'newest') {
+    if (sortBy === 'position') {
+      list = [...list].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    } else if (sortBy === 'newest') {
       list = [...list].sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       );
@@ -221,11 +248,15 @@ export const BoardKanbanPage: React.FC = () => {
           toast.error('Please add a list to the board before adding tasks.');
           return;
         }
-        await taskService.createTask(targetListId, payload);
+        await taskService.createTask(targetListId, {
+          ...payload,
+          ...(typeof targetPositionForTask === 'number' ? { position: targetPositionForTask } : {}),
+        });
         toast.success('Task created');
       }
       setTaskModalOpen(false);
       setEditingTask(null);
+      setTargetPositionForTask(undefined);
       loadBoardData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -263,6 +294,7 @@ export const BoardKanbanPage: React.FC = () => {
   ];
 
   const sortItems: MenuItem[] = [
+    { label: 'Custom position', icon: sortBy === 'position' ? 'check' : undefined, onClick: () => setSortBy('position') },
     { label: 'Newest first', icon: sortBy === 'newest' ? 'check' : undefined, onClick: () => setSortBy('newest') },
     { label: 'Oldest first', icon: sortBy === 'oldest' ? 'check' : undefined, onClick: () => setSortBy('oldest') },
     { label: 'Priority', icon: sortBy === 'priority' ? 'check' : undefined, onClick: () => setSortBy('priority') },
@@ -390,7 +422,10 @@ export const BoardKanbanPage: React.FC = () => {
           <div className="flex gap-4 h-full items-start">
             {columns.map((col) => {
               const colId = col._id || col.id!;
-              const colTasks = processedTasks.filter((t) => (t.status || t.listId) === colId);
+              const colTasks = processedTasks.filter((t) => {
+                const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+                return String(taskListId) === String(colId) || String(t.status) === String(colId);
+              });
 
               return (
                 <KanbanColumn
@@ -404,9 +439,10 @@ export const BoardKanbanPage: React.FC = () => {
                   draggingTaskId={draggingTaskId}
                   dragOverColId={dragOverColId}
                   onDragOverCol={(cId) => setDragOverColId(cId)}
-                  onAddTask={(cId) => {
+                  onAddTask={(cId, targetPos) => {
                     setEditingTask(null);
                     setDefaultColForTask(cId);
+                    setTargetPositionForTask(targetPos);
                     setTaskModalOpen(true);
                   }}
                   onMenuAction={handleMenuAction}
@@ -514,6 +550,7 @@ export const BoardKanbanPage: React.FC = () => {
           setTaskModalOpen(true);
         }}
         columns={columns}
+        workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
       />
     </div>
   );

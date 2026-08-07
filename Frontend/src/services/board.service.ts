@@ -29,6 +29,18 @@ export const boardService = {
     return response.data?.data;
   },
 
+  // Archive board
+  async archiveBoard(boardId: string): Promise<Board> {
+    const response = await api.post(`/api/v1/boards/${boardId}/archive`);
+    return response.data?.data;
+  },
+
+  // Restore archived board
+  async restoreBoard(boardId: string): Promise<Board> {
+    const response = await api.post(`/api/v1/boards/${boardId}/restore`);
+    return response.data?.data;
+  },
+
   // Delete board
   async deleteBoard(boardId: string): Promise<void> {
     await api.delete(`/api/v1/boards/${boardId}`);

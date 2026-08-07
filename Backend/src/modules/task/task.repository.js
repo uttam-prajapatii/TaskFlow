@@ -40,6 +40,8 @@ class TaskRepository {
    */
   async findTasksByBoard(boardId, filters = {}) {
     return Task.find({ boardId, isDeleted: { $ne: true }, ...filters })
+      .populate('assignees', 'fullName email')
+      .populate('createdBy', 'fullName email')
       .sort({ listId: 1, position: 1 })
       .exec();
   }

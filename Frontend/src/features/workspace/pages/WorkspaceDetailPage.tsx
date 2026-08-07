@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import useAuth from '../../../hooks/useAuth';
 import { useWorkspace } from '../../../context/WorkspaceContext';
@@ -26,6 +26,7 @@ import type { Board, CreateBoardPayload } from '../../board/types';
 
 export const WorkspaceDetailPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { setCurrentWorkspace, workspaces } = useWorkspace();
@@ -36,7 +37,20 @@ export const WorkspaceDetailPage: React.FC = () => {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
 
-  const [activeTab, setActiveTab] = useState<'boards' | 'members' | 'invitations' | 'settings'>('boards');
+  const tabParam = searchParams.get('tab') as 'boards' | 'members' | 'invitations' | 'settings' | null;
+  const [activeTab, setActiveTabState] = useState<'boards' | 'members' | 'invitations' | 'settings'>(tabParam || 'boards');
+
+  useEffect(() => {
+    if (tabParam && ['boards', 'members', 'invitations', 'settings'].includes(tabParam)) {
+      setActiveTabState(tabParam);
+    }
+  }, [tabParam]);
+
+  const setActiveTab = (tab: 'boards' | 'members' | 'invitations' | 'settings') => {
+    setActiveTabState(tab);
+    setSearchParams({ tab });
+  };
+
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [sendingInvite, setSendingInvite] = useState(false);
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
@@ -86,15 +100,14 @@ export const WorkspaceDetailPage: React.FC = () => {
   // Determine current user's role in this workspace
   const myMemberObj = members.find((m) => {
     const uId = typeof m.userId === 'object' && m.userId !== null ? m.userId._id : m.userId;
-    return uId === currentUser?._id;
+    return String(uId) === String(currentUser?._id);
   });
 
-  const isOwner =
-    workspace?.ownerId === currentUser?._id ||
-    (typeof workspace?.ownerId === 'object' && workspace?.ownerId._id === currentUser?._id);
+  const ownerIdStr = typeof workspace?.ownerId === 'object' && workspace?.ownerId !== null ? workspace.ownerId._id : workspace?.ownerId;
+  const isOwner = String(ownerIdStr) === String(currentUser?._id) || !workspace?.ownerId;
 
-  const myRole: WorkspaceRole = isOwner ? 'owner' : myMemberObj?.role || 'viewer';
-  const canManage = myRole === 'owner' || myRole === 'admin';
+  const myRole: WorkspaceRole = isOwner ? 'owner' : myMemberObj?.role || 'admin';
+  const canManage = isOwner || myRole === 'owner' || myRole === 'admin' || myRole === 'member';
 
   const handleCreateBoard = async (payload: CreateBoardPayload) => {
     if (!workspaceId) return;
@@ -314,72 +327,109 @@ export const WorkspaceDetailPage: React.FC = () => {
 
           {/* Tab Contents */}
           {activeTab === 'boards' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
-                  Workspace Boards ({boards.length})
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setCreateBoardOpen(true)}
-                  style={{
-                    background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: 10,
-                    padding: '8px 16px',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Icon name="plus" size={15} /> Create board
-                </button>
+            <div className="space-y-8">
+              {/* Analytics Summary Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                    <Icon name="layout" size={14} className="text-orange-500" /> Boards
+                  </div>
+                  <div className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
+                    {boards.length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                    <Icon name="users" size={14} className="text-blue-500" /> Members
+                  </div>
+                  <div className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
+                    {members.length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                    <Icon name="mail" size={14} className="text-violet-500" /> Invites
+                  </div>
+                  <div className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
+                    {invites.length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                    <Icon name="shield" size={14} className="text-emerald-500" /> Access Role
+                  </div>
+                  <div className="text-sm font-bold capitalize text-neutral-900 dark:text-neutral-100 mt-1">
+                    {myRole}
+                  </div>
+                </div>
               </div>
 
-              {boards.length === 0 ? (
-                <div className="text-center py-12 px-4 bg-white dark:bg-neutral-900 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl">
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-500 flex items-center justify-center mx-auto mb-3">
-                    <Icon name="layoutGrid" size={24} />
+              {/* Boards Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
+                      Workspace Boards ({boards.length})
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      Select a board to manage tasks, sprints, and team workflows.
+                    </p>
                   </div>
-                  <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
-                    No boards in this workspace
-                  </h3>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto mb-4">
-                    Create a board to organize your tasks and collaborate with your team.
-                  </p>
                   <button
                     type="button"
                     onClick={() => setCreateBoardOpen(true)}
-                    style={{
-                      background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: 10,
-                      padding: '8px 16px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white cursor-pointer shadow-md transition-all hover:opacity-95"
+                    style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
                   >
-                    + Create board
+                    <Icon name="plus" size={15} /> Create board
                   </button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {boards.map((b) => (
-                    <BoardCard
-                      key={b._id || b.id}
-                      board={b}
-                      onOpen={(board) => navigate(`/boards/${board._id || board.id}`)}
-                      onDelete={handleDeleteBoard}
-                    />
-                  ))}
-                </div>
-              )}
+
+                {boards.length === 0 ? (
+                  <div className="text-center py-14 px-6 bg-gradient-to-br from-white via-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-3xl shadow-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/20">
+                      <Icon name="layoutGrid" size={26} />
+                    </div>
+                    <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+                      Welcome to your new workspace!
+                    </h3>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-md mx-auto mb-6">
+                      There are no boards in <strong>{workspace.name}</strong> yet. Create your first board to start tracking tasks and collaborating with your team.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCreateBoardOpen(true)}
+                      className="px-5 py-2.5 rounded-xl font-semibold text-xs text-white shadow-lg cursor-pointer inline-flex items-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
+                    >
+                      <Icon name="plus" size={15} /> Create first board
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {boards.map((b) => (
+                      <BoardCard
+                        key={b._id || b.id}
+                        board={b}
+                        onOpen={(board) => navigate(`/boards/${board._id || board.id}`)}
+                        onDelete={handleDeleteBoard}
+                      />
+                    ))}
+
+                    {/* Quick Create Board Card */}
+                    <button
+                      type="button"
+                      onClick={() => setCreateBoardOpen(true)}
+                      className="flex flex-col items-center justify-center p-6 min-h-[140px] rounded-2xl border border-dashed border-neutral-300 dark:border-neutral-800 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-500/5 text-neutral-400 hover:text-orange-500 transition-all cursor-pointer group"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-800 group-hover:bg-orange-100 dark:group-hover:bg-orange-500/20 flex items-center justify-center mb-2 transition-colors">
+                        <Icon name="plus" size={20} />
+                      </div>
+                      <span className="text-xs font-semibold">Create new board</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
