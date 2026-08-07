@@ -11,10 +11,12 @@ class AuthController {
     const { email, password, fullName } = req.body;
     const result = await authService.register(email, password, fullName);
     
-    // Set cookies for hybrid authentication
-    setTokenCookies(res, result.tokens);
+    // Set cookies only if tokens are returned directly (for future compatibility)
+    if (result.tokens) {
+      setTokenCookies(res, result.tokens);
+    }
 
-    return ApiResponse.created(res, 'User registered successfully', result);
+    return ApiResponse.created(res, 'User registered successfully. Please verify your email using the OTP sent.', result);
   });
 
   /**
@@ -24,10 +26,14 @@ class AuthController {
     const { email, password } = req.body;
     const result = await authService.login(email, password);
     
-    // Set cookies for hybrid authentication
-    setTokenCookies(res, result.tokens);
+    // Set cookies only for verified users who receive tokens
+    if (result.tokens) {
+      setTokenCookies(res, result.tokens);
+      return ApiResponse.success(res, 'Logged in successfully', result);
+    }
 
-    return ApiResponse.success(res, 'Logged in successfully', result);
+    // Unverified users receive confirmation of resent OTP
+    return ApiResponse.success(res, result.message || 'Verification OTP sent to your email', result);
   });
 
   /**
@@ -64,6 +70,28 @@ class AuthController {
     return ApiResponse.success(res, 'User details retrieved successfully', {
       user: req.user,
     });
+  });
+
+  /**
+   * Verify user email via OTP.
+   */
+  verifyOtp = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+    const result = await authService.verifyOtp(email, otp);
+
+    setTokenCookies(res, result.tokens);
+
+    return ApiResponse.success(res, 'Email verified and logged in successfully', result);
+  });
+
+  /**
+   * Resend verification OTP to user's email.
+   */
+  resendOtp = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    await authService.resendOtp(email);
+
+    return ApiResponse.success(res, 'Verification OTP sent successfully', null);
   });
 }
 

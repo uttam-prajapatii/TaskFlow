@@ -13,7 +13,9 @@ import {
   sendMentionEmail,
   sendDueDateReminderEmail,
   sendPasswordResetEmail,
+  sendOtpEmail,
 } from './email.service.js';
+import { redisUrl, redisConfig } from '../../config/redis.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,7 +23,6 @@ dotenv.config();
 // Connect to MongoDB
 connectDB();
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Log the Redis host (obfuscating credentials)
 try {
@@ -32,10 +33,7 @@ try {
 }
 
 // Configure Redis connection for worker
-const workerConnection = new IORedis(redisUrl, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-});
+const workerConnection = new IORedis(redisUrl, redisConfig);
 
 workerConnection.on('error', (error) => {
   logger.error(`Redis connection error on email worker: ${error.message}`, {
@@ -111,6 +109,7 @@ const jobRouter = {
   sendMention: (data) => sendMentionEmail(data),
   sendDueDateReminder: (data) => sendDueDateReminderEmail(data),
   sendPasswordReset: (data) => sendPasswordResetEmail(data),
+  sendOtp: (data) => sendOtpEmail(data),
 };
 
 // Initialize worker process

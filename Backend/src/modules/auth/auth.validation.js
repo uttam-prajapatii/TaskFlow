@@ -87,3 +87,55 @@ export const validateLogin = (req, res, next) => {
 
   next();
 };
+
+/**
+ * Middleware to validate verify-otp input.
+ */
+export const validateVerifyOtp = (req, res, next) => {
+  const { email, otp } = req.body;
+
+  if (!email || typeof email !== 'string') {
+    return next(new BadRequestError('Email is required'));
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+  if (!emailRegex.test(email)) {
+    return next(new BadRequestError('Invalid email format'));
+  }
+
+  if (!otp || typeof otp !== 'string') {
+    return next(new BadRequestError('OTP is required'));
+  }
+
+  const otpRegex = /^\d{6}$/;
+  if (!otpRegex.test(otp.trim())) {
+    return next(new BadRequestError('OTP must be a 6-digit number'));
+  }
+
+  // Sanitize inputs
+  req.body.email = email.trim().toLowerCase();
+  req.body.otp = otp.trim();
+
+  next();
+};
+
+/**
+ * Middleware to validate resend-otp input.
+ */
+export const validateResendOtp = (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email || typeof email !== 'string') {
+    return next(new BadRequestError('Email is required'));
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+  if (!emailRegex.test(email)) {
+    return next(new BadRequestError('Invalid email format'));
+  }
+
+  // Sanitize email
+  req.body.email = email.trim().toLowerCase();
+
+  next();
+};
