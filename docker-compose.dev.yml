@@ -44,6 +44,7 @@ services:
       - PORT=5000
       - MONGO_URI=${MONGO_URI}
       - REDIS_URL=${REDIS_URL}
+      - EMAIL_LOGO_URL=${EMAIL_LOGO_URL}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_ACCESS_EXPIRY=${JWT_ACCESS_EXPIRY}
@@ -71,7 +72,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: taskflow_worker_dev
     restart: always
-    command: bun src/modules/email/email.worker.js
+    command: bun --watch src/modules/email/email.worker.js
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - MONGO_URI=${MONGO_URI}
