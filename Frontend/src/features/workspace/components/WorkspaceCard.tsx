@@ -65,34 +65,16 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 
   return (
     <div
-      className="tf-card tf-fade-in hover:shadow-lg transition-all duration-200"
-      style={{
-        background: 'var(--tf-card, #ffffff)',
-        border: '1px solid var(--tf-border, #e5e7eb)',
-        borderRadius: 16,
-        padding: 18,
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        animationDelay: `${index * 35}ms`,
-      }}
       onClick={() => onOpen(ws)}
+      style={{ animationDelay: `${index * 35}ms` }}
+      className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 hover:border-orange-400 dark:hover:border-orange-500/50 shadow-2xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between"
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
             background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 16,
           }}
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
         >
           {initials(ws.name)}
         </div>
@@ -105,9 +87,9 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
                 type="button"
                 onClick={() => setMenuOpen((o) => !o)}
                 aria-label="More options"
-                className="w-9 h-9 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-center text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 transition-colors"
+                className="w-8 h-8 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-center cursor-pointer"
               >
-                <Icon name="more-horizontal" size={18} />
+                <Icon name="more-horizontal" size={16} />
               </button>
             }
             items={menuItems}
@@ -115,73 +97,32 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
         </div>
       </div>
 
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 700 }} className="text-neutral-900 dark:text-neutral-100">
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <h3 className="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
             {ws.name}
           </h3>
           <span
             title={ws.activity === 'active' ? 'Active this week' : 'Idle'}
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: ws.activity === 'active' ? '#22B573' : 'var(--tf-text-muted, #9ca3af)',
-              boxShadow: ws.activity === 'active' ? '0 0 0 3px rgba(34,181,115,0.18)' : 'none',
-              flexShrink: 0,
-            }}
+            className={`w-2 h-2 rounded-full shrink-0 ${
+              ws.activity === 'active'
+                ? 'bg-emerald-500 ring-2 ring-emerald-500/20'
+                : 'bg-neutral-300 dark:bg-neutral-600'
+            }`}
           />
         </div>
-        <p
-          style={{
-            margin: '4px 0 0',
-            fontSize: 13,
-            color: 'var(--tf-text-muted, #6b7280)',
-            lineHeight: 1.5,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1 leading-relaxed">
           {ws.description || 'No description provided.'}
         </p>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: 'auto',
-          paddingTop: 4,
-        }}
-      >
-        <AvatarStack users={memberList} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--tf-text-muted, #6b7280)' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Icon name="layout" size={13} /> {ws.boardCount ?? 0}
+      <div className="flex items-center justify-between mt-auto pt-3 border-t border-neutral-100 dark:border-neutral-800/80">
+        <div className="flex items-center gap-3">
+          <AvatarStack users={memberList} />
+          <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+            <Icon name="layout" size={13} className="text-neutral-400" /> {ws.boardCount ?? 0}
           </span>
         </div>
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingTop: 10,
-          borderTop: '1px solid var(--tf-border, #e5e7eb)',
-        }}
-      >
-        <span style={{ fontSize: 11.5, color: 'var(--tf-text-muted, #6b7280)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Icon name="clock" size={12} />{' '}
-          {new Date(ws.createdAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-        </span>
         <Badge tone={visibility === 'public' ? 'success' : 'neutral'}>
           {visibility === 'public' ? 'Public' : 'Private'}
         </Badge>

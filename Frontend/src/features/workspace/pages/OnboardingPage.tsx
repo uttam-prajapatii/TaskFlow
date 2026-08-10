@@ -49,16 +49,49 @@ export const OnboardingPage: React.FC = () => {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [workspaceName, setWorkspaceName] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [nameTouched, setNameTouched] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('software');
   const [selectedColor, setSelectedColor] = useState('#FF7A3D');
   const [creating, setCreating] = useState(false);
 
   const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'there';
 
+  const validateWorkspaceName = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return 'Workspace name is required.';
+    if (trimmed.length < 3) return 'Workspace name must be at least 3 characters.';
+    if (trimmed.length > 50) return 'Workspace name must be at most 50 characters.';
+    return '';
+  };
+
+  const handleNameChange = (val: string) => {
+    setWorkspaceName(val);
+    if (nameTouched) {
+      setNameError(validateWorkspaceName(val));
+    }
+  };
+
+  const handleStep1Next = (e: React.FormEvent) => {
+    e.preventDefault();
+    setNameTouched(true);
+    const err = validateWorkspaceName(workspaceName);
+    setNameError(err);
+    if (err) {
+      toast.error(err);
+      return;
+    }
+    setStep(2);
+  };
+
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!workspaceName.trim()) {
-      toast.error('Please enter a workspace name');
+    setNameTouched(true);
+    const err = validateWorkspaceName(workspaceName);
+    if (err) {
+      setNameError(err);
+      toast.error(err);
+      setStep(1);
       return;
     }
 
@@ -142,20 +175,41 @@ export const OnboardingPage: React.FC = () => {
               </p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); if (workspaceName.trim()) setStep(2); }} className="space-y-5 bg-neutral-900/90 border border-neutral-800 p-7 rounded-2xl shadow-2xl backdrop-blur-xl">
+            <form onSubmit={handleStep1Next} className="space-y-5 bg-neutral-900/90 border border-neutral-800 p-7 rounded-2xl shadow-2xl backdrop-blur-xl">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-300 mb-2">
                   Workspace Name
                 </label>
                 <input
                   type="text"
-                  required
+                  maxLength={50}
                   placeholder="e.g. Acme Corp, Engineering Team, My Projects"
                   value={workspaceName}
-                  onChange={(e) => setWorkspaceName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-neutral-950 border border-neutral-800 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  onBlur={() => {
+                    setNameTouched(true);
+                    setNameError(validateWorkspaceName(workspaceName));
+                  }}
+                  className={`w-full px-4 py-3 rounded-xl bg-neutral-950 text-white placeholder-neutral-500 text-sm outline-none transition border focus:ring-2 ${
+                    nameError && nameTouched
+                      ? 'border-rose-500 focus:ring-rose-500/20'
+                      : 'border-neutral-800 focus:border-orange-500 focus:ring-orange-500/20'
+                  }`}
                   autoFocus
                 />
+                <div className="flex items-center justify-between mt-2 text-xs">
+                  {nameError && nameTouched ? (
+                    <span className="text-rose-400 font-medium flex items-center gap-1">
+                      <Icon name="alert-circle" size={13} />
+                      {nameError}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-500">Must be between 3 and 50 characters</span>
+                  )}
+                  <span className={`font-mono text-[11px] ${workspaceName.length >= 45 ? 'text-amber-400 font-bold' : 'text-neutral-500'}`}>
+                    {workspaceName.length}/50
+                  </span>
+                </div>
               </div>
 
               <div>

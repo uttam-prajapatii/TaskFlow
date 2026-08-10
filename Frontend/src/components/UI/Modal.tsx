@@ -15,29 +15,12 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, children, width = 4
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(15,12,10,0.5)',
-        backdropFilter: 'blur(3px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        padding: 20,
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[3px]"
     >
       <div
-        className="tf-modal-in"
+        className="tf-modal-in relative w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 rounded-2xl shadow-2xl border border-neutral-200/80 dark:border-neutral-800 overflow-hidden flex flex-col max-h-[88vh]"
         style={{
-          background: 'var(--tf-card, #ffffff)',
-          borderRadius: 18,
-          width: '100%',
           maxWidth: width,
-          maxHeight: '88vh',
-          overflowY: 'auto',
-          border: '1px solid var(--tf-border, #e5e7eb)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
         }}
       >
         {children}

@@ -6,6 +6,7 @@ import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
 import workspaceService from '../../../services/workspace.service';
 import useAuth from '../../../hooks/useAuth';
+import { toast } from 'sonner';
 
 interface TaskModalProps {
   open: boolean;
@@ -34,6 +35,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState('');
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
   const [form, setForm] = useState<{
     title: string;
     description: string;
@@ -52,7 +55,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     assignees: [],
   });
 
-  const [errors, setErrors] = useState<{ title?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string; dueDate?: string }>({});
 
   const fetchMembers = useCallback(async () => {
     if (!workspaceId) {
@@ -97,7 +100,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           description: initial.description || '',
           priority: initial.priority || 'medium',
           status: initial.status || initial.listId || defaultColumnId || columns[0]?._id || 'todo',
-          dueDate: initial.dueDate ? initial.dueDate.slice(0, 10) : '',
+          dueDate: initial.dueDate ? String(initial.dueDate).slice(0, 10) : '',
           labels: initial.labels || [],
           assignees: mappedAssignees,
         });
@@ -124,9 +127,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   });
 
   const validate = () => {
-    const e: { title?: string } = {};
-    if (!form.title.trim()) e.title = 'Title is required';
-    else if (form.title.length > 120) e.title = 'Title must be under 120 characters';
+    const e: { title?: string; dueDate?: string } = {};
+    if (!form.title.trim()) {
+      e.title = 'Title is required';
+    } else if (form.title.length > 120) {
+      e.title = 'Title must be under 120 characters';
+    }
+
+    if (form.dueDate) {
+      const selectedDate = new Date(form.dueDate);
+      selectedDate.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        e.dueDate = 'Due date cannot be in the past';
+        toast.error('Please select a future due date.');
+      }
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -183,18 +202,27 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {/* Title */}
           <div>
-            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-              Title
-            </label>
-            <input
-              autoFocus
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g. Design the empty-state illustrations"
-              className={`w-full px-3 py-2 text-[13.5px] rounded-lg border bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition ${
-                errors.title ? 'border-rose-400' : 'border-neutral-200 dark:border-neutral-700'
-              }`}
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400">
+                Title <span className="text-orange-500">*</span>
+              </label>
+              <span className="text-[10.5px] text-neutral-400 font-medium">
+                {form.title.length}/100
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                autoFocus
+                type="text"
+                maxLength={100}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Design the empty-state illustrations"
+                className={`w-full px-3 py-2 text-[13.5px] rounded-lg border bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition ${
+                  errors.title ? 'border-rose-400' : 'border-neutral-200 dark:border-neutral-700'
+                }`}
+              />
+            </div>
             {errors.title && <p className="text-[11px] text-rose-500 mt-1">{errors.title}</p>}
           </div>
 
@@ -256,10 +284,31 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </label>
             <input
               type="date"
+              min={todayStr}
               value={form.dueDate}
-              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400"
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm({ ...form, dueDate: val });
+                if (val) {
+                  const selDate = new Date(val);
+                  selDate.setHours(0, 0, 0, 0);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  if (selDate < today) {
+                    setErrors((prev) => ({ ...prev, dueDate: 'Due date cannot be in the past' }));
+                    toast.error('Please select a future due date.');
+                  } else {
+                    setErrors((prev) => ({ ...prev, dueDate: undefined }));
+                  }
+                } else {
+                  setErrors((prev) => ({ ...prev, dueDate: undefined }));
+                }
+              }}
+              className={`w-full px-3 py-2 text-[13px] rounded-lg border bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition ${
+                errors.dueDate ? 'border-rose-400' : 'border-neutral-200 dark:border-neutral-700'
+              }`}
             />
+            {errors.dueDate && <p className="text-[11px] text-rose-500 mt-1">{errors.dueDate}</p>}
           </div>
 
           {/* Labels */}

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import OAuthButtons from './OAuthButtons';
 import FormInput from './FormInput';
 import useAuth from '../../../hooks/useAuth';
+import PolicyModal from './PolicyModal';
 
 interface FormErrors {
   name?: string;
@@ -43,6 +44,7 @@ const SignUpForm: React.FC = () => {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [policyType, setPolicyType] = useState<'terms' | 'privacy' | null>(null);
 
   const [touched, setTouched] = useState<FormTouched>({});
   const [errors, setErrors] = useState<FormErrors>({});
@@ -205,10 +207,14 @@ const SignUpForm: React.FC = () => {
 
   const handleTermsClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    e.preventDefault();
+    setPolicyType('terms');
   }, []);
 
   const handlePrivacyClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    e.preventDefault();
+    setPolicyType('privacy');
   }, []);
 
   const handleSubmit = useCallback(
@@ -457,6 +463,13 @@ const SignUpForm: React.FC = () => {
           Sign in
         </Link>
       </div>
+
+      {/* Terms of Service & Privacy Policy Modal */}
+      <PolicyModal
+        open={!!policyType}
+        type={policyType}
+        onClose={() => setPolicyType(null)}
+      />
     </div>
   );
 };

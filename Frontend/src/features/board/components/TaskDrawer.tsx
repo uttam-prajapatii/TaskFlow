@@ -167,26 +167,51 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             </p>
           </div>
 
-          {/* Priority & Due Date */}
-          <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+          {/* Status, Priority, Due Date, Created Date, Updated Date Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12.5px] bg-neutral-50/80 dark:bg-neutral-800/40 p-3.5 rounded-xl border border-neutral-100 dark:border-neutral-800">
             <div>
-              <p className="text-neutral-400 dark:text-neutral-500 mb-1">Priority</p>
+              <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Status</p>
+              <p className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                {currentCol?.title || task.status || 'To Do'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Priority</p>
               <span
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${priorityMeta.bg} ${priorityMeta.text} ring-1 ${priorityMeta.ring}`}
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${priorityMeta.bg} ${priorityMeta.text} ring-1 ${priorityMeta.ring}`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${priorityMeta.dot}`} />
                 {priorityMeta.label}
               </span>
             </div>
+
             <div>
-              <p className="text-neutral-400 dark:text-neutral-500 mb-1">Due date</p>
+              <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Due date</p>
               <p
                 className={`flex items-center gap-1 font-medium ${
                   overdue ? 'text-rose-500' : 'text-neutral-700 dark:text-neutral-200'
                 }`}
               >
                 <Icon name="calendar" size={13} />{' '}
-                {formatDate(task.dueDate) || 'No due date'}
+                {formatDate(task.dueDate) || 'No Due Date'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Created Date</p>
+              <p className="flex items-center gap-1 font-medium text-neutral-700 dark:text-neutral-300">
+                <Icon name="clock" size={13} className="text-neutral-400" />
+                {task.createdAt ? formatDate(String(task.createdAt)) || 'N/A' : 'N/A'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Updated Date</p>
+              <p className="flex items-center gap-1 font-medium text-neutral-700 dark:text-neutral-300">
+                <Icon name="refresh-cw" size={12} className="text-neutral-400" />
+                {task.updatedAt ? formatDate(String(task.updatedAt)) || 'N/A' : 'N/A'}
               </p>
             </div>
           </div>

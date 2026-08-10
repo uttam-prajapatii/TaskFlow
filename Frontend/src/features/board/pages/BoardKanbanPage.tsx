@@ -8,7 +8,9 @@ import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu
 import KanbanColumn from '../components/KanbanColumn';
 import TaskModal from '../components/TaskModal';
 import TaskDrawer from '../components/TaskDrawer';
+import RenameListModal from '../components/RenameListModal';
 import BoardSkeleton from '../components/BoardSkeleton';
+import ConfirmModal from '../../../components/UI/ConfirmModal';
 import boardService from '../../../services/board.service';
 import listService from '../../../services/list.service';
 import taskService from '../../../services/task.service';
@@ -26,7 +28,16 @@ export const BoardKanbanPage: React.FC = () => {
   // List creation state
   const [addingList, setAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState('');
+  const [newListTitleError, setNewListTitleError] = useState<string | null>(null);
   const [creatingList, setCreatingList] = useState(false);
+
+  // List rename modal state
+  const [renameListTarget, setRenameListTarget] = useState<{ id: string; title: string } | null>(null);
+  const [renamingList, setRenamingList] = useState(false);
+
+  // List delete confirm modal state
+  const [deleteListTarget, setDeleteListTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deletingList, setDeletingList] = useState(false);
 
   // Search, filter & sort state
   const [search, setSearch] = useState('');
@@ -49,10 +60,10 @@ export const BoardKanbanPage: React.FC = () => {
 
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
 
-  const loadBoardData = useCallback(async () => {
+  const loadBoardData = useCallback(async (silent = false) => {
     if (!boardId) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const bDetails = await boardService.getBoardDetails(boardId);
       setBoard(bDetails);
 
@@ -69,39 +80,78 @@ export const BoardKanbanPage: React.FC = () => {
         });
         setColumns(mappedLists);
       } catch {
-        setColumns([]);
+        // preserve columns on minor error
       }
 
       try {
         const taskList = await taskService.getBoardTasks(boardId);
         setTasks(taskList);
       } catch {
-        setTasks([]);
+        // preserve tasks on minor error
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to load board details');
-      navigate('/boards');
+      if (!silent) navigate('/boards');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [boardId, navigate]);
 
   useEffect(() => {
-    loadBoardData();
+    loadBoardData(false);
   }, [loadBoardData]);
 
-  // Create List handler
+  // Handle live changes on new list title input tag
+  const handleNewListTitleChange = (val: string) => {
+    setNewListTitle(val);
+    if (!val.trim()) {
+      setNewListTitleError('List title is required.');
+    } else if (val.trim().length < 2) {
+      setNewListTitleError('List title must be at least 2 characters.');
+    } else if (val.length > 50) {
+      setNewListTitleError('List title cannot exceed 50 characters.');
+    } else {
+      setNewListTitleError(null);
+    }
+  };
+
+  // Create List handler with frontend validation
   const handleAddList = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!boardId || !newListTitle.trim()) return;
+    const trimmed = newListTitle.trim();
+
+    if (!trimmed) {
+      setNewListTitleError('List title is required.');
+      toast.error('List title is required.');
+      return;
+    }
+
+    if (trimmed.length < 2 || trimmed.length > 50) {
+      setNewListTitleError('List title must be between 2 and 50 characters.');
+      toast.error('List title must be between 2 and 50 characters.');
+      return;
+    }
+
     try {
       setCreatingList(true);
-      await listService.createList(boardId, { name: newListTitle.trim() });
-      toast.success(`List "${newListTitle.trim()}" created`);
+      const created = await listService.createList(boardId!, { name: trimmed });
+      toast.success(`List "${trimmed}" created`);
+
+      // Optimistic update
+      const newCol: BoardList = {
+        _id: created?._id || created?.id || `list-${Date.now()}`,
+        title: trimmed,
+        boardId: boardId!,
+      };
+      setColumns((prev) => [...prev, newCol]);
+
       setNewListTitle('');
+      setNewListTitleError(null);
       setAddingList(false);
-      loadBoardData();
+
+      // Silent refresh without triggering full-screen skeleton loader
+      loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to create list');
@@ -110,30 +160,72 @@ export const BoardKanbanPage: React.FC = () => {
     }
   };
 
-  // Rename List handler
-  const handleRenameColumn = async (columnId: string, currentName: string) => {
-    const newName = window.prompt('Rename list title:', currentName);
-    if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  // Open theme-aware Rename List modal
+  const handleRenameColumn = (columnId: string, currentName: string) => {
+    setRenameListTarget({ id: columnId, title: currentName });
+  };
+
+  // Save list title from RenameListModal
+  const handleSaveRenameList = async (newName: string) => {
+    if (!renameListTarget) return;
+    const colId = renameListTarget.id;
     try {
-      await listService.renameList(columnId, newName.trim());
-      toast.success('List renamed');
-      loadBoardData();
+      setRenamingList(true);
+
+      // Optimistic update locally
+      setColumns((prev) =>
+        prev.map((c) => ((c._id || c.id) === colId ? { ...c, title: newName } : c))
+      );
+
+      await listService.renameList(colId, newName);
+      toast.success(`List renamed to "${newName}"`);
+      setRenameListTarget(null);
+
+      // Silent refresh without triggering skeleton loader
+      loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to rename list');
+      loadBoardData(true);
+    } finally {
+      setRenamingList(false);
     }
   };
 
-  // Delete List handler
-  const handleDeleteColumn = async (columnId: string) => {
-    if (!window.confirm('Are you sure you want to delete this list and all its tasks?')) return;
+  // Delete List trigger (opens ConfirmModal)
+  const handleDeleteColumn = (columnId: string) => {
+    const col = columns.find((c) => (c._id || c.id) === columnId);
+    const colName = col?.title || 'List';
+    setDeleteListTarget({ id: columnId, name: colName });
+  };
+
+  // Confirmed Delete List handler
+  const handleConfirmDeleteList = async () => {
+    if (!deleteListTarget) return;
+    const colId = deleteListTarget.id;
     try {
-      await listService.deleteList(columnId);
-      toast.success('List deleted');
-      loadBoardData();
+      setDeletingList(true);
+      // Optimistic update locally
+      setColumns((prev) => prev.filter((c) => (c._id || c.id) !== colId));
+      setTasks((prev) =>
+        prev.filter((t) => {
+          const tListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+          return String(tListId) !== String(colId) && String(t.status) !== String(colId);
+        })
+      );
+
+      await listService.deleteList(colId);
+      toast.success(`List "${deleteListTarget.name}" deleted`);
+      setDeleteListTarget(null);
+
+      // Silent refresh without triggering skeleton loader
+      loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to delete list');
+      loadBoardData(true);
+    } finally {
+      setDeletingList(false);
     }
   };
 
@@ -479,21 +571,38 @@ export const BoardKanbanPage: React.FC = () => {
               {addingList ? (
                 <form
                   onSubmit={handleAddList}
-                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-3 shadow-xs"
+                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-3.5 shadow-sm"
                 >
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="Enter list title…"
-                    value={newListTitle}
-                    onChange={(e) => setNewListTitle(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 mb-2"
-                  />
+                  <div className="relative mb-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      maxLength={50}
+                      placeholder="Enter list title…"
+                      value={newListTitle}
+                      onChange={(e) => handleNewListTitleChange(e.target.value)}
+                      className={`w-full px-3 py-2 pr-12 text-xs rounded-xl border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none transition ${
+                        newListTitleError
+                          ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                          : 'border-neutral-200 dark:border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
+                      }`}
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10.5px] font-medium text-neutral-400">
+                      {newListTitle.length}/50
+                    </span>
+                  </div>
+
+                  {newListTitleError && (
+                    <p className="text-[11px] font-semibold text-rose-500 mb-2 flex items-center gap-1">
+                      <Icon name="alert-circle" size={12} /> {newListTitleError}
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <button
                       type="submit"
-                      disabled={creatingList}
-                      className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg text-xs font-semibold hover:from-orange-600 hover:to-orange-700 transition"
+                      disabled={creatingList || !!newListTitleError || !newListTitle.trim()}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl text-xs font-semibold hover:from-orange-600 hover:to-orange-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
                     >
                       {creatingList ? 'Adding…' : 'Add list'}
                     </button>
@@ -502,8 +611,9 @@ export const BoardKanbanPage: React.FC = () => {
                       onClick={() => {
                         setAddingList(false);
                         setNewListTitle('');
+                        setNewListTitleError(null);
                       }}
-                      className="px-2.5 py-1.5 text-neutral-500 text-xs font-semibold hover:text-neutral-800 dark:hover:text-neutral-200"
+                      className="px-3 py-1.5 text-neutral-500 text-xs font-semibold hover:text-neutral-800 dark:hover:text-neutral-200 transition cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -551,6 +661,26 @@ export const BoardKanbanPage: React.FC = () => {
         }}
         columns={columns}
         workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
+      />
+
+      {/* Rename List Modal */}
+      <RenameListModal
+        open={!!renameListTarget}
+        currentTitle={renameListTarget?.title || ''}
+        onClose={() => setRenameListTarget(null)}
+        onSave={handleSaveRenameList}
+        saving={renamingList}
+      />
+
+      {/* Delete List Confirm Modal */}
+      <ConfirmModal
+        target={deleteListTarget}
+        mode="delete"
+        itemType="list"
+        title="Delete List"
+        working={deletingList}
+        onClose={() => setDeleteListTarget(null)}
+        onConfirm={handleConfirmDeleteList}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import useAuth from '../../hooks/useAuth';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useTheme } from '../../context/ThemeContext';
 import Icon from '../UI/Icon';
 import Avatar, { initials } from '../UI/Avatar';
 import DropdownMenu, { type MenuItem } from '../UI/DropdownMenu';
@@ -15,7 +16,10 @@ import ConfirmModal from '../UI/ConfirmModal';
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const { workspaces, currentWorkspace, setCurrentWorkspace, refreshWorkspaces } = useWorkspace();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [createWsOpen, setCreateWsOpen] = useState(false);
   const [creatingWs, setCreatingWs] = useState(false);
@@ -25,6 +29,35 @@ export const Sidebar: React.FC = () => {
   const currentWorkspaceId = currentWorkspace?._id || currentWorkspace?.id || '';
   const currentWsName = currentWorkspace?.name || 'Workspace';
   const visibility = currentWorkspace?.settings?.visibility || currentWorkspace?.visibility || 'private';
+
+  const pathname = location.pathname;
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab');
+
+  const isItemActive = (id: string) => {
+    if (id === 'workspaces') {
+      return pathname === '/workspace-select' || pathname === '/workspaces/manage';
+    }
+    if (id === 'boards') {
+      return pathname.startsWith('/boards');
+    }
+    if (id === 'notifications') {
+      return pathname === '/notifications';
+    }
+    if (id === 'analytics') {
+      return pathname === '/analytics';
+    }
+    if (id === 'members') {
+      return pathname.startsWith('/workspaces/') && activeTab === 'members';
+    }
+    if (id === 'invitations') {
+      return pathname.startsWith('/workspaces/') && activeTab === 'invitations';
+    }
+    if (id === 'settings') {
+      return pathname.startsWith('/workspaces/') && activeTab === 'settings';
+    }
+    return false;
+  };
 
   const handleCreateWorkspace = async (payload: CreateWorkspacePayload) => {
     try {
@@ -48,16 +81,10 @@ export const Sidebar: React.FC = () => {
     try {
       setLeavingWs(true);
       await workspaceService.leaveWorkspace(currentWorkspaceId);
-      toast.success('Left workspace');
+      toast.success(`Left workspace "${currentWsName}"`);
+      setConfirmLeaveOpen(false);
       await refreshWorkspaces();
-      const remaining = workspaces.filter((w) => (w._id || w.id) !== currentWorkspaceId);
-      if (remaining.length > 0) {
-        setCurrentWorkspace(remaining[0]);
-        navigate('/workspace-select');
-      } else {
-        setCurrentWorkspace(null);
-        navigate('/onboarding');
-      }
+      navigate('/workspace-select');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to leave workspace');
@@ -68,29 +95,33 @@ export const Sidebar: React.FC = () => {
   };
 
   const workspaceNavItems = [
-    { icon: 'layoutGrid', label: 'Workspaces', to: '/workspace-select' },
-    { icon: 'barChart', label: 'Boards', to: '/boards' },
+    { id: 'workspaces', icon: 'layoutGrid', label: 'Workspaces', to: '/workspace-select' },
+    { id: 'boards', icon: 'barChart', label: 'Boards', to: '/boards' },
     {
+      id: 'notifications',
       icon: 'bell',
       label: 'Notifications',
       to: '/notifications',
       badge: 3,
     },
     {
+      id: 'members',
       icon: 'users',
       label: 'Members',
-      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=members` : '/workspaces/manage',
+      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=members` : '/workspace-select',
     },
     {
+      id: 'invitations',
       icon: 'mail',
       label: 'Invitations',
-      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=invitations` : '/workspaces/manage',
+      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=invitations` : '/workspace-select',
     },
-    { icon: 'activity', label: 'Analytics', to: '/analytics' },
+    { id: 'analytics', icon: 'activity', label: 'Analytics', to: '/analytics' },
     {
+      id: 'settings',
       icon: 'settings',
       label: 'Settings',
-      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=settings` : '/workspaces/manage',
+      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=settings` : '/workspace-select',
     },
   ];
 
@@ -134,20 +165,25 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 h-screen sticky top-0">
-      {/* Brand Header */}
-      <Link to="/workspace-select" className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-        <img src="/logo.png" alt="TaskFlow Logo" className="w-8 h-8 rounded-lg object-contain block shadow-xs" />
-        <span className="text-[17px] font-bold tracking-tight text-neutral-900 dark:text-neutral-100 font-display">
+    <aside className="w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-900 flex flex-col h-screen shrink-0 select-none font-sans">
+      {/* BRAND HEADER (OFFICIAL LOGO) */}
+      <Link to="/workspace-select" className="p-4 flex items-center gap-3 group">
+        <img
+          src="/logo.png"
+          alt="TaskFlow Logo"
+          className="w-9 h-9 rounded-xl object-contain shadow-md shadow-orange-500/15 group-hover:scale-105 transition-transform"
+        />
+        <span className="font-extrabold text-lg text-neutral-900 dark:text-neutral-100 tracking-tight font-display">
           TaskFlow
         </span>
       </Link>
 
-      {/* TOP WORKSPACE SELECTOR CARD */}
+      {/* TOP WORKSPACE SELECTOR CARD (FULL WIDTH CONTAINED DROPDOWN) */}
       <div className="px-3 pb-3">
         <DropdownMenu
           open={wsMenuOpen}
           setOpen={setWsMenuOpen}
+          fullWidth={true}
           align="left"
           trigger={
             <button
@@ -166,7 +202,13 @@ export const Sidebar: React.FC = () => {
                   {visibility === 'public' ? 'Public Workspace' : 'Pro Workspace'}
                 </p>
               </div>
-              <Icon name="chevron-down" size={14} className="text-neutral-400 shrink-0" />
+              <Icon
+                name="chevron-down"
+                size={14}
+                className={`text-neutral-400 shrink-0 transition-transform duration-200 ${
+                  wsMenuOpen ? 'rotate-180 text-orange-500' : 'rotate-0'
+                }`}
+              />
             </button>
           }
           items={wsMenuItems}
@@ -179,40 +221,75 @@ export const Sidebar: React.FC = () => {
           WORKSPACE
         </p>
         <nav className="space-y-0.5">
-          {workspaceNavItems.map((it) => (
-            <NavLink
-              key={it.label}
-              to={it.to}
-              className={({ isActive }) =>
-                `w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition ${
-                  isActive
-                    ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400'
+          {workspaceNavItems.map((it) => {
+            const active = isItemActive(it.id);
+            return (
+              <Link
+                key={it.id}
+                to={it.to}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition ${
+                  active
+                    ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/60 dark:border-orange-500/20 shadow-2xs'
                     : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-200'
-                }`
-              }
-            >
-              <Icon name={it.icon} size={16} />
-              <span className="flex-1">{it.label}</span>
-              {it.badge && (
-                <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center shadow-2xs">
-                  {it.badge}
-                </span>
-              )}
-            </NavLink>
-          ))}
+                }`}
+              >
+                <Icon name={it.icon} size={16} className={active ? 'text-orange-500' : 'text-neutral-400'} />
+                <span className="flex-1">{it.label}</span>
+                {it.badge && (
+                  <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center shadow-2xs">
+                    {it.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
-      {/* USER PROFILE FOOTER CARD */}
-      <div className="p-3 border-t border-neutral-100 dark:border-neutral-900">
-        <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900 cursor-pointer transition-colors">
-          <Avatar name={user?.fullName || 'User'} size={30} ring={false} />
+      {/* USER PROFILE & FOOTER CONTROLS (THEME TOGGLE, SETTINGS, SIGN OUT) */}
+      <div className="p-3 border-t border-neutral-100 dark:border-neutral-900 bg-neutral-50/50 dark:bg-neutral-950/50">
+        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl">
+          <Avatar name={user?.fullName || 'User'} size={32} ring={false} />
           <div className="flex-1 min-w-0">
-            <p className="text-[12.5px] font-bold text-neutral-800 dark:text-neutral-100 truncate">
+            <p className="text-[12.5px] font-bold text-neutral-800 dark:text-neutral-100 truncate leading-tight">
               {user?.fullName || 'TaskFlow User'}
             </p>
-            <p className="text-[11px] text-neutral-400 truncate">{user?.email}</p>
+            <p className="text-[10.5px] text-neutral-400 truncate">{user?.email}</p>
           </div>
+        </div>
+
+        {/* Footer Actions: Theme Toggle, Settings, Sign Out */}
+        <div className="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-neutral-100 dark:border-neutral-900">
+          {/* Theme Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer font-semibold text-[11px]"
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={14} className={theme === 'dark' ? 'text-amber-400' : 'text-indigo-400'} />
+            <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
+
+          {/* Settings Link Button */}
+          <button
+            type="button"
+            onClick={() => navigate(currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=settings` : '/workspaces/manage')}
+            title="Workspace Settings"
+            className="p-1.5 rounded-xl text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer"
+          >
+            <Icon name="settings" size={15} />
+          </button>
+
+          {/* Sign Out Button */}
+          <button
+            type="button"
+            onClick={() => logout()}
+            title="Sign Out"
+            className="p-1.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer"
+          >
+            <Icon name="log-out" size={15} />
+          </button>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import Icon from '../../../components/UI/Icon';
 import { initials } from '../../../components/UI/Avatar';
 import type { Workspace } from '../../workspace/types';
 import type { CreateBoardPayload } from '../types';
+import { toast } from 'sonner';
 
 interface CreateBoardModalProps {
   open: boolean;
@@ -54,17 +55,40 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
 
   const showDropdown = !defaultWorkspaceId && workspaces.length > 1;
 
+  const handleNameChange = (val: string) => {
+    setForm((f) => ({ ...f, name: val }));
+    if (!val.trim()) {
+      setErrors((e) => ({ ...e, name: 'Board name is required.' }));
+    } else if (val.trim().length < 3) {
+      setErrors((e) => ({ ...e, name: 'Board name must be at least 3 characters.' }));
+    } else if (val.length > 50) {
+      setErrors((e) => ({ ...e, name: 'Board name cannot exceed 50 characters.' }));
+    } else {
+      setErrors((e) => ({ ...e, name: undefined }));
+    }
+  };
+
   const validate = () => {
     const e: { name?: string; workspaceId?: string } = {};
-    if (!form.name.trim()) e.name = 'Board name is required';
-    else if (form.name.trim().length < 3) e.name = 'Use at least 3 characters';
-    if (!form.workspaceId) e.workspaceId = 'Please select a workspace';
+    const trimmedName = form.name.trim();
+    if (!trimmedName) e.name = 'Board name is required.';
+    else if (trimmedName.length < 3) e.name = 'Board name must be at least 3 characters.';
+    else if (trimmedName.length > 50) e.name = 'Board name cannot exceed 50 characters.';
+    if (!form.workspaceId) e.workspaceId = 'Please select a workspace.';
     setErrors(e);
-    return Object.keys(e).length === 0;
+
+    if (Object.keys(e).length > 0) {
+      const firstError = e.name || e.workspaceId;
+      toast.error(firstError, { id: 'create-board-validation-error' });
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (creating) return;
+
     if (validate()) {
       onCreate({
         name: form.name.trim(),
@@ -76,144 +100,144 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} width={440}>
-      <form onSubmit={handleSubmit} style={{ padding: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }} className="text-neutral-900 dark:text-neutral-100">
-            Create board
+      {/* Header */}
+      <div className="p-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
+            Create Board
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}
-          >
-            <Icon name="x" size={18} />
-          </button>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+            Add a new Kanban board to organize your tasks.
+          </p>
         </div>
-        <p style={{ margin: '0 0 18px', fontSize: 13, color: '#6b7280' }}>
-          Add a new Kanban board to organize your tasks.
-        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={creating}
+          className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+        >
+          <Icon name="x" size={16} />
+        </button>
+      </div>
 
+      {/* Form Body */}
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {/* Workspace Display */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-neutral-900 dark:text-neutral-100">
-            Workspace
+        <div>
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+            Workspace <span className="text-orange-500">*</span>
           </label>
           {showDropdown ? (
             <select
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: `1px solid ${errors.workspaceId ? '#E8432E' : '#e5e7eb'}`,
-                background: '#ffffff',
-                color: '#111827',
-                fontSize: 14,
-                outline: 'none',
-              }}
               value={form.workspaceId}
               onChange={(e) => setForm({ ...form, workspaceId: e.target.value })}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-sm border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none transition cursor-pointer ${
+                errors.workspaceId
+                  ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                  : 'border-neutral-200 dark:border-neutral-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+              }`}
             >
               {workspaces.map((w) => (
-                <option key={w._id || w.id} value={w._id || w.id}>
+                <option key={w._id || w.id} value={w._id || w.id} className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
                   {w.name}
                 </option>
               ))}
             </select>
           ) : (
-            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 overflow-hidden">
               <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center text-xs shrink-0">
                 {initials(selectedWorkspace?.name || 'WS')}
               </div>
-              <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
+              <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100 truncate flex-1 min-w-0">
                 {selectedWorkspace?.name || 'Current Workspace'}
               </span>
             </div>
           )}
           {errors.workspaceId && (
-            <div style={{ fontSize: 12, color: '#E8432E', marginTop: 4 }}>{errors.workspaceId}</div>
+            <p className="text-[11.5px] font-semibold text-rose-500 mt-1.5 flex items-center gap-1">
+              <Icon name="alert-circle" size={13} /> {errors.workspaceId}
+            </p>
           )}
         </div>
 
         {/* Board Name */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-neutral-900 dark:text-neutral-100">
-            Board name
+        <div>
+          <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+            Board Name <span className="text-orange-500">*</span>
           </label>
-          <input
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: `1px solid ${errors.name ? '#E8432E' : '#e5e7eb'}`,
-              background: '#ffffff',
-              color: '#111827',
-              fontSize: 14,
-              outline: 'none',
-            }}
-            placeholder="Product Launch"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            autoFocus
-          />
-          {errors.name && <div style={{ fontSize: 12, color: '#E8432E', marginTop: 4 }}>{errors.name}</div>}
+          <div className="relative">
+            <input
+              autoFocus
+              type="text"
+              maxLength={50}
+              placeholder="e.g. Product Launch, Marketing Campaign…"
+              value={form.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className={`w-full px-3.5 py-2.5 pr-14 rounded-xl text-sm border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none transition ${
+                errors.name
+                  ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                  : 'border-neutral-200 dark:border-neutral-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+              }`}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-neutral-400">
+              {form.name.length}/50
+            </span>
+          </div>
+          {errors.name ? (
+            <p className="text-[11.5px] font-semibold text-rose-500 mt-1.5 flex items-center gap-1">
+              <Icon name="alert-circle" size={13} /> {errors.name}
+            </p>
+          ) : (
+            <p className="text-[11px] text-neutral-400 mt-1.5">
+              Board name must be between 3 and 50 characters.
+            </p>
+          )}
         </div>
 
         {/* Description */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-neutral-900 dark:text-neutral-100">
-            Description
-          </label>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+              Description
+            </label>
+            <span className="text-[11px] text-neutral-400">
+              {form.description.length}/200
+            </span>
+          </div>
           <textarea
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              color: '#111827',
-              fontSize: 14,
-              outline: 'none',
-              minHeight: 64,
-              resize: 'vertical',
-            }}
+            maxLength={200}
+            rows={3}
             placeholder="What's this board for?"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
+            className="w-full px-3.5 py-2.5 rounded-xl text-sm border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition resize-none"
           />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        {/* Footer Actions */}
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100 dark:border-neutral-800/80">
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: '#fff',
-              color: '#111827',
-              border: '1px solid #e5e7eb',
-              borderRadius: 10,
-              padding: '9px 16px',
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            disabled={creating}
+            className="px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
+
           <button
             type="submit"
-            disabled={creating}
-            style={{
-              background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 16px',
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: creating ? 'not-allowed' : 'pointer',
-            }}
+            disabled={creating || !!errors.name || !form.name.trim()}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {creating ? 'Creating…' : 'Create board'}
+            {creating ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Creating…</span>
+              </>
+            ) : (
+              <span>Create Board</span>
+            )}
           </button>
         </div>
       </form>
