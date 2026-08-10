@@ -31,6 +31,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<AuthPage mode="signin" />} />
             <Route path="/register" element={<AuthPage mode="signup" />} />
+            <Route path="/verify-otp" element={<AuthPage mode="verify-otp" />} />
             <Route path="/forgot-password" element={<AuthPage mode="signin" />} />
             <Route
               path="/onboarding"
