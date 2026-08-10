@@ -7,6 +7,8 @@ import type { Board } from '../features/board/types';
 import useAuth from '../hooks/useAuth';
 import { useWorkspaces, useWorkspaceMutations } from '../hooks/useWorkspaces';
 
+const EMPTY_WORKSPACES: Workspace[] = [];
+
 interface WorkspaceContextType {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
@@ -26,7 +28,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: fetchedWorkspaces = [], isLoading: wsLoading, refetch: refetchWorkspaces } = useWorkspaces(isAuthenticated);
+  const { data: fetchedWorkspacesData, isLoading: wsLoading, refetch: refetchWorkspaces } = useWorkspaces(isAuthenticated);
+  const fetchedWorkspaces = fetchedWorkspacesData || EMPTY_WORKSPACES;
   const { deleteWorkspaceMutation } = useWorkspaceMutations();
 
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
@@ -50,9 +53,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Sync current workspace with fetched workspaces & localStorage
   useEffect(() => {
     if (!isAuthenticated) {
-      setCurrentWorkspaceState(null);
+      setCurrentWorkspaceState((prev) => (prev !== null ? null : prev));
       localStorage.removeItem('taskflow_last_workspace_id');
-      setBoards([]);
+      setBoards((prev) => (prev.length > 0 ? [] : prev));
       return;
     }
 
@@ -66,25 +69,33 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         : null;
 
       if (matched) {
-        setCurrentWorkspaceState(matched);
+        setCurrentWorkspaceState((prev) => {
+          if (!prev) return matched;
+          const prevId = String(prev._id || prev.id);
+          const matchedId = String(matched._id || matched.id);
+          if (prevId === matchedId && JSON.stringify(prev) === JSON.stringify(matched)) {
+            return prev;
+          }
+          return matched;
+        });
       } else if (lastId) {
         // Workspace was previously selected but no longer exists (deleted)
         localStorage.removeItem('taskflow_last_workspace_id');
-        setCurrentWorkspaceState(null);
+        setCurrentWorkspaceState((prev) => (prev !== null ? null : prev));
         toast.error('Selected workspace is no longer available');
         if (!location.pathname.startsWith('/workspace-select')) {
           navigate('/workspace-select', { replace: true });
         }
       }
     } else {
-      setCurrentWorkspaceState(null);
+      setCurrentWorkspaceState((prev) => (prev !== null ? null : prev));
       localStorage.removeItem('taskflow_last_workspace_id');
     }
   }, [isAuthenticated, fetchedWorkspaces, wsLoading, navigate, location.pathname]);
 
   const fetchBoards = useCallback(async () => {
     if (!currentWorkspaceId) {
-      setBoards([]);
+      setBoards((prev) => (prev.length > 0 ? [] : prev));
       return;
     }
     try {
@@ -93,7 +104,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setBoards(bList);
     } catch (err) {
       console.error('Failed to fetch boards for workspace:', err);
-      setBoards([]);
+      setBoards((prev) => (prev.length > 0 ? [] : prev));
     } finally {
       setBoardsLoading(false);
     }

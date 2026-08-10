@@ -40,8 +40,12 @@ const SignInForm: React.FC = () => {
 
       setIsSubmitting(true);
       try {
-        await login({ email, password });
-        navigate('/dashboard');
+        const result = await login({ email, password });
+        if (result?.requiresOtp) {
+          navigate('/verify-otp');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (error) {
         // SonarQube S108: Explicitly handling catch block.
         // Toast notifications are dispatched centrally by API interceptors and AuthContext.
