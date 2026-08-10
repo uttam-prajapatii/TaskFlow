@@ -80,22 +80,22 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       className="flex flex-col w-[300px] shrink-0 h-full"
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-1 mb-3">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-          <h3 className="text-[13px] font-semibold text-neutral-700 dark:text-neutral-200 truncate max-w-[170px]">
+      <div className="flex items-center justify-between px-1.5 py-1 mb-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
+          <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 truncate leading-none">
             {title}
           </h3>
-          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 font-medium">
+          <span className="px-2 py-0.5 rounded-full bg-neutral-200/80 dark:bg-neutral-800 text-[11px] font-bold text-neutral-600 dark:text-neutral-400 shrink-0 leading-none flex items-center justify-center min-w-[20px] h-5">
             {tasks.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => onAddTask(colId)}
-            className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 hover:text-orange-500 transition-colors"
+            className="w-7 h-7 rounded-lg hover:bg-neutral-200/60 dark:hover:bg-neutral-800 text-neutral-400 hover:text-orange-500 transition-colors flex items-center justify-center cursor-pointer"
             aria-label={`Add task to ${title}`}
           >
             <Icon name="plus" size={15} />
@@ -109,7 +109,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <button
                   type="button"
                   onClick={() => setColMenuOpen((v) => !v)}
-                  className="p-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400"
+                  className="w-7 h-7 rounded-lg hover:bg-neutral-200/60 dark:hover:bg-neutral-800 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors flex items-center justify-center cursor-pointer"
                   aria-label="Column menu"
                 >
                   <Icon name="more-horizontal" size={15} />

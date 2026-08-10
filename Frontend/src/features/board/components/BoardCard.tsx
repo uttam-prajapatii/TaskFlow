@@ -7,16 +7,21 @@ import { initials } from '../../../components/UI/Avatar';
 interface BoardCardProps {
   board: Board;
   onOpen: (board: Board) => void;
+  onRename?: (board: Board) => void;
   onDelete?: (board: Board) => void;
 }
 
-export const BoardCard: React.FC<BoardCardProps> = ({ board, onOpen, onDelete }) => {
+export const BoardCard: React.FC<BoardCardProps> = ({ board, onOpen, onRename, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const title = board.name || board.title || 'Untitled Board';
 
   const menuItems: MenuItem[] = [
     { label: 'Open board', icon: 'chevron-right', onClick: () => onOpen(board) },
   ];
+
+  if (onRename) {
+    menuItems.push({ label: 'Rename board', icon: 'edit', onClick: () => onRename(board) });
+  }
 
   if (onDelete) {
     menuItems.push(

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import type { Workspace } from '../types';
+import type { Workspace, WorkspaceRole } from '../types';
 import AvatarStack from '../../../components/UI/AvatarStack';
 import Badge from '../../../components/UI/Badge';
 import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
 import { initials } from '../../../components/UI/Avatar';
+import useAuth from '../../../hooks/useAuth';
 
 export const WORKSPACE_COLORS: Record<string, string> = {
   coral: '#FF7A3D',
@@ -37,10 +38,26 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
   onLeave,
   index,
 }) => {
+  const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const hex = getColorHex(ws.settings?.color || ws.color);
   const visibility = ws.settings?.visibility || ws.visibility || 'private';
+
+  const isOwner =
+    ws.ownerId === user?._id ||
+    (typeof ws.ownerId === 'object' && ws.ownerId !== null && ws.ownerId._id === user?._id);
+
+  const myMember = ws.members?.find((m) => {
+    const uId = typeof m.userId === 'object' && m.userId !== null ? m.userId._id : m.userId;
+    return String(uId) === String(user?._id);
+  });
+
+  const role: WorkspaceRole = isOwner ? 'owner' : myMember?.role || 'member';
+  const isAdmin = role === 'admin';
+  const canRename = isOwner || isAdmin;
+  const canDelete = isOwner;
+  const canLeave = !isOwner;
 
   const memberList = (ws.members || []).map((m) => {
     if (typeof m.userId === 'object' && m.userId !== null) {
@@ -57,11 +74,23 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 
   const menuItems: MenuItem[] = [
     { label: 'Open workspace', icon: 'chevron-right', onClick: () => onOpen(ws) },
-    { label: 'Rename', icon: 'edit', onClick: () => onRename(ws) },
-    { divider: true },
-    { label: 'Leave workspace', icon: 'log-out', onClick: () => onLeave(ws) },
-    { label: 'Delete workspace', icon: 'trash', danger: true, onClick: () => onDelete(ws) },
   ];
+
+  if (canRename) {
+    menuItems.push({ label: 'Rename', icon: 'edit', onClick: () => onRename(ws) });
+  }
+
+  if (canLeave || canDelete) {
+    menuItems.push({ divider: true });
+  }
+
+  if (canLeave) {
+    menuItems.push({ label: 'Leave workspace', icon: 'log-out', onClick: () => onLeave(ws) });
+  }
+
+  if (canDelete) {
+    menuItems.push({ label: 'Delete workspace', icon: 'trash', danger: true, onClick: () => onDelete(ws) });
+  }
 
   return (
     <div
@@ -70,14 +99,35 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
       className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 hover:border-orange-400 dark:hover:border-orange-500/50 shadow-2xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-          }}
-          className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
-        >
-          {initials(ws.name)}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div
+            style={{
+              background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
+            }}
+            className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
+          >
+            {initials(ws.name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
+                {ws.name}
+              </h3>
+              <span
+                title={ws.activity === 'active' ? 'Active this week' : 'Idle'}
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  ws.activity === 'active'
+                    ? 'bg-emerald-500 ring-2 ring-emerald-500/20'
+                    : 'bg-neutral-300 dark:bg-neutral-600'
+                }`}
+              />
+            </div>
+            <span className="text-[11px] text-neutral-400 capitalize font-medium block mt-0.5">
+              Role: {role}
+            </span>
+          </div>
         </div>
+
         <div onClick={(e) => e.stopPropagation()}>
           <DropdownMenu
             open={menuOpen}
@@ -98,34 +148,32 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
       </div>
 
       <div className="mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
-            {ws.name}
-          </h3>
-          <span
-            title={ws.activity === 'active' ? 'Active this week' : 'Idle'}
-            className={`w-2 h-2 rounded-full shrink-0 ${
-              ws.activity === 'active'
-                ? 'bg-emerald-500 ring-2 ring-emerald-500/20'
-                : 'bg-neutral-300 dark:bg-neutral-600'
-            }`}
-          />
-        </div>
         <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1 leading-relaxed">
           {ws.description || 'No description provided.'}
         </p>
       </div>
 
-      <div className="flex items-center justify-between mt-auto pt-3 border-t border-neutral-100 dark:border-neutral-800/80">
-        <div className="flex items-center gap-3">
+      <div className="-mx-5 -mb-5 px-5 py-3.5 border-t border-neutral-100 dark:border-neutral-800/80 flex items-center justify-between gap-3 mt-auto bg-neutral-50/50 dark:bg-neutral-900/50 rounded-b-2xl">
+        <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
           <AvatarStack users={memberList} />
-          <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+          <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-center gap-1 shrink-0">
             <Icon name="layout" size={13} className="text-neutral-400" /> {ws.boardCount ?? 0}
           </span>
+          <Badge tone={visibility === 'public' ? 'success' : 'neutral'}>
+            {visibility === 'public' ? 'Public' : 'Private'}
+          </Badge>
         </div>
-        <Badge tone={visibility === 'public' ? 'success' : 'neutral'}>
-          {visibility === 'public' ? 'Public' : 'Private'}
-        </Badge>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(ws);
+          }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/25 transition-all cursor-pointer shrink-0"
+        >
+          Open Workspace <Icon name="arrow-right" size={13} />
+        </button>
       </div>
     </div>
   );

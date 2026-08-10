@@ -35,9 +35,6 @@ export const Sidebar: React.FC = () => {
   const activeTab = searchParams.get('tab');
 
   const isItemActive = (id: string) => {
-    if (id === 'workspaces') {
-      return pathname === '/workspace-select' || pathname === '/workspaces/manage';
-    }
     if (id === 'boards') {
       return pathname.startsWith('/boards');
     }
@@ -95,7 +92,6 @@ export const Sidebar: React.FC = () => {
   };
 
   const workspaceNavItems = [
-    { id: 'workspaces', icon: 'layoutGrid', label: 'Workspaces', to: '/workspace-select' },
     { id: 'boards', icon: 'barChart', label: 'Boards', to: '/boards' },
     {
       id: 'notifications',
@@ -139,7 +135,7 @@ export const Sidebar: React.FC = () => {
     {
       label: 'Manage Workspaces',
       icon: 'folder',
-      onClick: () => navigate('/workspaces/manage'),
+      onClick: () => navigate('/workspace-select'),
     },
     {
       label: 'Leave Current Workspace',
@@ -267,8 +263,12 @@ export const Sidebar: React.FC = () => {
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer font-semibold text-[11px]"
           >
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={14} className={theme === 'dark' ? 'text-amber-400' : 'text-indigo-400'} />
-            <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            <Icon
+              name={theme === 'dark' ? 'moon' : 'sun'}
+              size={14}
+              className={theme === 'dark' ? 'text-amber-400' : 'text-amber-500'}
+            />
+            <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
           </button>
 
           {/* Settings Link Button */}
