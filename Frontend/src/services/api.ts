@@ -110,18 +110,17 @@ api.interceptors.response.use(
       }
     }
 
-    // Centralized Toast Notifications for non-refresh handling
-    if (status === 400 || status === 422) {
-      toast.error(errorMessage || 'Validation error.');
-    } else if (status === 403) {
-      toast.error(errorMessage || 'Access forbidden.');
-    } else if (status >= 500) {
-      toast.error(errorMessage || 'Server error. Please try again later.');
+    // Handle unhandled 500 server errors or ignored 401 auth endpoint failures with deduplicated IDs
+    if (status >= 500) {
+      toast.error(errorMessage || 'Server error. Please try again later.', {
+        id: `server-error-${status}`,
+      });
     } else if (isIgnoredEndpoint && status === 401) {
-      toast.error(errorMessage || 'Authentication failed.');
+      toast.error(errorMessage || 'Authentication failed.', {
+        id: 'auth-failed-toast',
+      });
     }
 
-    // S7746: Use throw instead of Promise.reject() inside async functions
     throw error;
   }
 );

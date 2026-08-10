@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import Modal from '../../../components/UI/Modal';
 import Icon from '../../../components/UI/Icon';
 import { WORKSPACE_COLORS } from './WorkspaceCard';
@@ -58,207 +59,190 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     return e;
   };
 
+  const handleChangeName = (val: string) => {
+    const nextForm = { ...form, name: val };
+    setForm(nextForm);
+    if (touched) {
+      setErrors(validate(nextForm));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
     const errs = validate(form);
     setErrors(errs);
-    if (Object.keys(errs).length === 0) {
-      onCreate({
-        name: form.name.trim(),
-        description: form.description.trim(),
-        settings: {
-          color: form.color,
-          visibility: form.visibility,
-        },
-      });
+    if (Object.keys(errs).length > 0) {
+      const firstErr = Object.values(errs)[0];
+      if (firstErr) toast.error(firstErr);
+      return;
     }
+
+    onCreate({
+      name: form.name.trim(),
+      description: form.description.trim(),
+      settings: {
+        color: form.color,
+        visibility: form.visibility,
+      },
+    });
   };
 
   return (
     <Modal open={open} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <div style={{ padding: '22px 24px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700 }} className="text-neutral-900 dark:text-neutral-100">
+      <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[88vh]">
+        {/* Header */}
+        <div className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
               Create workspace
             </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tf-text-muted, #9ca3af)', padding: 4 }}
-            >
-              <Icon name="x" size={18} />
-            </button>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+              Set up a space for your team's boards, docs, and members.
+            </p>
           </div>
-          <p style={{ margin: '0 0 22px', fontSize: 13.5, color: 'var(--tf-text-muted, #6b7280)' }}>
-            Set up a space for your team's boards, docs, and members.
-          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
+          >
+            <Icon name="x" size={18} />
+          </button>
         </div>
 
-        <div style={{ padding: '0 24px' }}>
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Name Field */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--tf-text, #111827)' }}>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
               Workspace name
             </label>
             <input
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: `1px solid ${touched && errors.name ? '#E8432E' : 'var(--tf-border, #e5e7eb)'}`,
-                background: 'var(--tf-bg, #ffffff)',
-                color: 'var(--tf-text, #111827)',
-                fontSize: 14,
-                outline: 'none',
-              }}
+              type="text"
               placeholder="Product Launch"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => handleChangeName(e.target.value)}
               maxLength={50}
               autoFocus
+              className={`w-full px-3.5 py-2.5 rounded-xl text-sm border bg-neutral-50/80 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 outline-none transition focus:ring-2 ${
+                touched && errors.name
+                  ? 'border-rose-500 focus:ring-rose-500/20'
+                  : 'border-neutral-200 dark:border-neutral-700 focus:ring-orange-500/30 focus:border-orange-500'
+              }`}
             />
-            {touched && errors.name && (
-              <div style={{ fontSize: 12, color: '#E8432E', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Icon name="alert-circle" size={13} />
-                {errors.name}
-              </div>
-            )}
+            <div className="flex items-center justify-between mt-1.5 text-xs">
+              {touched && errors.name ? (
+                <div className="text-xs text-rose-500 flex items-center gap-1 font-medium">
+                  <Icon name="alert-circle" size={13} />
+                  {errors.name}
+                </div>
+              ) : (
+                <span className="text-[11px] text-neutral-400">Must be between 3 and 50 characters</span>
+              )}
+              <span className={`font-mono text-[11px] ${form.name.length >= 45 ? 'text-amber-500 font-bold' : 'text-neutral-400'}`}>
+                {form.name.length}/50
+              </span>
+            </div>
           </div>
 
           {/* Description Field */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--tf-text, #111827)' }}>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
               Description
             </label>
             <textarea
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: '1px solid var(--tf-border, #e5e7eb)',
-                background: 'var(--tf-bg, #ffffff)',
-                color: 'var(--tf-text, #111827)',
-                fontSize: 14,
-                outline: 'none',
-                minHeight: 72,
-                resize: 'vertical',
-              }}
               placeholder="What's this workspace for?"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               maxLength={200}
+              rows={3}
+              className="w-full px-3.5 py-2.5 rounded-xl text-sm border border-neutral-200 dark:border-neutral-700 bg-neutral-50/80 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 outline-none transition focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 resize-none"
             />
-            <div style={{ fontSize: 12, color: 'var(--tf-text-muted, #9ca3af)', marginTop: 5 }}>
+            <div className="text-[11px] text-neutral-400 mt-1 text-right">
               {form.description.length}/200
             </div>
           </div>
 
           {/* Color Selector */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--tf-text, #111827)' }}>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
               Color
             </label>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {colorList.map((c) => (
-                <button
-                  type="button"
-                  key={c.id}
-                  onClick={() => setForm({ ...form, color: c.id })}
-                  aria-label={c.label}
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    background: c.hex,
-                    border: form.color === c.id ? '3px solid var(--tf-text, #111827)' : '3px solid transparent',
-                    cursor: 'pointer',
-                    boxShadow: form.color === c.id ? '0 0 0 2px var(--tf-card, #ffffff)' : 'none',
-                    padding: 0,
-                  }}
-                />
-              ))}
+            <div className="flex items-center gap-2.5">
+              {colorList.map((c) => {
+                const isSelected = form.color === c.id;
+                return (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onClick={() => setForm({ ...form, color: c.id })}
+                    aria-label={c.label}
+                    style={{ backgroundColor: c.hex }}
+                    className={`w-7 h-7 rounded-full cursor-pointer transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-neutral-900 scale-110'
+                        : 'hover:scale-105 opacity-90'
+                    }`}
+                  />
+                );
+              })}
             </div>
           </div>
 
           {/* Visibility Option */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--tf-text, #111827)' }}>
+          <div>
+            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
               Visibility
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { id: 'private', icon: 'lock', label: 'Private', desc: 'Invite only' },
                 { id: 'public', icon: 'globe', label: 'Public', desc: 'Anyone in org' },
-              ].map((v) => (
-                <button
-                  type="button"
-                  key={v.id}
-                  onClick={() => setForm({ ...form, visibility: v.id as WorkspaceVisibility })}
-                  style={{
-                    textAlign: 'left',
-                    padding: '12px 12px',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    border: form.visibility === v.id ? '1.5px solid #E8432E' : '1px solid var(--tf-border, #e5e7eb)',
-                    background: form.visibility === v.id ? 'rgba(255,122,61,0.08)' : 'var(--tf-bg, #ffffff)',
-                  }}
-                >
-                  <Icon name={v.icon} size={16} className="text-neutral-500" />
-                  <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 6 }} className="text-neutral-900 dark:text-neutral-100">
-                    {v.label}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--tf-text-muted, #6b7280)' }}>{v.desc}</div>
-                </button>
-              ))}
+              ].map((v) => {
+                const isSelected = form.visibility === v.id;
+                return (
+                  <button
+                    type="button"
+                    key={v.id}
+                    onClick={() => setForm({ ...form, visibility: v.id as WorkspaceVisibility })}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50/80 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-1 ring-orange-500/20'
+                        : 'border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/40 text-neutral-700 dark:text-neutral-300 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    }`}
+                  >
+                    <Icon
+                      name={v.icon}
+                      size={16}
+                      className={isSelected ? 'text-orange-500' : 'text-neutral-400'}
+                    />
+                    <div className="text-xs font-bold mt-1.5 text-neutral-900 dark:text-neutral-100">
+                      {v.label}
+                    </div>
+                    <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                      {v.desc}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            padding: '16px 24px 24px',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 10,
-            borderTop: '1px solid var(--tf-border, #e5e7eb)',
-            marginTop: 4,
-          }}
-        >
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 flex items-center justify-end gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: 'var(--tf-card, #ffffff)',
-              color: 'var(--tf-text, #111827)',
-              border: '1px solid var(--tf-border, #e5e7eb)',
-              borderRadius: 10,
-              padding: '9px 16px',
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={creating}
-            style={{
-              background: creating
-                ? 'var(--tf-chip, #e5e7eb)'
-                : 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-              color: creating ? 'var(--tf-text-muted, #9ca3af)' : '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '10px 18px',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: creating ? 'not-allowed' : 'pointer',
-              boxShadow: creating ? 'none' : '0 6px 16px rgba(232,67,46,0.28)',
-            }}
+            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all disabled:opacity-50 cursor-pointer"
           >
             {creating ? 'Creating…' : 'Create workspace'}
           </button>

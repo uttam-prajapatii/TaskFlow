@@ -15,17 +15,23 @@ import AcceptInvitePage from './features/workspace/pages/AcceptInvitePage';
 import BoardsPage from './features/board/pages/BoardsPage';
 import BoardKanbanPage from './features/board/pages/BoardKanbanPage';
 
+import NotificationsPage from './features/workspace/pages/NotificationsPage';
+import AnalyticsPage from './features/workspace/pages/AnalyticsPage';
+
 import { WorkspaceProvider } from './context/WorkspaceContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WorkspaceProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <WorkspaceProvider>
           <Toaster position="top-right" richColors closeButton />
           <Routes>
             <Route path="/login" element={<AuthPage mode="signin" />} />
             <Route path="/register" element={<AuthPage mode="signup" />} />
+            <Route path="/forgot-password" element={<AuthPage mode="signin" />} />
             <Route
               path="/onboarding"
               element={
@@ -44,6 +50,14 @@ function App() {
             />
             <Route
               path="/invite/:token"
+              element={
+                <ProtectedRoute>
+                  <AcceptInvitePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workspaces/invite/:token"
               element={
                 <ProtectedRoute>
                   <AcceptInvitePage />
@@ -95,6 +109,22 @@ function App() {
               }
             />
             <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/"
               element={
                 <ProtectedRoute>
@@ -113,7 +143,8 @@ function App() {
           </Routes>
         </WorkspaceProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
   );
 }
 

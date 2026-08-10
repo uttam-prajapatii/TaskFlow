@@ -24,26 +24,14 @@ export const InvitationsTab: React.FC<InvitationsTabProps> = ({
   onOpenInvite,
 }) => {
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+    <div className="space-y-4">
+      <div className="flex justify-end">
         {canManage && (
           <button
             type="button"
             onClick={onOpenInvite}
-            style={{
-              background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 16px',
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: '0 6px 16px rgba(232,67,46,0.28)',
-            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs text-white shadow-md cursor-pointer transition hover:opacity-95"
+            style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
           >
             <Icon name="plus" size={15} /> Invite member
           </button>
@@ -51,53 +39,19 @@ export const InvitationsTab: React.FC<InvitationsTabProps> = ({
       </div>
 
       {invites.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '48px 20px',
-            background: 'var(--tf-card, #ffffff)',
-            border: '1px dashed var(--tf-border, #e5e7eb)',
-            borderRadius: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: 'var(--tf-chip, #f3f4f6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 14px',
-            }}
-          >
-            <Icon name="mail" size={20} className="text-neutral-400" />
+        <div className="text-center py-12 px-5 bg-white dark:bg-neutral-900 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xs">
+          <div className="w-11 h-11 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 flex items-center justify-center mx-auto mb-3">
+            <Icon name="mail" size={20} />
           </div>
-          <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700 }} className="text-neutral-900 dark:text-neutral-100">
+          <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
             No invitations yet
           </h3>
-          <p
-            style={{
-              margin: '0 auto',
-              fontSize: 13,
-              color: 'var(--tf-text-muted, #6b7280)',
-              maxWidth: 320,
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xs mx-auto leading-relaxed">
             Invite people to this workspace and track their pending status here.
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            background: 'var(--tf-card, #ffffff)',
-            border: '1px solid var(--tf-border, #e5e7eb)',
-            borderRadius: 14,
-            overflow: 'hidden',
-          }}
-        >
+        <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-2xs">
           {invites.map((inv, i) => {
             const invId = inv._id || inv.id || `inv-${i}`;
             const sentDate = inv.sentAt || inv.createdAt;
@@ -105,33 +59,18 @@ export const InvitationsTab: React.FC<InvitationsTabProps> = ({
             return (
               <div
                 key={invId}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '13px 16px',
-                  borderTop: i === 0 ? 'none' : '1px solid var(--tf-border, #e5e7eb)',
-                }}
+                className={`flex items-center gap-3 p-4 transition-colors ${
+                  i > 0 ? 'border-t border-neutral-100 dark:border-neutral-800/80' : ''
+                }`}
               >
-                <div
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: '50%',
-                    background: 'var(--tf-chip, #f3f4f6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name="mail" size={15} className="text-neutral-500" />
+                <div className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 flex items-center justify-center shrink-0">
+                  <Icon name="mail" size={15} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600 }} className="text-neutral-900 dark:text-neutral-100">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-neutral-900 dark:text-neutral-100 truncate">
                     {inv.email}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--tf-text-muted, #6b7280)' }}>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                     Invited as {inv.role}{' '}
                     {sentDate &&
                       `· ${new Date(sentDate).toLocaleDateString('en-US', {
@@ -147,16 +86,7 @@ export const InvitationsTab: React.FC<InvitationsTabProps> = ({
                   <button
                     type="button"
                     onClick={() => onRevokeInvite(invId)}
-                    style={{
-                      background: 'var(--tf-card, #fff)',
-                      color: '#E8432E',
-                      border: '1px solid rgba(232,67,46,0.35)',
-                      borderRadius: 10,
-                      padding: '6px 12px',
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-semibold text-red-600 dark:text-red-400 transition cursor-pointer"
                   >
                     Revoke
                   </button>

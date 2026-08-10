@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import OAuthButtons from './OAuthButtons';
 import FormInput from './FormInput';
 import useAuth from '../../../hooks/useAuth';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 const SignInForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -25,8 +27,10 @@ const SignInForm: React.FC = () => {
     setRememberMe(e.target.checked);
   }, []);
 
-  const handleForgotPassword = useCallback(() => {
-    // Action handler for forgot password feature
+  const handleForgotPassword = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setForgotModalOpen(true);
   }, []);
 
   const handleSubmit = useCallback(
@@ -128,6 +132,13 @@ const SignInForm: React.FC = () => {
           Create an account
         </Link>
       </div>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        open={forgotModalOpen}
+        onClose={() => setForgotModalOpen(false)}
+        defaultEmail={email}
+      />
     </div>
   );
 };

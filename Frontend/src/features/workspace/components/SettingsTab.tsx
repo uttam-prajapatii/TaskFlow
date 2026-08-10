@@ -39,57 +39,42 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const isOwner = myRole === 'owner';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
+    <div className="space-y-4 max-w-2xl">
       {/* Workspace Name Setting */}
-      <div
-        style={{
-          background: 'var(--tf-card, #ffffff)',
-          border: '1px solid var(--tf-border, #e5e7eb)',
-          borderRadius: 14,
-          padding: 18,
-        }}
-      >
-        <h3 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700 }} className="text-neutral-900 dark:text-neutral-100">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
+        <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
           Workspace name
         </h3>
-        <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--tf-text-muted, #6b7280)' }}>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
           Visible to everyone in this workspace.
         </p>
         {renaming ? (
-          <div>
-            <input
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: 10,
-                border: `1px solid ${renameError ? '#E8432E' : 'var(--tf-border, #e5e7eb)'}`,
-                background: 'var(--tf-bg, #ffffff)',
-                color: 'var(--tf-text, #111827)',
-                fontSize: 14,
-                outline: 'none',
-                marginBottom: renameError ? 6 : 12,
-              }}
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              autoFocus
-            />
-            {renameError && (
-              <div style={{ fontSize: 12, color: '#E8432E', marginBottom: 12 }}>{renameError}</div>
-            )}
-            <div style={{ display: 'flex', gap: 8 }}>
+          <div className="space-y-3">
+            <div>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                maxLength={50}
+                autoFocus
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border bg-neutral-50/80 dark:bg-neutral-800/80 text-neutral-900 dark:text-neutral-100 outline-none transition focus:ring-2 ${
+                  renameError
+                    ? 'border-rose-500 focus:ring-rose-500/20'
+                    : 'border-neutral-200 dark:border-neutral-700 focus:ring-orange-500/30 focus:border-orange-500'
+                }`}
+              />
+              {renameError && (
+                <div className="text-xs text-rose-500 mt-1 flex items-center gap-1 font-medium">
+                  <Icon name="alert-circle" size={13} />
+                  {renameError}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={submitRename}
-                style={{
-                  background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 10,
-                  padding: '8px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition cursor-pointer"
               >
                 Save changes
               </button>
@@ -100,43 +85,22 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   setRenameValue(ws.name);
                   setRenameError('');
                 }}
-                style={{
-                  background: 'var(--tf-card, #fff)',
-                  color: 'var(--tf-text, #111827)',
-                  border: '1px solid var(--tf-border, #e5e7eb)',
-                  borderRadius: 10,
-                  padding: '8px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition cursor-pointer"
               >
                 Cancel
               </button>
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, fontWeight: 600 }} className="text-neutral-900 dark:text-neutral-100">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
               {ws.name}
             </span>
             {canManage && (
               <button
                 type="button"
                 onClick={() => setRenaming(true)}
-                style={{
-                  background: 'var(--tf-card, #fff)',
-                  color: 'var(--tf-text, #111827)',
-                  border: '1px solid var(--tf-border, #e5e7eb)',
-                  borderRadius: 10,
-                  padding: '7px 12px',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer"
               >
                 <Icon name="edit" size={13} /> Rename
               </button>
@@ -146,18 +110,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Leave Workspace */}
-      <div
-        style={{
-          background: 'var(--tf-card, #ffffff)',
-          border: '1px solid var(--tf-border, #e5e7eb)',
-          borderRadius: 14,
-          padding: 18,
-        }}
-      >
-        <h3 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700 }} className="text-neutral-900 dark:text-neutral-100">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
+        <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
           Leave workspace
         </h3>
-        <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--tf-text-muted, #6b7280)' }}>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
           You will lose access until re-invited.{' '}
           {isOwner && 'As the owner, you must transfer ownership first.'}
         </p>
@@ -165,20 +122,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           type="button"
           onClick={() => setConfirmLeave(true)}
           disabled={isOwner}
-          style={{
-            background: 'var(--tf-card, #fff)',
-            color: '#E8432E',
-            border: '1px solid rgba(232,67,46,0.35)',
-            borderRadius: 10,
-            padding: '9px 16px',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: isOwner ? 'not-allowed' : 'pointer',
-            opacity: isOwner ? 0.5 : 1,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-950/40 text-xs font-semibold text-rose-600 dark:text-rose-400 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Icon name="log-out" size={14} /> Leave workspace
         </button>
@@ -186,36 +130,17 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       {/* Delete Workspace (Owner Only) */}
       {isOwner && (
-        <div
-          style={{
-            background: 'var(--tf-card, #ffffff)',
-            border: '1px solid rgba(232,67,46,0.3)',
-            borderRadius: 14,
-            padding: 18,
-          }}
-        >
-          <h3 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700, color: '#E8432E' }}>
+        <div className="bg-white dark:bg-neutral-900 border border-rose-200 dark:border-rose-900/40 rounded-2xl p-5 shadow-2xs">
+          <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">
             Delete workspace
           </h3>
-          <p style={{ margin: '0 0 12px', fontSize: 12.5, color: 'var(--tf-text-muted, #6b7280)' }}>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
             Permanently deletes this workspace and all its data. This cannot be undone.
           </p>
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            style={{
-              background: 'linear-gradient(135deg, #E8432E, #C13B27)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 16px',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-md shadow-rose-500/25 transition cursor-pointer"
           >
             <Icon name="trash" size={14} /> Delete workspace
           </button>

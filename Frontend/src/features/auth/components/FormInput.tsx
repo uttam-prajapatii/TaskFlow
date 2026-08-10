@@ -60,7 +60,7 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({
           autoComplete={autoComplete}
           aria-invalid={hasError}
           aria-describedby={hasError ? `${id}-error` : undefined}
-          className={`w-full px-3.5 py-[11px] rounded-lg border font-sans text-sm text-ink outline-none placeholder-[#C4B4A9] transition-all duration-200 ${
+          className={`w-full pl-3.5 ${isPassword ? 'pr-11' : 'pr-3.5'} py-[11px] rounded-lg border font-sans text-sm text-ink outline-none placeholder-[#C4B4A9] transition-all duration-200 ${
             hasError
               ? 'border-red-500 bg-red-50/25 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.15)]'
               : 'border-line bg-paper focus:border-flame-2 focus:bg-white focus:shadow-[0_0_0_3px_rgba(255,106,44,0.14)]'
@@ -70,7 +70,7 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({
           <button
             type="button"
             onClick={handleToggleShowPassword}
-            className="absolute right-3 cursor-pointer text-[#B8A79C] hover:text-ink-soft select-none flex items-center justify-center"
+            className="absolute right-3 p-1 rounded-md cursor-pointer text-[#B8A79C] hover:text-ink-soft select-none flex items-center justify-center transition-colors z-10"
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? (

@@ -29,7 +29,7 @@ export const WorkspaceDetailPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
-  const { setCurrentWorkspace, workspaces } = useWorkspace();
+  const { setCurrentWorkspace, workspaces, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -162,16 +162,17 @@ export const WorkspaceDetailPage: React.FC = () => {
   };
 
   const handleSendInvite = async (email: string, role: WorkspaceRole) => {
-    if (!workspaceId) return;
+    if (!workspaceId || sendingInvite) return;
     try {
       setSendingInvite(true);
       await workspaceService.inviteMember(workspaceId, { email, role });
-      toast.success(`Invite sent to ${email}`);
+      toast.success(`Invite sent to ${email}`, { id: 'invite-toast' });
       setInviteModalOpen(false);
       loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to send invite');
+      const msg = error.response?.data?.message || 'Failed to send invite';
+      toast.error(msg, { id: 'invite-toast' });
     } finally {
       setSendingInvite(false);
     }
@@ -194,6 +195,7 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.updateWorkspace(workspaceId, { name: newName });
       toast.success('Workspace renamed');
+      await refreshWorkspaces();
       loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -204,12 +206,9 @@ export const WorkspaceDetailPage: React.FC = () => {
   const handleDeleteWorkspace = async () => {
     if (!workspaceId) return;
     try {
-      await workspaceService.deleteWorkspace(workspaceId);
-      toast.success('Workspace deleted');
-      navigate('/workspaces');
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to delete workspace');
+      await deleteWorkspaceAndSync(workspaceId);
+    } catch {
+      // Error handled in deleteWorkspaceAndSync
     }
   };
 
@@ -267,42 +266,36 @@ export const WorkspaceDetailPage: React.FC = () => {
           </button>
 
           {/* Workspace Header */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 14,
-                background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 20,
-              }}
-            >
-              {initials(workspace.name)}
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
-                  {workspace.name}
-                </h1>
-                <Badge tone={visibility === 'public' ? 'success' : 'neutral'}>
-                  {visibility === 'public' ? 'Public' : 'Private'}
-                </Badge>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-neutral-200 dark:border-neutral-800">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              <div
+                style={{
+                  background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
+                }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shrink-0 shadow-sm"
+              >
+                {initials(workspace.name)}
               </div>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                {workspace.description || 'No description provided.'}
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100 truncate max-w-full break-all">
+                    {workspace.name}
+                  </h1>
+                  <Badge tone={visibility === 'public' ? 'success' : 'neutral'} className="shrink-0">
+                    {visibility === 'public' ? 'Public' : 'Private'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate max-w-xl">
+                  {workspace.description || 'No description provided.'}
+                </p>
+              </div>
             </div>
-            <div className="flex gap-4 text-xs font-medium text-neutral-500 dark:text-neutral-400">
-              <span className="flex items-center gap-1">
-                <Icon name="layout" size={14} /> {boards.length} boards
+            <div className="flex items-center gap-3 text-xs font-medium text-neutral-600 dark:text-neutral-400 shrink-0 bg-neutral-100 dark:bg-neutral-900/60 px-3.5 py-2 rounded-xl border border-neutral-200 dark:border-neutral-800/80">
+              <span className="flex items-center gap-1.5">
+                <Icon name="layout" size={14} className="text-orange-500" /> {boards.length} boards
               </span>
-              <span className="flex items-center gap-1">
-                <Icon name="users" size={14} /> {members.length} members
+              <span className="flex items-center gap-1.5">
+                <Icon name="users" size={14} className="text-blue-500" /> {members.length} members
               </span>
             </div>
           </div>
@@ -386,20 +379,20 @@ export const WorkspaceDetailPage: React.FC = () => {
                 </div>
 
                 {boards.length === 0 ? (
-                  <div className="text-center py-14 px-6 bg-gradient-to-br from-white via-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-3xl shadow-sm">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/20">
+                  <div className="text-center py-14 px-6 bg-white dark:bg-neutral-900 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl shadow-2xs">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/20">
                       <Icon name="layoutGrid" size={26} />
                     </div>
                     <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-1">
                       Welcome to your new workspace!
                     </h3>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-md mx-auto mb-6">
-                      There are no boards in <strong>{workspace.name}</strong> yet. Create your first board to start tracking tasks and collaborating with your team.
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-md mx-auto mb-6 leading-relaxed">
+                      There are no boards in <strong className="text-neutral-800 dark:text-neutral-200 font-semibold break-all">{workspace.name}</strong> yet. Create your first board to start tracking tasks and collaborating with your team.
                     </p>
                     <button
                       type="button"
                       onClick={() => setCreateBoardOpen(true)}
-                      className="px-5 py-2.5 rounded-xl font-semibold text-xs text-white shadow-lg cursor-pointer inline-flex items-center gap-2"
+                      className="px-5 py-2.5 rounded-xl font-semibold text-xs text-white shadow-lg cursor-pointer inline-flex items-center gap-2 transition hover:opacity-95"
                       style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
                     >
                       <Icon name="plus" size={15} /> Create first board

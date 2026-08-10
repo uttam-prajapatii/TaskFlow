@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Sidebar from '../../../components/layout/Sidebar';
@@ -15,12 +15,9 @@ import type { Workspace, CreateWorkspacePayload } from '../types';
 
 export const WorkspacesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setCurrentWorkspace } = useWorkspace();
+  const { workspaces, loading, setCurrentWorkspace, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
 
-  const [loading, setLoading] = useState(true);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [search, setSearch] = useState('');
-
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'boards'>('recent');
   const [filterVis, setFilterVis] = useState<'all' | 'private' | 'public'>('all');
 
@@ -34,23 +31,6 @@ export const WorkspacesPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
   const [leaveTarget, setLeaveTarget] = useState<Workspace | null>(null);
   const [actionWorking, setActionWorking] = useState(false);
-
-  const fetchWorkspaces = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await workspaceService.listWorkspaces();
-      setWorkspaces(data);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to load workspaces');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchWorkspaces();
-  }, [fetchWorkspaces]);
 
   const filteredWorkspaces = useMemo(() => {
     let list = workspaces.filter((w) => {
@@ -84,7 +64,7 @@ export const WorkspacesPage: React.FC = () => {
       const created = await workspaceService.createWorkspace(payload);
       toast.success(`Workspace "${created.name}" created successfully!`);
       setCreateOpen(false);
-      fetchWorkspaces();
+      await refreshWorkspaces();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to create workspace.');
@@ -99,7 +79,7 @@ export const WorkspacesPage: React.FC = () => {
       await workspaceService.updateWorkspace(workspaceId, { name: newName });
       toast.success('Workspace renamed successfully');
       setRenameTarget(null);
-      fetchWorkspaces();
+      await refreshWorkspaces();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to rename workspace.');
@@ -113,13 +93,10 @@ export const WorkspacesPage: React.FC = () => {
     const wsId = deleteTarget._id || deleteTarget.id!;
     try {
       setActionWorking(true);
-      await workspaceService.deleteWorkspace(wsId);
-      toast.success(`Workspace "${deleteTarget.name}" deleted.`);
       setDeleteTarget(null);
-      fetchWorkspaces();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to delete workspace.');
+      await deleteWorkspaceAndSync(wsId);
+    } catch {
+      // Error handled inside deleteWorkspaceAndSync
     } finally {
       setActionWorking(false);
     }
@@ -133,7 +110,7 @@ export const WorkspacesPage: React.FC = () => {
       await workspaceService.leaveWorkspace(wsId);
       toast.success(`Left workspace "${leaveTarget.name}".`);
       setLeaveTarget(null);
-      fetchWorkspaces();
+      await refreshWorkspaces();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to leave workspace.');

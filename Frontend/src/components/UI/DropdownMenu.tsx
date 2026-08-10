@@ -16,6 +16,7 @@ interface MenuProps {
   align?: 'left' | 'right';
   open: boolean;
   setOpen: (open: boolean) => void;
+  fullWidth?: boolean;
 }
 
 export const DropdownMenu: React.FC<MenuProps> = ({
@@ -24,6 +25,7 @@ export const DropdownMenu: React.FC<MenuProps> = ({
   align = 'right',
   open,
   setOpen,
+  fullWidth = false,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -38,66 +40,39 @@ export const DropdownMenu: React.FC<MenuProps> = ({
   }, [open, setOpen]);
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} className={`relative text-left ${fullWidth ? 'w-full block' : 'inline-block'}`}>
       {trigger}
       {open && (
         <div
-          className="tf-pop"
-          style={{
-            position: 'absolute',
-            [align]: 0,
-            top: 'calc(100% + 6px)',
-            background: 'var(--tf-card, #ffffff)',
-            border: '1px solid var(--tf-border, #e5e7eb)',
-            borderRadius: 12,
-            boxShadow: '0 12px 32px rgba(0,0,0,0.16)',
-            minWidth: 190,
-            zIndex: 60,
-            padding: 6,
-            overflow: 'hidden',
-          }}
+          className={`tf-pop absolute z-50 mt-1.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-1.5 overflow-y-auto max-h-80 origin-top transition-all duration-150 animate-in fade-in slide-in-from-top-2 ${
+            fullWidth ? 'w-full left-0 right-0' : `w-64 max-w-xs ${align === 'left' ? 'left-0' : 'right-0'}`
+          }`}
         >
           {items.map((it, i) =>
             it.divider ? (
               <div
                 key={i}
-                style={{
-                  height: 1,
-                  background: 'var(--tf-border, #e5e7eb)',
-                  margin: '6px 4px',
-                }}
+                className="h-px bg-neutral-100 dark:bg-neutral-800 my-1"
               />
             ) : (
               <button
                 key={i}
+                type="button"
                 onClick={() => {
                   it.onClick?.();
                   setOpen(false);
                 }}
                 disabled={it.disabled}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'none',
-                  border: 'none',
-                  padding: '9px 10px',
-                  borderRadius: 8,
-                  fontSize: 13.5,
-                  color: it.danger
-                    ? '#E8432E'
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-left cursor-pointer ${
+                  it.danger
+                    ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
                     : it.disabled
-                    ? 'var(--tf-text-muted, #9ca3af)'
-                    : 'var(--tf-text, #111827)',
-                  cursor: it.disabled ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 9,
-                  fontWeight: 500,
-                }}
-                className="hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+                    : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                }`}
               >
-                {it.icon && <Icon name={it.icon} size={15} />}
-                {it.label}
+                {it.icon && <Icon name={it.icon} size={15} className="shrink-0 text-neutral-400 dark:text-neutral-500" />}
+                <span className="truncate flex-1 min-w-0">{it.label}</span>
               </button>
             )
           )}

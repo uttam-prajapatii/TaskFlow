@@ -34,40 +34,21 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string } | null>(null);
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+    <div className="space-y-4">
+      <div className="flex justify-end">
         {canManage && (
           <button
             type="button"
             onClick={onOpenInvite}
-            style={{
-              background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 16px',
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: '0 6px 16px rgba(232,67,46,0.28)',
-            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs text-white shadow-md cursor-pointer transition hover:opacity-95"
+            style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
           >
             <Icon name="plus" size={15} /> Invite member
           </button>
         )}
       </div>
 
-      <div
-        style={{
-          background: 'var(--tf-card, #ffffff)',
-          border: '1px solid var(--tf-border, #e5e7eb)',
-          borderRadius: 14,
-          overflow: 'hidden',
-        }}
-      >
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-2xs">
         {members.map((m, i) => {
           const userObj = typeof m.userId === 'object' && m.userId !== null ? m.userId : null;
           const uId = userObj?._id || (typeof m.userId === 'string' ? m.userId : `m-${i}`);
@@ -97,29 +78,22 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           return (
             <div
               key={uId}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '13px 16px',
-                borderTop: i === 0 ? 'none' : '1px solid var(--tf-border, #e5e7eb)',
-              }}
+              className={`flex items-center gap-3 p-4 transition-colors ${
+                i > 0 ? 'border-t border-neutral-100 dark:border-neutral-800/80' : ''
+              }`}
             >
-              <Avatar name={userName} size={34} ring={false} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{ fontSize: 13.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
-                  className="text-neutral-900 dark:text-neutral-100"
-                >
-                  {userName}{' '}
+              <Avatar name={userName} size={36} ring={false} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-neutral-900 dark:text-neutral-100">
+                  <span className="truncate">{userName}</span>
                   {isSelf && (
-                    <span style={{ fontSize: 11, color: 'var(--tf-text-muted, #9ca3af)', fontWeight: 500 }}>
+                    <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500 shrink-0">
                       (you)
                     </span>
                   )}
                 </div>
                 {userEmail && (
-                  <div style={{ fontSize: 12, color: 'var(--tf-text-muted, #6b7280)' }}>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
                     {userEmail}
                   </div>
                 )}
@@ -133,21 +107,16 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                     <button
                       type="button"
                       onClick={() => setRoleMenuFor(roleMenuFor === uId ? null : uId)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        background: 'var(--tf-chip, #f3f4f6)',
-                        border: '1px solid var(--tf-border, #e5e7eb)',
-                        borderRadius: 999,
-                        padding: '5px 10px 5px 12px',
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        color: 'var(--tf-text, #111827)',
-                        cursor: 'pointer',
-                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer"
                     >
-                      {ROLE_LABELS[m.role] || m.role} <Icon name="chevron-down" size={13} />
+                      <span>{ROLE_LABELS[m.role] || m.role}</span>
+                      <Icon
+                        name="chevron-down"
+                        size={13}
+                        className={`text-neutral-400 transition-transform duration-200 ${
+                          roleMenuFor === uId ? 'rotate-180 text-orange-500' : 'rotate-0'
+                        }`}
+                      />
                     </button>
                   }
                   items={roleItems}
