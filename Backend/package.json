@@ -8,6 +8,7 @@
     "worker:email": "bun src/modules/email/email.worker.js"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.8.0",
     "cloudinary": "^2.10.0",
@@ -23,6 +24,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
     "resend": "^2.1.0",
+    "socket.io": "^4.8.3",
     "winston": "^3.12.0"
   },
   "devDependencies": {

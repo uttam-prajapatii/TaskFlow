@@ -5,6 +5,10 @@ import { generateUniqueSlug, getStrId, generateRandomToken } from './workspace.u
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import logger from '../../utils/logger.js';
 import { enqueueEmail } from '../email/email.queue.js';
+import boardRepository from '../board/board.repository.js';
+import listRepository from '../list/list.repository.js';
+import taskRepository from '../task/task.repository.js';
+import { ActivityLog } from '../activityLog/activityLog.model.js';
 
 class WorkspaceService {
   /**
@@ -500,6 +504,131 @@ class WorkspaceService {
     logger.info(`User left workspace`, { workspaceId: workspace._id, userId });
 
     return { message: 'You have left the workspace successfully' };
+  }
+
+  /**
+   * Compute workspace analytics (task completion velocity, average cycle times, counts).
+   */
+  async getWorkspaceAnalytics(workspaceId, userId) {
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
+    if (!workspace) {
+      throw new NotFoundError('Workspace not found');
+    }
+
+    const ownerStrId = getStrId(workspace.ownerId);
+    const userStrId = userId.toString();
+
+    const isOwner = ownerStrId === userStrId;
+    const isMember = workspace.members.some(
+      (m) => m.userId && getStrId(m.userId) === userStrId
+    );
+
+    if (!isOwner && !isMember) {
+      throw new ForbiddenError('You do not have access to this workspace analytics');
+    }
+
+    // 1. Fetch all boards in the workspace
+    const boards = await boardRepository.listBoards(workspace._id);
+    const boardIds = boards.map((b) => b._id);
+
+    // 2. Fetch all lists for all boards
+    const lists = [];
+    for (const boardId of boardIds) {
+      const boardLists = await listRepository.findListsByBoard(boardId);
+      lists.push(...boardLists);
+    }
+
+    // 3. Identify completed list IDs (names matching Done or Completed, case-insensitive)
+    const completedListIds = lists
+      .filter((l) => /done|completed/i.test(l.name))
+      .map((l) => l._id.toString());
+
+    // 4. Fetch all tasks for the boards
+    const tasks = [];
+    for (const boardId of boardIds) {
+      const boardTasks = await taskRepository.findTasksByBoard(boardId, { isDeleted: false });
+      tasks.push(...boardTasks);
+    }
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((t) => completedListIds.includes(t.listId.toString()));
+    const activeTasks = totalTasks - completedTasks.length;
+
+    // Priority breakdown
+    const priorityBreakdown = {
+      low: tasks.filter((t) => t.priority === 'low').length,
+      medium: tasks.filter((t) => t.priority === 'medium').length,
+      high: tasks.filter((t) => t.priority === 'high').length,
+      urgent: tasks.filter((t) => t.priority === 'urgent').length,
+    };
+
+    // Calculate weekly completion velocity (past 4 weeks)
+    const now = new Date();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    const velocity = [];
+
+    for (let i = 3; i >= 0; i--) {
+      const start = new Date(now.getTime() - (i + 1) * oneWeek);
+      const end = new Date(now.getTime() - i * oneWeek);
+
+      // Completed in this week (using updatedAt on done tasks)
+      const count = completedTasks.filter((t) => {
+        const time = new Date(t.updatedAt || t.createdAt).getTime();
+        return time >= start.getTime() && time < end.getTime();
+      }).length;
+
+      velocity.push({
+        weekStart: start.toISOString().split('T')[0],
+        completedCount: count,
+      });
+    }
+
+    // Calculate average cycle time (days between task creation and completion) from activityLogs
+    let averageCycleTimeDays = 0;
+    try {
+      const completions = await ActivityLog.find({
+        workspaceId: workspace._id,
+        action: 'task:completed'
+      }).lean();
+
+      if (completions.length > 0) {
+        let totalCycleTimeMs = 0;
+        let countedCompletions = 0;
+
+        for (const log of completions) {
+          const createLog = await ActivityLog.findOne({
+            workspaceId: workspace._id,
+            entityId: log.entityId,
+            action: 'task:create'
+          }).lean();
+
+          if (createLog) {
+            totalCycleTimeMs += new Date(log.createdAt).getTime() - new Date(createLog.createdAt).getTime();
+            countedCompletions++;
+          }
+        }
+
+        if (countedCompletions > 0) {
+          averageCycleTimeDays = parseFloat(
+            (totalCycleTimeMs / (countedCompletions * 24 * 60 * 60 * 1000)).toFixed(2)
+          );
+        }
+      }
+    } catch (err) {
+      logger.warn(`Failed to compute average cycle time: ${err.message}`);
+    }
+
+    return {
+      workspaceId: workspace._id,
+      totalBoards: boards.length,
+      totalMembers: workspace.members.length,
+      totalTasks,
+      activeTasksCount: activeTasks,
+      completedTasksCount: completedTasks.length,
+      priorityBreakdown,
+      velocity,
+      averageCycleTimeDays
+    };
   }
 }
 

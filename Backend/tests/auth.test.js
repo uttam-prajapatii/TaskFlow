@@ -34,7 +34,6 @@ describe('Authentication System Tests', () => {
     await User.deleteMany({});
     await RefreshToken.deleteMany({});
     await mongoose.connection.close();
-    await redisClient.quit();
   });
 
   beforeEach(async () => {

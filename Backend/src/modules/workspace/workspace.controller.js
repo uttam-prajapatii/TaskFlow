@@ -129,6 +129,15 @@ class WorkspaceController {
     await workspaceService.leaveWorkspace(workspaceId, req.user._id);
     return ApiResponse.success(res, 'You have left the workspace successfully', null);
   });
+
+  /**
+   * Retrieve workspace analytics (task completion velocity, cycle time).
+   */
+  getWorkspaceAnalytics = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    const analytics = await workspaceService.getWorkspaceAnalytics(workspaceId, req.user._id);
+    return ApiResponse.success(res, 'Workspace analytics retrieved successfully', analytics);
+  });
 }
 
 export default new WorkspaceController();

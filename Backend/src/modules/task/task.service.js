@@ -8,6 +8,11 @@ import logger from '../../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import { getTaskAccessRights, isParentArchived, formatGroupedTasks, getStrId, getCloudinaryResourceType } from './task.utils.js';
 import { uploadStream, deleteFromCloudinary } from '../../config/cloudinary.js';
+import { emitToBoard } from '../../config/socket.js';
+import notificationService from '../notification/notification.service.js';
+import activityLogService from '../activityLog/activityLog.service.js';
+import authRepository from '../auth/auth.repository.js';
+import { enqueueEmail } from '../email/email.queue.js';
 
 class TaskService {
   /**
@@ -108,6 +113,60 @@ class TaskService {
       createdBy: userId
     });
 
+    // Broadcast creation to board room
+    try {
+      emitToBoard(list.boardId.toString(), 'task:updated', { boardId: list.boardId.toString() });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+    }
+
+    // Log Activity audit trail
+    await activityLogService.logActivity(
+      workspace._id,
+      userId,
+      'task:create',
+      'Task',
+      task._id,
+      { title: task.title }
+    );
+
+    // Notify Assignees
+    if (task.assignees && task.assignees.length > 0) {
+      try {
+        const callerUser = await authRepository.findUserById(userId);
+        const callerName = callerUser?.name || 'A teammate';
+
+        for (const assigneeId of task.assignees) {
+          if (assigneeId.toString() === userId.toString()) continue;
+
+          const user = await authRepository.findUserById(assigneeId);
+          if (user && user.email) {
+            // Trigger in-app notification
+            await notificationService.createAndSendNotification(assigneeId, 'task', {
+              taskId: task._id.toString(),
+              taskTitle: task.title,
+              boardId: board._id.toString(),
+              workspaceId: workspace._id.toString(),
+              actorName: callerName,
+              message: `${callerName} assigned you a task: "${task.title}"`
+            });
+
+            // Enqueue assignment email
+            const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+            const taskUrl = `${appBaseUrl}/boards/${board._id}/tasks/${task._id}`;
+            await enqueueEmail('sendAssignment', {
+              toEmail: user.email,
+              taskTitle: task.title,
+              assignedByName: callerName,
+              taskUrl
+            });
+          }
+        }
+      } catch (err) {
+        logger.error(`Failed to dispatch assignment notifications for task ${task._id}: ${err.message}`);
+      }
+    }
+
     return task;
   }
 
@@ -184,6 +243,23 @@ class TaskService {
       updatedBy: userId
     });
 
+    // Broadcast updated task to board room
+    try {
+      emitToBoard(board._id.toString(), 'task:updated', updatedTask);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+    }
+
+    // Log Activity audit log
+    await activityLogService.logActivity(
+      workspace._id,
+      userId,
+      'task:update',
+      'Task',
+      taskId,
+      { title: updatedTask.title, updatedFields: Object.keys(sanitizedUpdate) }
+    );
+
     return updatedTask;
   }
 
@@ -248,6 +324,38 @@ class TaskService {
       }
     }
 
+    const updated = await taskRepository.findTaskById(taskId);
+
+    // Broadcast movement to board room
+    try {
+      emitToBoard(board._id.toString(), 'task:updated', updated);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+    }
+
+    // Log Activity audit log (moving or completed)
+    try {
+      const targetList = await listRepository.findListById(targetListIdStr);
+      const isDone = targetList && /done|completed/i.test(targetList.name);
+      const actionType = isDone ? 'task:completed' : 'task:move';
+
+      await activityLogService.logActivity(
+        workspace._id,
+        userId,
+        actionType,
+        'Task',
+        taskId,
+        {
+          title: task.title,
+          fromListId: currentListId,
+          toListId: targetListIdStr,
+          position: targetPosition
+        }
+      );
+    } catch (logErr) {
+      logger.warn(`Failed to log task movement activity log: ${logErr.message}`);
+    }
+
     logger.info(`Task moved successfully`, {
       taskId,
       targetListId: targetListIdStr,
@@ -255,7 +363,7 @@ class TaskService {
       movedBy: userId
     });
 
-    return taskRepository.findTaskById(taskId);
+    return updated;
   }
 
   /**
@@ -279,6 +387,30 @@ class TaskService {
     // Re-index remaining tasks in list
     const remainingTasks = await taskRepository.findTasksByList(task.listId);
     await taskRepository.updatePositions(remainingTasks.map((t) => t._id));
+
+    // Broadcast deletion to board room
+    try {
+      emitToBoard(board._id.toString(), 'task:updated', { taskId, listId: task.listId, isDeleted: true });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+    }
+
+    // Log Activity audit log
+    await activityLogService.logActivity(
+      workspace._id,
+      userId,
+      'task:delete',
+      'Task',
+      taskId,
+      { title: task.title }
+    );
+
+    // Queue permanently hard-delete job in 30 days
+    try {
+      await enqueueEmail('hardDeleteTask', { taskId }, { delay: 30 * 24 * 60 * 60 * 1000 });
+    } catch (err) {
+      logger.warn(`Failed to schedule hardDeleteTask BullMQ job: ${err.message}`);
+    }
 
     logger.info(`Task soft-deleted successfully`, {
       taskId,
