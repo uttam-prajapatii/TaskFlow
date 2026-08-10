@@ -6,7 +6,7 @@ import { AppError } from '../../utils/errors.js';
  * Limits each IP to 15 requests per 15 minutes.
  */
 export const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs:0, // 15 minutes
   limit: 5,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
@@ -20,7 +20,7 @@ export const authRateLimiter = rateLimit({
  * Limits each IP to 30 requests per 15 minutes.
  */
 export const refreshRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 0, // 15 minutes
   limit: 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
