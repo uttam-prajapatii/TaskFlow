@@ -57,6 +57,13 @@ app.get('/readyz', (req, res) => {
 // Mount main API routes
 app.use('/api/v1', apiRouter);
 
+// Mount Swagger API documentation in development mode only
+if (process.env.NODE_ENV === 'development') {
+  const swaggerUi = await import('swagger-ui-express');
+  const { swaggerDocument } = await import('./modules/swagger/index.js');
+  app.use('/api-docs', swaggerUi.default.serve, swaggerUi.default.setup(swaggerDocument));
+}
+
 // Fallback for unhandled routes
 app.all('*', (req, res, next) => {
   next(new NotFoundError(`Can't find ${req.originalUrl} on this server`));

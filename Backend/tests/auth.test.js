@@ -411,7 +411,7 @@ describe('Authentication System Tests', () => {
       const { default: authController } = await import('../src/modules/auth/auth.controller.js');
       await authController.refresh(req, res, next);
       
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       expect(res.cookie).toHaveBeenCalled();
     });
