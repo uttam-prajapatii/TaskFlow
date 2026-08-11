@@ -281,8 +281,12 @@ const SignUpForm: React.FC = () => {
 
       setIsSubmitting(true);
       try {
-        await register({ fullName: name, email, password });
-        navigate('/dashboard');
+        const result = await register({ fullName: name, email, password });
+        if (result?.requiresOtp) {
+          navigate('/verify-otp');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (error) {
         console.debug('Registration submission failed:', error);
       } finally {

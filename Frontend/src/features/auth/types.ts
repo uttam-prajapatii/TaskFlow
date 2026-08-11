@@ -3,6 +3,7 @@ export interface User {
   email: string;
   fullName?: string;
   isActive: boolean;
+  isVerified?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -13,8 +14,20 @@ export interface Tokens {
 }
 
 export interface AuthSuccessData {
-  user: User;
-  tokens: Tokens;
+  user?: User;
+  tokens?: Tokens;
+  message?: string;
+  email?: string;
+  isVerified?: boolean;
+}
+
+export interface VerifyOtpDTO {
+  email: string;
+  otp: string;
+}
+
+export interface ResendOtpDTO {
+  email: string;
 }
 
 export interface RefreshSuccessData {
@@ -43,12 +56,21 @@ export interface LoginDTO {
   password: string;
 }
 
+export interface AuthResult {
+  requiresOtp: boolean;
+  email?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginDTO) => Promise<void>;
-  register: (data: RegisterDTO) => Promise<void>;
+  pendingEmail: string | null;
+  setPendingEmail: (email: string | null) => void;
+  login: (credentials: LoginDTO) => Promise<AuthResult>;
+  register: (data: RegisterDTO) => Promise<AuthResult>;
+  verifyOtp: (data: VerifyOtpDTO) => Promise<void>;
+  resendOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }

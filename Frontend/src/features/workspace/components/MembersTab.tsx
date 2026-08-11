@@ -48,7 +48,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         )}
       </div>
 
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl overflow-hidden shadow-2xs">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xs">
         {members.map((m, i) => {
           const userObj = typeof m.userId === 'object' && m.userId !== null ? m.userId : null;
           const uId = userObj?._id || (typeof m.userId === 'string' ? m.userId : `m-${i}`);
@@ -75,12 +75,14 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             }
           );
 
+          const isMenuOpen = roleMenuFor === uId;
+
           return (
             <div
               key={uId}
               className={`flex items-center gap-3 p-4 transition-colors ${
                 i > 0 ? 'border-t border-neutral-100 dark:border-neutral-800/80' : ''
-              }`}
+              } ${i === 0 ? 'rounded-t-2xl' : ''} ${i === members.length - 1 ? 'rounded-b-2xl' : ''}`}
             >
               <Avatar name={userName} size={36} ring={false} />
               <div className="flex-1 min-w-0">
@@ -101,12 +103,13 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
               {canManage && !isTargetOwner ? (
                 <DropdownMenu
-                  open={roleMenuFor === uId}
+                  open={isMenuOpen}
                   setOpen={(v) => setRoleMenuFor(v ? uId : null)}
+                  widthClass="w-52"
                   trigger={
                     <button
                       type="button"
-                      onClick={() => setRoleMenuFor(roleMenuFor === uId ? null : uId)}
+                      onClick={() => setRoleMenuFor(isMenuOpen ? null : uId)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer"
                     >
                       <span>{ROLE_LABELS[m.role] || m.role}</span>
@@ -114,7 +117,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                         name="chevron-down"
                         size={13}
                         className={`text-neutral-400 transition-transform duration-200 ${
-                          roleMenuFor === uId ? 'rotate-180 text-orange-500' : 'rotate-0'
+                          isMenuOpen ? 'rotate-180 text-orange-500' : 'rotate-0'
                         }`}
                       />
                     </button>

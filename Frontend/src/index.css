@@ -1,10 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-flame-3: #FF3B2B;
   --color-flame-2: #FF6D2C;
-  /* --color-flame-1: #ffbe75; */
   --color-flame-1: #ffe9d1;
   --color-ink: #20140F;
   --color-ink-soft: #5C4A42;
@@ -24,9 +25,16 @@
 
 body {
   margin: 0;
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background-color: #fafafa;
+  color: #171717;
   font-family: 'Inter', sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body,
+body.dark {
+  background-color: #0a0a0a;
+  color: #fafafa;
 }
 
 @utility node {

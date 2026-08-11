@@ -6,6 +6,8 @@ import type {
   MeSuccessData,
   RefreshSuccessData,
   RegisterDTO,
+  ResendOtpDTO,
+  VerifyOtpDTO,
 } from '../features/auth/types';
 
 export const authService = {
@@ -22,6 +24,22 @@ export const authService = {
    */
   async login(data: LoginDTO): Promise<ApiResponse<AuthSuccessData>> {
     const response = await api.post<ApiResponse<AuthSuccessData>>('/api/v1/auth/login', data);
+    return response.data;
+  },
+
+  /**
+   * Verify email via 6-digit OTP code
+   */
+  async verifyOtp(data: VerifyOtpDTO): Promise<ApiResponse<AuthSuccessData>> {
+    const response = await api.post<ApiResponse<AuthSuccessData>>('/api/v1/auth/verify-otp', data);
+    return response.data;
+  },
+
+  /**
+   * Resend verification OTP code
+   */
+  async resendOtp(data: ResendOtpDTO): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>('/api/v1/auth/resend-otp', data);
     return response.data;
   },
 

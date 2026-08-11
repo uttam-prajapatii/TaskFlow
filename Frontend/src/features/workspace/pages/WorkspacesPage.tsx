@@ -15,7 +15,7 @@ import type { Workspace, CreateWorkspacePayload } from '../types';
 
 export const WorkspacesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { workspaces, loading, setCurrentWorkspace, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
+  const { workspaces, currentWorkspace, loading, setCurrentWorkspace, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'boards'>('recent');
@@ -31,6 +31,12 @@ export const WorkspacesPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
   const [leaveTarget, setLeaveTarget] = useState<Workspace | null>(null);
   const [actionWorking, setActionWorking] = useState(false);
+
+  React.useEffect(() => {
+    if (!loading && workspaces.length === 0) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [loading, workspaces.length, navigate]);
 
   const filteredWorkspaces = useMemo(() => {
     let list = workspaces.filter((w) => {
@@ -105,11 +111,20 @@ export const WorkspacesPage: React.FC = () => {
   const handleLeave = async () => {
     if (!leaveTarget) return;
     const wsId = leaveTarget._id || leaveTarget.id!;
+    const isCurrent = Boolean(
+      currentWorkspace &&
+        (String(currentWorkspace._id || '') === wsId || String(currentWorkspace.id || '') === wsId)
+    );
     try {
       setActionWorking(true);
       await workspaceService.leaveWorkspace(wsId);
       toast.success(`Left workspace "${leaveTarget.name}".`);
       setLeaveTarget(null);
+      if (isCurrent) {
+        setCurrentWorkspace(null);
+        localStorage.removeItem('taskflow_last_workspace_id');
+        navigate('/workspace-select', { replace: true });
+      }
       await refreshWorkspaces();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };

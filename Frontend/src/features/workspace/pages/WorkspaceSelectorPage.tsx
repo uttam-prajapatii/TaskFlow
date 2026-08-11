@@ -1,25 +1,42 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import useAuth from '../../../hooks/useAuth';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import AppHeader from '../../../components/layout/AppHeader';
 import Icon from '../../../components/UI/Icon';
-import Badge from '../../../components/UI/Badge';
-import { initials } from '../../../components/UI/Avatar';
-import { getColorHex } from '../components/WorkspaceCard';
+import WorkspaceCard from '../components/WorkspaceCard';
+import WorkspaceSkeleton from '../components/WorkspaceSkeleton';
 import CreateWorkspaceModal from '../components/CreateWorkspaceModal';
+import RenameWorkspaceModal from '../components/RenameWorkspaceModal';
+import ConfirmModal from '../../../components/UI/ConfirmModal';
 import workspaceService from '../../../services/workspace.service';
-import type { CreateWorkspacePayload, WorkspaceRole } from '../types';
+import type { Workspace, CreateWorkspacePayload } from '../types';
 
 export const WorkspaceSelectorPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { workspaces, setCurrentWorkspace, refreshWorkspaces, loading } = useWorkspace();
+  const {
+    workspaces,
+    currentWorkspace,
+    setCurrentWorkspace,
+    refreshWorkspaces,
+    deleteWorkspaceAndSync,
+    loading,
+  } = useWorkspace();
 
   const [search, setSearch] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const [renameTarget, setRenameTarget] = useState<Workspace | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<Workspace | null>(null);
+  const [actionWorking, setActionWorking] = useState(false);
+
+  React.useEffect(() => {
+    if (!loading && workspaces.length === 0) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [loading, workspaces.length, navigate]);
 
   const filteredWorkspaces = workspaces.filter((ws) => {
     const query = search.toLowerCase();
@@ -28,7 +45,7 @@ export const WorkspaceSelectorPage: React.FC = () => {
     return nameMatch || descMatch;
   });
 
-  const handleOpenWorkspace = (ws: (typeof workspaces)[0]) => {
+  const handleOpenWorkspace = (ws: Workspace) => {
     setCurrentWorkspace(ws);
     const wsId = ws._id || ws.id;
     navigate(`/workspaces/${wsId}`);
@@ -51,6 +68,61 @@ export const WorkspaceSelectorPage: React.FC = () => {
     }
   };
 
+  const handleRename = async (workspaceId: string, newName: string) => {
+    try {
+      setActionWorking(true);
+      await workspaceService.updateWorkspace(workspaceId, { name: newName });
+      toast.success('Workspace renamed successfully');
+      setRenameTarget(null);
+      await refreshWorkspaces();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to rename workspace');
+    } finally {
+      setActionWorking(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const targetId = String(deleteTarget._id || deleteTarget.id);
+    try {
+      setActionWorking(true);
+      setDeleteTarget(null);
+      await deleteWorkspaceAndSync(targetId);
+    } catch {
+      // Error is caught & displayed by deleteWorkspaceAndSync
+    } finally {
+      setActionWorking(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!leaveTarget) return;
+    const targetId = String(leaveTarget._id || leaveTarget.id);
+    const isCurrent = Boolean(
+      currentWorkspace &&
+        (String(currentWorkspace._id || '') === targetId || String(currentWorkspace.id || '') === targetId)
+    );
+
+    try {
+      setActionWorking(true);
+      await workspaceService.leaveWorkspace(targetId);
+      toast.success(`Left workspace "${leaveTarget.name}" successfully`);
+      setLeaveTarget(null);
+      if (isCurrent) {
+        setCurrentWorkspace(null);
+        localStorage.removeItem('taskflow_last_workspace_id');
+      }
+      await refreshWorkspaces();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to leave workspace');
+    } finally {
+      setActionWorking(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col">
@@ -70,7 +142,7 @@ export const WorkspaceSelectorPage: React.FC = () => {
       <AppHeader />
 
       <main className="flex-1 max-w-5xl mx-auto w-full p-6 md:p-10">
-        {/* Header & Search Bar */}
+        {/* Header & Create Button */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold font-display tracking-tight text-neutral-900 dark:text-neutral-100">
@@ -84,13 +156,6 @@ export const WorkspaceSelectorPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/workspaces/manage')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-semibold transition cursor-pointer shadow-2xs"
-            >
-              <Icon name="settings" size={15} /> Manage Workspaces
-            </button>
-            <button
-              type="button"
               onClick={() => setCreateModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white cursor-pointer shadow-md transition hover:opacity-95"
               style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
@@ -100,7 +165,7 @@ export const WorkspaceSelectorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Search & Filter Control */}
+        {/* Live Search Control */}
         <div className="relative mb-6">
           <Icon
             name="search"
@@ -116,7 +181,7 @@ export const WorkspaceSelectorPage: React.FC = () => {
           />
         </div>
 
-        {/* Workspaces List / Grid */}
+        {/* Workspaces Grid */}
         {filteredWorkspaces.length === 0 ? (
           <div className="text-center py-16 px-4 bg-white dark:bg-neutral-900 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl">
             <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-500/10 text-orange-500 flex items-center justify-center mx-auto mb-3">
@@ -143,92 +208,50 @@ export const WorkspaceSelectorPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {filteredWorkspaces.map((ws) => {
-              const hex = getColorHex(ws.settings?.color || ws.color);
-              const visibility = ws.settings?.visibility || ws.visibility || 'private';
-
-              const isOwner =
-                ws.ownerId === user?._id ||
-                (typeof ws.ownerId === 'object' && ws.ownerId !== null && ws.ownerId._id === user?._id);
-
-              const myMember = ws.members?.find((m) => {
-                const uId = typeof m.userId === 'object' && m.userId !== null ? m.userId._id : m.userId;
-                return String(uId) === String(user?._id);
-              });
-
-              const role: WorkspaceRole = isOwner ? 'owner' : myMember?.role || 'member';
-              const memberCount = ws.members?.length || 1;
-              const boardCount = ws.boardCount ?? 0;
-
-              return (
-                <div
-                  key={ws._id || ws.id}
-                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 hover:border-orange-400 dark:hover:border-orange-500/50 hover:shadow-lg transition-all duration-200 flex flex-col justify-between group"
-                >
-                  <div className="mb-4">
-                    {/* Header Strip */}
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div
-                          style={{
-                            background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-                          }}
-                          className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-xs group-hover:scale-105 transition-transform"
-                        >
-                          {initials(ws.name)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100 truncate max-w-xs">
-                              {ws.name}
-                            </h3>
-                            <Badge tone={visibility === 'public' ? 'success' : 'neutral'} className="shrink-0">
-                              {visibility === 'public' ? 'Public' : 'Private'}
-                            </Badge>
-                          </div>
-                          <span className="text-[11px] text-neutral-400 capitalize font-medium block mt-0.5">
-                            Role: {role}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2 leading-relaxed">
-                      {ws.description || 'No description provided for this workspace.'}
-                    </p>
-                  </div>
-
-                  {/* Footer Strip */}
-                  <div className="w-full pt-3 mt-auto border-t border-neutral-100 dark:border-neutral-800/80 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3.5 text-xs text-neutral-500 dark:text-neutral-400 font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <Icon name="layout" size={13} className="text-neutral-400" /> {boardCount} boards
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Icon name="users" size={13} className="text-neutral-400" /> {memberCount} members
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenWorkspace(ws)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/20 transition-all cursor-pointer shrink-0"
-                    >
-                      Open Workspace <Icon name="arrow-right" size={14} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {filteredWorkspaces.map((ws, index) => (
+              <WorkspaceCard
+                key={ws._id || ws.id || index}
+                ws={ws}
+                index={index}
+                onOpen={handleOpenWorkspace}
+                onRename={(w) => setRenameTarget(w)}
+                onDelete={(w) => setDeleteTarget(w)}
+                onLeave={(w) => setLeaveTarget(w)}
+              />
+            ))}
           </div>
         )}
       </main>
 
+      {/* Action Modals */}
       <CreateWorkspaceModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onCreate={handleCreateWorkspace}
         creating={creating}
+      />
+
+      <RenameWorkspaceModal
+        ws={renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onSave={handleRename}
+        saving={actionWorking}
+      />
+
+      <ConfirmModal
+        target={deleteTarget ? { name: deleteTarget.name } : null}
+        mode="delete"
+        working={actionWorking}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
+
+      <ConfirmModal
+        target={leaveTarget ? { name: leaveTarget.name } : null}
+        mode="leave"
+        working={actionWorking}
+        onClose={() => setLeaveTarget(null)}
+        onConfirm={handleLeave}
       />
     </div>
   );
