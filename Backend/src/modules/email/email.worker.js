@@ -16,6 +16,9 @@ import {
   sendOtpEmail,
 } from './email.service.js';
 import { redisUrl, redisConfig } from '../../config/redis.js';
+import { TaskAttachment } from '../task/taskAttachment.model.js';
+import { deleteFromCloudinary } from '../../config/cloudinary.js';
+import { getCloudinaryResourceType } from '../task/task.utils.js';
 
 // Load environment variables
 dotenv.config();
@@ -112,6 +115,46 @@ const jobRouter = {
   sendOtp: (data) => sendOtpEmail(data),
 };
 
+/**
+ * Handle delayed task hard-deletion and Cloudinary attachment cleanup.
+ */
+async function handleHardDeleteTask({ taskId }) {
+  logger.info(`Running background task: Hard-deleting task ${taskId}...`);
+  try {
+    const task = await Task.findById(taskId);
+    if (!task) {
+      logger.info(`Task ${taskId} not found in database (already deleted or did not exist)`);
+      return;
+    }
+
+    // If task was restored, do not delete
+    if (!task.isDeleted) {
+      logger.info(`Task ${taskId} is no longer marked as deleted (restored). Aborting hard-delete.`);
+      return;
+    }
+
+    // Find and delete all attachments from Cloudinary
+    const attachments = await TaskAttachment.find({ taskId });
+    for (const att of attachments) {
+      const resourceType = getCloudinaryResourceType(att.mimeType);
+      try {
+        await deleteFromCloudinary(att.storageKey, resourceType);
+        logger.info(`Cleaned up Cloudinary file: ${att.storageKey}`);
+      } catch (err) {
+        logger.warn(`Failed to clean up Cloudinary file ${att.storageKey} on task hard-delete: ${err.message}`);
+      }
+      await att.deleteOne();
+    }
+
+    // Delete the task document itself
+    await task.deleteOne();
+    logger.info(`Task ${taskId} permanently hard-deleted from database`);
+  } catch (err) {
+    logger.error(`Error hard-deleting task ${taskId}: ${err.message}`, { stack: err.stack });
+    throw err;
+  }
+}
+
 // Initialize worker process
 const worker = new Worker('emailQueue', async (job) => {
   const { name, data } = job;
@@ -120,6 +163,12 @@ const worker = new Worker('emailQueue', async (job) => {
   // Route cron scan jobs
   if (name === 'scanDueDateReminders') {
     await scanDueDateReminders();
+    return;
+  }
+
+  // Route hard-delete delayed jobs
+  if (name === 'hardDeleteTask') {
+    await handleHardDeleteTask(data);
     return;
   }
 

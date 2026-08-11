@@ -27,13 +27,42 @@ app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 
-// Minimal check endpoint
-app.get('/', (req, res) => {
-  res.json({ message: 'TaskFlow API is running...' });
+import mongoose from 'mongoose';
+import redisClient from './config/redis.js';
+
+// Minimal check endpoints
+app.get('/healthz', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date() });
+});
+
+app.get('/readyz', (req, res) => {
+  const isMongoConnected = mongoose.connection.readyState === 1;
+  const isRedisConnected = redisClient.status === 'ready';
+
+  if (isMongoConnected && isRedisConnected) {
+    res.status(200).json({
+      status: 'READY',
+      database: 'connected',
+      cache: 'connected'
+    });
+  } else {
+    res.status(503).json({
+      status: 'NOT_READY',
+      database: isMongoConnected ? 'connected' : 'disconnected',
+      cache: isRedisConnected ? 'connected' : 'disconnected'
+    });
+  }
 });
 
 // Mount main API routes
 app.use('/api/v1', apiRouter);
+
+// Mount Swagger API documentation in development mode only
+if (process.env.NODE_ENV === 'development') {
+  const swaggerUi = await import('swagger-ui-express');
+  const { swaggerDocument } = await import('./modules/swagger/index.js');
+  app.use('/api-docs', swaggerUi.default.serve, swaggerUi.default.setup(swaggerDocument));
+}
 
 // Fallback for unhandled routes
 app.all('*', (req, res, next) => {
