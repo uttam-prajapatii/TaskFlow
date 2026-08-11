@@ -5,6 +5,7 @@ import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
 import BoardCard from '../components/BoardCard';
 import CreateBoardModal from '../components/CreateBoardModal';
+import RenameBoardModal from '../components/RenameBoardModal';
 import workspaceService from '../../../services/workspace.service';
 import boardService from '../../../services/board.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
@@ -23,6 +24,9 @@ export const BoardsPage: React.FC = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const [renameTarget, setRenameTarget] = useState<Board | null>(null);
+  const [renaming, setRenaming] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -108,6 +112,21 @@ export const BoardsPage: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to delete board');
+    }
+  };
+
+  const handleRenameBoard = async (boardId: string, newName: string) => {
+    try {
+      setRenaming(true);
+      await boardService.updateBoard(boardId, { name: newName });
+      toast.success('Board renamed successfully');
+      setRenameTarget(null);
+      loadData();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to rename board');
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -247,6 +266,7 @@ export const BoardsPage: React.FC = () => {
                   key={b._id || b.id}
                   board={b}
                   onOpen={(board) => navigate(`/boards/${board._id || board.id}`)}
+                  onRename={(board) => setRenameTarget(board)}
                   onDelete={handleDeleteBoard}
                 />
               ))}
@@ -262,6 +282,13 @@ export const BoardsPage: React.FC = () => {
         workspaces={workspaces}
         defaultWorkspaceId={selectedWsId !== 'all' ? selectedWsId : currentWorkspace?._id}
         creating={creating}
+      />
+
+      <RenameBoardModal
+        board={renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onSave={handleRenameBoard}
+        saving={renaming}
       />
     </div>
   );

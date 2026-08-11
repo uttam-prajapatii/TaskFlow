@@ -14,6 +14,7 @@ import SettingsTab from '../components/SettingsTab';
 import InviteMemberModal from '../components/InviteMemberModal';
 import BoardCard from '../../board/components/BoardCard';
 import CreateBoardModal from '../../board/components/CreateBoardModal';
+import RenameBoardModal from '../../board/components/RenameBoardModal';
 import workspaceService from '../../../services/workspace.service';
 import boardService from '../../../services/board.service';
 import type {
@@ -55,6 +56,8 @@ export const WorkspaceDetailPage: React.FC = () => {
   const [sendingInvite, setSendingInvite] = useState(false);
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [creatingBoard, setCreatingBoard] = useState(false);
+  const [renameBoardTarget, setRenameBoardTarget] = useState<Board | null>(null);
+  const [renamingBoard, setRenamingBoard] = useState(false);
 
   const loadWorkspaceData = useCallback(async () => {
     if (!workspaceId) return;
@@ -134,6 +137,21 @@ export const WorkspaceDetailPage: React.FC = () => {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to delete board');
+    }
+  };
+
+  const handleRenameBoard = async (boardId: string, newName: string) => {
+    try {
+      setRenamingBoard(true);
+      await boardService.updateBoard(boardId, { name: newName });
+      toast.success('Board renamed successfully');
+      setRenameBoardTarget(null);
+      loadWorkspaceData();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to rename board');
+    } finally {
+      setRenamingBoard(false);
     }
   };
 
@@ -323,35 +341,42 @@ export const WorkspaceDetailPage: React.FC = () => {
             <div className="space-y-8">
               {/* Analytics Summary Bar */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
-                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                    <Icon name="layout" size={14} className="text-orange-500" /> Boards
+                <div className="p-4.5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center justify-between text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <span>Boards</span>
+                    <Icon name="layout" size={18} className="text-orange-500" />
                   </div>
                   <div className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
                     {boards.length}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
-                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                    <Icon name="users" size={14} className="text-blue-500" /> Members
+
+                <div className="p-4.5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center justify-between text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <span>Members</span>
+                    <Icon name="users" size={18} className="text-blue-500" />
                   </div>
                   <div className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
                     {members.length}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
-                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                    <Icon name="mail" size={14} className="text-violet-500" /> Invites
+
+                <div className="p-4.5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center justify-between text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <span>Invites</span>
+                    <Icon name="mail" size={18} className="text-violet-500" />
                   </div>
                   <div className="text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100">
                     {invites.length}
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
-                  <div className="flex items-center gap-2 text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                    <Icon name="shield" size={14} className="text-emerald-500" /> Access Role
+
+                <div className="p-4.5 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xs">
+                  <div className="flex items-center justify-between text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <span>Access Role</span>
+                    <Icon name="shield-check" size={18} className="text-emerald-500" />
                   </div>
-                  <div className="text-sm font-bold capitalize text-neutral-900 dark:text-neutral-100 mt-1">
+                  <div className="text-2xl font-bold font-display capitalize text-neutral-900 dark:text-neutral-100">
                     {myRole}
                   </div>
                 </div>
@@ -405,6 +430,7 @@ export const WorkspaceDetailPage: React.FC = () => {
                         key={b._id || b.id}
                         board={b}
                         onOpen={(board) => navigate(`/boards/${board._id || board.id}`)}
+                        onRename={(board) => setRenameBoardTarget(board)}
                         onDelete={handleDeleteBoard}
                       />
                     ))}
@@ -473,6 +499,13 @@ export const WorkspaceDetailPage: React.FC = () => {
         workspaces={workspaces.length > 0 ? workspaces : workspace ? [workspace] : []}
         defaultWorkspaceId={workspace._id || workspace.id}
         creating={creatingBoard}
+      />
+
+      <RenameBoardModal
+        board={renameBoardTarget}
+        onClose={() => setRenameBoardTarget(null)}
+        onSave={handleRenameBoard}
+        saving={renamingBoard}
       />
     </div>
   );

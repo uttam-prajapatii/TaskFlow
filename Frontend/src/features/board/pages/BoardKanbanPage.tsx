@@ -511,127 +511,128 @@ export const BoardKanbanPage: React.FC = () => {
 
         {/* Board Columns Grid */}
         <div className="flex-1 p-5 overflow-x-auto">
-          <div className="flex gap-4 h-full items-start">
-            {columns.map((col) => {
-              const colId = col._id || col.id!;
-              const colTasks = processedTasks.filter((t) => {
-                const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
-                return String(taskListId) === String(colId) || String(t.status) === String(colId);
-              });
-
-              return (
-                <KanbanColumn
-                  key={colId}
-                  column={col}
-                  tasks={colTasks}
-                  onOpenTask={(task) => setDrawerTask(task)}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDrop={handleDrop}
-                  draggingTaskId={draggingTaskId}
-                  dragOverColId={dragOverColId}
-                  onDragOverCol={(cId) => setDragOverColId(cId)}
-                  onAddTask={(cId, targetPos) => {
-                    setEditingTask(null);
-                    setDefaultColForTask(cId);
-                    setTargetPositionForTask(targetPos);
-                    setTaskModalOpen(true);
-                  }}
-                  onMenuAction={handleMenuAction}
-                  onRenameColumn={handleRenameColumn}
-                  onDeleteColumn={handleDeleteColumn}
-                />
-              );
-            })}
-
-            {/* Empty state card if no columns */}
-            {columns.length === 0 && !addingList && (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-2xl bg-white/50 dark:bg-neutral-900/50 my-auto max-w-md mx-auto">
-                <div className="w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-500 flex items-center justify-center mb-3">
-                  <Icon name="plus" size={24} />
+          {columns.length === 0 && !addingList ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-full max-w-md p-10 border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl bg-white/80 dark:bg-neutral-900/80 shadow-xs flex flex-col items-center justify-center">
+                <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-500/10 text-orange-500 flex items-center justify-center mb-4 shadow-2xs">
+                  <Icon name="plus" size={26} />
                 </div>
-                <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+                <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100 mb-1.5">
                   No lists in this board
                 </h3>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-6 max-w-xs leading-relaxed">
                   Get started by adding your first column (e.g. Todo, In Progress, Done).
                 </p>
                 <button
                   type="button"
                   onClick={() => setAddingList(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl text-xs font-semibold shadow-xs shadow-orange-500/20 hover:from-orange-600 hover:to-orange-700 transition"
+                  className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-orange-500/25 transition cursor-pointer flex items-center gap-2"
                 >
-                  + Add list
+                  <Icon name="plus" size={15} /> Add list
                 </button>
               </div>
-            )}
+            </div>
+          ) : (
+            <div className="flex gap-4 h-full items-start">
+              {columns.map((col) => {
+                const colId = col._id || col.id!;
+                const colTasks = processedTasks.filter((t) => {
+                  const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+                  return String(taskListId) === String(colId) || String(t.status) === String(colId);
+                });
 
-            {/* Inline Add List Form / Trigger Button */}
-            <div className="w-[280px] shrink-0">
-              {addingList ? (
-                <form
-                  onSubmit={handleAddList}
-                  className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-3.5 shadow-sm"
-                >
-                  <div className="relative mb-2">
-                    <input
-                      autoFocus
-                      type="text"
-                      maxLength={50}
-                      placeholder="Enter list title…"
-                      value={newListTitle}
-                      onChange={(e) => handleNewListTitleChange(e.target.value)}
-                      className={`w-full px-3 py-2 pr-12 text-xs rounded-xl border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none transition ${
-                        newListTitleError
-                          ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-                          : 'border-neutral-200 dark:border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
-                      }`}
-                    />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10.5px] font-medium text-neutral-400">
-                      {newListTitle.length}/50
-                    </span>
-                  </div>
+                return (
+                  <KanbanColumn
+                    key={colId}
+                    column={col}
+                    tasks={colTasks}
+                    onOpenTask={(task) => setDrawerTask(task)}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDrop={handleDrop}
+                    draggingTaskId={draggingTaskId}
+                    dragOverColId={dragOverColId}
+                    onDragOverCol={(cId) => setDragOverColId(cId)}
+                    onAddTask={(cId, targetPos) => {
+                      setEditingTask(null);
+                      setDefaultColForTask(cId);
+                      setTargetPositionForTask(targetPos);
+                      setTaskModalOpen(true);
+                    }}
+                    onMenuAction={handleMenuAction}
+                    onRenameColumn={handleRenameColumn}
+                    onDeleteColumn={handleDeleteColumn}
+                  />
+                );
+              })}
 
-                  {newListTitleError && (
-                    <p className="text-[11px] font-semibold text-rose-500 mb-2 flex items-center gap-1">
-                      <Icon name="alert-circle" size={12} /> {newListTitleError}
-                    </p>
-                  )}
+              {/* Inline Add List Form / Trigger Button */}
+              <div className="w-[280px] shrink-0">
+                {addingList ? (
+                  <form
+                    onSubmit={handleAddList}
+                    className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-3.5 shadow-sm"
+                  >
+                    <div className="relative mb-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        maxLength={50}
+                        placeholder="Enter list title…"
+                        value={newListTitle}
+                        onChange={(e) => handleNewListTitleChange(e.target.value)}
+                        className={`w-full px-3 py-2 pr-12 text-xs rounded-xl border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none transition ${
+                          newListTitleError
+                            ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                            : 'border-neutral-200 dark:border-neutral-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
+                        }`}
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10.5px] font-medium text-neutral-400">
+                        {newListTitle.length}/50
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="submit"
-                      disabled={creatingList || !!newListTitleError || !newListTitle.trim()}
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl text-xs font-semibold hover:from-orange-600 hover:to-orange-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
-                    >
-                      {creatingList ? 'Adding…' : 'Add list'}
-                    </button>
+                    {newListTitleError && (
+                      <p className="text-[11px] font-semibold text-rose-500 mb-2 flex items-center gap-1">
+                        <Icon name="alert-circle" size={12} /> {newListTitleError}
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="submit"
+                        disabled={creatingList || !!newListTitleError || !newListTitle.trim()}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl text-xs font-semibold hover:from-orange-600 hover:to-orange-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+                      >
+                        {creatingList ? 'Adding…' : 'Add list'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddingList(false);
+                          setNewListTitle('');
+                          setNewListTitleError(null);
+                        }}
+                        className="px-3 py-1.5 text-neutral-500 text-xs font-semibold hover:text-neutral-800 dark:hover:text-neutral-200 transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  columns.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setAddingList(false);
-                        setNewListTitle('');
-                        setNewListTitleError(null);
-                      }}
-                      className="px-3 py-1.5 text-neutral-500 text-xs font-semibold hover:text-neutral-800 dark:hover:text-neutral-200 transition cursor-pointer"
+                      onClick={() => setAddingList(true)}
+                      className="w-full flex items-center justify-center gap-2 py-1.5 px-3.5 rounded-xl border border-dashed border-neutral-300/80 dark:border-neutral-800 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-500/10 text-neutral-500 dark:text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 text-xs font-semibold transition-all cursor-pointer bg-white/50 dark:bg-neutral-900/40 h-[34px] shadow-2xs mb-2.5"
                     >
-                      Cancel
+                      <Icon name="plus" size={15} /> Add another list
                     </button>
-                  </div>
-                </form>
-              ) : (
-                columns.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setAddingList(true)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-neutral-300 dark:border-neutral-800 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-500/10 text-neutral-500 dark:text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 text-xs font-semibold transition-all cursor-pointer bg-white/40 dark:bg-neutral-900/30"
-                  >
-                    <Icon name="plus" size={15} /> Add another list
-                  </button>
-                )
-              )}
+                  )
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 

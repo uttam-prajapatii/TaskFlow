@@ -67,7 +67,11 @@ function App() {
             />
             <Route
               path="/dashboard"
-              element={<Navigate to="/workspace-select" replace />}
+              element={
+                <ProtectedRoute>
+                  <PostLoginRedirect />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/workspaces/manage"

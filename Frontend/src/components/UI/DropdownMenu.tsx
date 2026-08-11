@@ -17,6 +17,7 @@ interface MenuProps {
   open: boolean;
   setOpen: (open: boolean) => void;
   fullWidth?: boolean;
+  widthClass?: string;
 }
 
 export const DropdownMenu: React.FC<MenuProps> = ({
@@ -26,6 +27,7 @@ export const DropdownMenu: React.FC<MenuProps> = ({
   open,
   setOpen,
   fullWidth = false,
+  widthClass = 'w-48',
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -45,7 +47,7 @@ export const DropdownMenu: React.FC<MenuProps> = ({
       {open && (
         <div
           className={`tf-pop absolute z-50 mt-1.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xl p-1.5 overflow-y-auto max-h-80 origin-top transition-all duration-150 animate-in fade-in slide-in-from-top-2 ${
-            fullWidth ? 'w-full left-0 right-0' : `w-64 max-w-xs ${align === 'left' ? 'left-0' : 'right-0'}`
+            fullWidth ? 'w-full left-0 right-0' : `${widthClass} ${align === 'left' ? 'left-0' : 'right-0'}`
           }`}
         >
           {items.map((it, i) =>
