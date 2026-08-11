@@ -113,11 +113,49 @@ class CommentService {
   }
 
   /**
+   * Update a task comment.
+   * Actor must be the author of the comment.
+   */
+  async updateComment(taskId, commentId, userId, { body, mentions }) {
+    const { board, access } = await taskService.getValidatedTaskContext(taskId, userId);
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to edit comments on this board');
+    }
+
+    const comment = await commentRepository.findCommentById(commentId);
+    if (!comment) {
+      throw new NotFoundError('Comment not found');
+    }
+
+    if (comment.taskId.toString() !== taskId.toString()) {
+      throw new ForbiddenError('Comment does not belong to this task');
+    }
+
+    if (comment.authorId.toString() !== userId.toString()) {
+      throw new ForbiddenError('Only the author can edit this comment');
+    }
+
+    const updatedComment = await commentRepository.updateComment(commentId, {
+      body,
+      mentions: mentions || comment.mentions
+    });
+
+    try {
+      emitToBoard(board._id.toString(), 'comment:update', updatedComment);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast comment:update WebSocket event: ${wsError.message}`);
+    }
+
+    logger.info(`Comment updated successfully: ${commentId} by user: ${userId}`);
+    return updatedComment;
+  }
+
+  /**
    * Delete a task comment.
    * Actor must be the author, or workspace admin/owner.
    */
   async deleteComment(taskId, commentId, userId) {
-    const { workspace, access } = await taskService.getValidatedTaskContext(taskId, userId);
+    const { board, workspace, access } = await taskService.getValidatedTaskContext(taskId, userId);
     if (!access.canWrite) {
       throw new ForbiddenError('You do not have permission to delete comments on this board');
     }
@@ -141,6 +179,13 @@ class CommentService {
     }
 
     await commentRepository.deleteComment(commentId);
+
+    try {
+      emitToBoard(board._id.toString(), 'comment:delete', { taskId, commentId });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast comment:delete WebSocket event: ${wsError.message}`);
+    }
+
     logger.info(`Comment deleted successfully: ${commentId} by user: ${userId}`);
   }
 }

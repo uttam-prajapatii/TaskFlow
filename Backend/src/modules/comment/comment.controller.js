@@ -31,6 +31,20 @@ class CommentController {
   });
 
   /**
+   * Update a comment of a task.
+   */
+  updateComment = asyncHandler(async (req, res) => {
+    const { taskId, commentId } = req.params;
+    const userId = req.user._id;
+    const updatedComment = await commentService.updateComment(taskId, commentId, userId, req.body);
+
+    res.status(200).json({
+      status: 'success',
+      data: updatedComment
+    });
+  });
+
+  /**
    * Delete a comment from a task.
    */
   deleteComment = asyncHandler(async (req, res) => {

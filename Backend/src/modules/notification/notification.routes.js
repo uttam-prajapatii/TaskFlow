@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', validateListNotifications, notificationController.getNotifications);
+router.get('/unread-count', notificationController.getUnreadCount);
 router.patch('/:id/read', validateNotificationId, notificationController.markAsRead);
 router.post('/read-all', notificationController.markAllAsRead);
 router.delete('/:id', validateNotificationId, notificationController.deleteNotification);

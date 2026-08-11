@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import useAuth from '../../hooks/useAuth';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -9,6 +10,8 @@ import Avatar, { initials } from '../UI/Avatar';
 import DropdownMenu, { type MenuItem } from '../UI/DropdownMenu';
 import CreateWorkspaceModal from '../../features/workspace/components/CreateWorkspaceModal';
 import workspaceService from '../../services/workspace.service';
+import notificationService from '../../services/notification.service';
+import useSocketNotifications from '../../hooks/useSocketNotifications';
 import type { CreateWorkspacePayload } from '../../features/workspace/types';
 
 import ConfirmModal from '../UI/ConfirmModal';
@@ -19,6 +22,17 @@ export const Sidebar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Listen for real-time WebSocket notifications
+  useSocketNotifications();
+
+  // Query dynamic unread notification count from backend API
+  const { data: unreadCount } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => notificationService.getUnreadCount(),
+    enabled: !!user,
+    staleTime: 1000 * 30, // 30s
+  });
 
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [createWsOpen, setCreateWsOpen] = useState(false);
@@ -98,7 +112,7 @@ export const Sidebar: React.FC = () => {
       icon: 'bell',
       label: 'Notifications',
       to: '/notifications',
-      badge: 3,
+      badge: unreadCount && unreadCount > 0 ? unreadCount : undefined,
     },
     {
       id: 'members',

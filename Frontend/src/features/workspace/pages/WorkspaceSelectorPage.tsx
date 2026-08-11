@@ -5,7 +5,6 @@ import { useWorkspace } from '../../../context/WorkspaceContext';
 import AppHeader from '../../../components/layout/AppHeader';
 import Icon from '../../../components/UI/Icon';
 import WorkspaceCard from '../components/WorkspaceCard';
-import WorkspaceSkeleton from '../components/WorkspaceSkeleton';
 import CreateWorkspaceModal from '../components/CreateWorkspaceModal';
 import RenameWorkspaceModal from '../components/RenameWorkspaceModal';
 import ConfirmModal from '../../../components/UI/ConfirmModal';
