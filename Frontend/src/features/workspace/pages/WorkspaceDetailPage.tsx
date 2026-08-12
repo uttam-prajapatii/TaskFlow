@@ -5,7 +5,6 @@ import useAuth from '../../../hooks/useAuth';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
-import Badge from '../../../components/UI/Badge';
 import { initials } from '../../../components/UI/Avatar';
 import { getColorHex } from '../components/WorkspaceCard';
 import MembersTab from '../components/MembersTab';
@@ -259,7 +258,6 @@ export const WorkspaceDetailPage: React.FC = () => {
   if (!workspace) return null;
 
   const hex = getColorHex(workspace.settings?.color || workspace.color);
-  const visibility = workspace.settings?.visibility || workspace.visibility || 'private';
 
   const tabs = [
     { id: 'boards', label: 'Boards', icon: 'layoutGrid' },
@@ -299,9 +297,6 @@ export const WorkspaceDetailPage: React.FC = () => {
                   <h1 className="text-xl sm:text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100 truncate max-w-full break-all">
                     {workspace.name}
                   </h1>
-                  <Badge tone={visibility === 'public' ? 'success' : 'neutral'} className="shrink-0">
-                    {visibility === 'public' ? 'Public' : 'Private'}
-                  </Badge>
                 </div>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate max-w-xl">
                   {workspace.description || 'No description provided.'}

@@ -1,12 +1,9 @@
-export type WorkspaceVisibility = 'private' | 'public';
 export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
 export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 
 export interface WorkspaceSettings {
   color?: string;
-  visibility?: WorkspaceVisibility;
   allowViewerComments?: boolean;
-  defaultBoardVisibility?: 'workspace' | 'private';
   inviteExpiryDays?: number;
 }
 
@@ -34,7 +31,6 @@ export interface Workspace {
   members?: WorkspaceMember[];
   settings?: WorkspaceSettings;
   color?: string;
-  visibility?: WorkspaceVisibility;
   boardCount?: number;
   activity?: 'active' | 'idle';
   isArchived?: boolean;
@@ -59,7 +55,6 @@ export interface CreateWorkspacePayload {
   description?: string;
   settings?: {
     color?: string;
-    visibility?: WorkspaceVisibility;
   };
 }
 
@@ -68,7 +63,6 @@ export interface UpdateWorkspacePayload {
   description?: string;
   settings?: {
     color?: string;
-    visibility?: WorkspaceVisibility;
   };
 }
 

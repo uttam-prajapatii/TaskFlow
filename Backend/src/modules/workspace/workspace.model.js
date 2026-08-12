@@ -35,11 +35,6 @@ const WorkspaceSchema = new Schema({
   },
   settings: {
     allowViewerComments: { type: Boolean, default: true },
-    defaultBoardVisibility: {
-      type: String,
-      enum: ['workspace', 'private'],
-      default: 'workspace'
-    },
     inviteExpiryDays: {
       type: Number,
       default: 7

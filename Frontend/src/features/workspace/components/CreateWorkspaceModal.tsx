@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import Modal from '../../../components/UI/Modal';
 import Icon from '../../../components/UI/Icon';
 import { WORKSPACE_COLORS } from './WorkspaceCard';
-import type { CreateWorkspacePayload, WorkspaceVisibility } from '../types';
+import type { CreateWorkspacePayload } from '../types';
 
 interface CreateWorkspaceModalProps {
   open: boolean;
@@ -31,12 +31,10 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     name: string;
     description: string;
     color: string;
-    visibility: WorkspaceVisibility;
   }>({
     name: '',
     description: '',
     color: 'coral',
-    visibility: 'private',
   });
 
   const [errors, setErrors] = useState<{ name?: string; description?: string }>({});
@@ -44,7 +42,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      setForm({ name: '', description: '', color: 'coral', visibility: 'private' });
+      setForm({ name: '', description: '', color: 'coral' });
       setErrors({});
       setTouched(false);
     }
@@ -83,7 +81,6 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
       description: form.description.trim(),
       settings: {
         color: form.color,
-        visibility: form.visibility,
       },
     });
   };
@@ -185,45 +182,6 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                         : 'hover:scale-105 opacity-90'
                     }`}
                   />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Visibility Option */}
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-              Visibility
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { id: 'private', icon: 'lock', label: 'Private', desc: 'Invite only' },
-                { id: 'public', icon: 'globe', label: 'Public', desc: 'Anyone in org' },
-              ].map((v) => {
-                const isSelected = form.visibility === v.id;
-                return (
-                  <button
-                    type="button"
-                    key={v.id}
-                    onClick={() => setForm({ ...form, visibility: v.id as WorkspaceVisibility })}
-                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-50/80 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 ring-1 ring-orange-500/20'
-                        : 'border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/40 text-neutral-700 dark:text-neutral-300 hover:border-neutral-300 dark:hover:border-neutral-700'
-                    }`}
-                  >
-                    <Icon
-                      name={v.icon}
-                      size={16}
-                      className={isSelected ? 'text-orange-500' : 'text-neutral-400'}
-                    />
-                    <div className="text-xs font-bold mt-1.5 text-neutral-900 dark:text-neutral-100">
-                      {v.label}
-                    </div>
-                    <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                      {v.desc}
-                    </div>
-                  </button>
                 );
               })}
             </div>

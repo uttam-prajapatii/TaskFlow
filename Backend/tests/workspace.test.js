@@ -73,7 +73,6 @@ describe('Workspace Management System Tests', () => {
       const description = 'Workspace for engineering team tasks';
       const settings = {
         allowViewerComments: false,
-        defaultBoardVisibility: 'private'
       };
 
       const workspace = await workspaceService.createWorkspace(userOwner._id, {
@@ -90,7 +89,6 @@ describe('Workspace Management System Tests', () => {
       expect(workspace.isDeleted).toBe(false);
       expect(workspace.deletedAt).toBeNull();
       expect(workspace.settings.allowViewerComments).toBe(false);
-      expect(workspace.settings.defaultBoardVisibility).toBe('private');
 
       // Creator must be in members array as 'admin'
       expect(workspace.members).toHaveLength(1);

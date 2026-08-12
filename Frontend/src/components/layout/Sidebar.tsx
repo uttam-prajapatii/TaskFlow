@@ -42,7 +42,6 @@ export const Sidebar: React.FC = () => {
 
   const currentWorkspaceId = currentWorkspace?._id || currentWorkspace?.id || '';
   const currentWsName = currentWorkspace?.name || 'Workspace';
-  const visibility = currentWorkspace?.settings?.visibility || currentWorkspace?.visibility || 'private';
 
   const pathname = location.pathname;
   const searchParams = new URLSearchParams(location.search);
@@ -209,7 +208,7 @@ export const Sidebar: React.FC = () => {
                   {currentWsName}
                 </p>
                 <p className="text-[10.5px] text-neutral-400 truncate capitalize mt-0.5">
-                  {visibility === 'public' ? 'Public Workspace' : 'Pro Workspace'}
+                  Workspace
                 </p>
               </div>
               <Icon

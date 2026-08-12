@@ -66,18 +66,10 @@ function validateSettings(settings) {
     return new BadRequestError('Settings must be an object');
   }
 
-  const { allowViewerComments, defaultBoardVisibility, inviteExpiryDays } = settings;
+  const { allowViewerComments, inviteExpiryDays } = settings;
 
   if (allowViewerComments !== undefined && typeof allowViewerComments !== 'boolean') {
     return new BadRequestError('allowViewerComments must be a boolean');
-  }
-
-  if (
-    defaultBoardVisibility !== undefined &&
-    (typeof defaultBoardVisibility !== 'string' ||
-      !['workspace', 'private'].includes(defaultBoardVisibility))
-  ) {
-    return new BadRequestError("defaultBoardVisibility must be either 'workspace' or 'private'");
   }
 
   if (inviteExpiryDays !== undefined && (typeof inviteExpiryDays !== 'number' || inviteExpiryDays <= 0)) {

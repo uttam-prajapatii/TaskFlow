@@ -97,7 +97,6 @@ describe('Workspace Validation Middleware', () => {
         name: 'Workspace Name',
         settings: {
           allowViewerComments: true,
-          defaultBoardVisibility: 'private'
         }
       });
       expect(nextCalled).toBe(true);
@@ -124,18 +123,6 @@ describe('Workspace Validation Middleware', () => {
       expect(nextCalled).toBe(true);
       expect(errorPassed).toBeInstanceOf(BadRequestError);
       expect(errorPassed.message).toBe('allowViewerComments must be a boolean');
-    });
-
-    test('should fail when defaultBoardVisibility is invalid value', () => {
-      const { nextCalled, errorPassed } = runMiddleware(validateCreateWorkspace, {
-        name: 'Workspace Name',
-        settings: {
-          defaultBoardVisibility: 'public'
-        }
-      });
-      expect(nextCalled).toBe(true);
-      expect(errorPassed).toBeInstanceOf(BadRequestError);
-      expect(errorPassed.message).toBe("defaultBoardVisibility must be either 'workspace' or 'private'");
     });
   });
 
