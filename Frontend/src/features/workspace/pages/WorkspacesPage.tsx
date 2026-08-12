@@ -19,10 +19,8 @@ export const WorkspacesPage: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'boards'>('recent');
-  const [filterVis, setFilterVis] = useState<'all' | 'private' | 'public'>('all');
 
   const [sortOpen, setSortOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -46,13 +44,6 @@ export const WorkspacesPage: React.FC = () => {
       return nameMatch || descMatch;
     });
 
-    if (filterVis !== 'all') {
-      list = list.filter((w) => {
-        const vis = w.settings?.visibility || w.visibility || 'private';
-        return vis === filterVis;
-      });
-    }
-
     if (sortBy === 'recent') {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (sortBy === 'name') {
@@ -62,7 +53,7 @@ export const WorkspacesPage: React.FC = () => {
     }
 
     return list;
-  }, [workspaces, search, sortBy, filterVis]);
+  }, [workspaces, search, sortBy]);
 
   const handleCreate = async (payload: CreateWorkspacePayload) => {
     try {
@@ -152,23 +143,7 @@ export const WorkspacesPage: React.FC = () => {
     },
   ];
 
-  const filterItems: MenuItem[] = [
-    {
-      label: 'All visibility',
-      icon: filterVis === 'all' ? 'check' : undefined,
-      onClick: () => setFilterVis('all'),
-    },
-    {
-      label: 'Private only',
-      icon: filterVis === 'private' ? 'check' : undefined,
-      onClick: () => setFilterVis('private'),
-    },
-    {
-      label: 'Public only',
-      icon: filterVis === 'public' ? 'check' : undefined,
-      onClick: () => setFilterVis('public'),
-    },
-  ];
+
 
   return (
     <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
@@ -236,26 +211,7 @@ export const WorkspacesPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <DropdownMenu
-                open={filterOpen}
-                setOpen={setFilterOpen}
-                trigger={
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen((o) => !o)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 transition-colors"
-                  >
-                    <Icon name="filter" size={14} />
-                    {filterVis === 'all'
-                      ? 'Filter'
-                      : filterVis === 'private'
-                      ? 'Private'
-                      : 'Public'}
-                    <Icon name="chevron-down" size={12} />
-                  </button>
-                }
-                items={filterItems}
-              />
+
 
               <DropdownMenu
                 open={sortOpen}
@@ -291,20 +247,19 @@ export const WorkspacesPage: React.FC = () => {
                 No workspaces found
               </h3>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm mx-auto mb-4">
-                {search || filterVis !== 'all'
-                  ? 'No workspaces match your search or filter criteria. Try resetting filters.'
+                {search
+                  ? 'No workspaces match your search criteria. Try clearing the search query.'
                   : 'Get started by creating your first team workspace.'}
               </p>
-              {search || filterVis !== 'all' ? (
+              {search ? (
                 <button
                   type="button"
                   onClick={() => {
                     setSearch('');
-                    setFilterVis('all');
                   }}
                   className="px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 transition-colors"
                 >
-                  Reset filters
+                  Clear search
                 </button>
               ) : (
                 <button

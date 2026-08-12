@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { Workspace, WorkspaceRole } from '../types';
 import AvatarStack from '../../../components/UI/AvatarStack';
-import Badge from '../../../components/UI/Badge';
 import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
 import { initials } from '../../../components/UI/Avatar';
@@ -42,7 +41,6 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const hex = getColorHex(ws.settings?.color || ws.color);
-  const visibility = ws.settings?.visibility || ws.visibility || 'private';
 
   const isOwner =
     ws.ownerId === user?._id ||
@@ -159,9 +157,6 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
           <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 flex items-center gap-1 shrink-0">
             <Icon name="layout" size={13} className="text-neutral-400" /> {ws.boardCount ?? 0}
           </span>
-          <Badge tone={visibility === 'public' ? 'success' : 'neutral'}>
-            {visibility === 'public' ? 'Public' : 'Private'}
-          </Badge>
         </div>
 
         <button
