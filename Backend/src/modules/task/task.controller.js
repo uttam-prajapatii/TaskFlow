@@ -86,6 +86,19 @@ class TaskController {
     await taskService.deleteAttachment(taskId, attachmentId, req.user._id);
     return ApiResponse.success(res, 'Attachment deleted successfully', null);
   });
+
+  addLabel = asyncHandler(async (req, res) => {
+    const { taskId } = req.params;
+    const { labelId } = req.body;
+    const task = await taskService.addLabelToTask(taskId, req.user._id, labelId);
+    return ApiResponse.success(res, 'Label attached to task successfully', task);
+  });
+
+  removeLabel = asyncHandler(async (req, res) => {
+    const { taskId, labelId } = req.params;
+    const task = await taskService.removeLabelFromTask(taskId, req.user._id, labelId);
+    return ApiResponse.success(res, 'Label removed from task successfully', task);
+  });
 }
 
 export default new TaskController();

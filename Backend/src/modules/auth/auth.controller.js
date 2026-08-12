@@ -93,6 +93,47 @@ class AuthController {
 
     return ApiResponse.success(res, 'Verification OTP sent successfully', null);
   });
+
+  /**
+   * Update profile of current user.
+   */
+  updateMe = asyncHandler(async (req, res) => {
+    const { fullName } = req.body;
+    const user = await authService.updateMe(req.user._id, fullName);
+    return ApiResponse.success(res, 'Profile updated successfully', user);
+  });
+
+  /**
+   * Change current user's password.
+   */
+  updatePassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    await authService.updatePassword(req.user._id, currentPassword, newPassword);
+    
+    clearTokenCookies(res);
+    return ApiResponse.success(res, 'Password changed successfully. Please log in again.', null);
+  });
+
+  /**
+   * Initiate forgot password flow.
+   */
+  forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    await authService.forgotPassword(email);
+    return ApiResponse.success(res, 'If that email is registered, we have sent a password reset link.', null);
+  });
+
+  /**
+   * Reset password using token.
+   */
+  resetPassword = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+    await authService.resetPassword(token, newPassword);
+    
+    clearTokenCookies(res);
+    return ApiResponse.success(res, 'Password reset successfully. Please log in with your new password.', null);
+  });
 }
 
 export default new AuthController();

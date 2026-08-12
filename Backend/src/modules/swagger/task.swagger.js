@@ -124,7 +124,7 @@ export const taskPaths = {
     }
   },
   "/api/v1/tasks/{taskId}/checklist": {
-    post: {
+    patch: {
       summary: "Add, update or remove checklist item",
       tags: ["Tasks"],
       security: [{ cookieAuth: [] }],
@@ -167,9 +167,9 @@ export const taskPaths = {
           "application/json": {
             schema: {
               type: "object",
-              required: ["assigneeUserId"],
+              required: ["userId"],
               properties: {
-                assigneeUserId: { type: "string", example: "assignee-user-id" }
+                userId: { type: "string", example: "assignee-user-id" }
               }
             }
           }
@@ -230,6 +230,53 @@ export const taskPaths = {
       ],
       responses: {
         200: { description: "Attachment deleted" }
+      }
+    }
+  },
+  "/api/v1/boards/{boardId}/tasks/search": {
+    get: {
+      summary: "Filter or search board tasks (extended options)",
+      tags: ["Tasks"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "boardId", in: "path", required: true, schema: { type: "string" } },
+        { name: "q", in: "query", schema: { type: "string" } },
+        { name: "listId", in: "query", schema: { type: "string" } },
+        { name: "priority", in: "query", schema: { type: "string" } },
+        { name: "assigneeId", in: "query", schema: { type: "string" } },
+        { name: "label", in: "query", schema: { type: "string" } },
+        { name: "dueBefore", in: "query", schema: { type: "string", format: "date-time" } },
+        { name: "isArchived", in: "query", schema: { type: "string" } }
+      ],
+      responses: {
+        200: { description: "Search results list" }
+      }
+    }
+  },
+  "/api/v1/tasks/{taskId}/move": {
+    patch: {
+      summary: "Move task position or column",
+      tags: ["Tasks"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "taskId", in: "path", required: true, schema: { type: "string" } }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                listId: { type: "string", example: "60d0fe4f5311236168a109ca" },
+                position: { type: "integer", example: 1 }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: { description: "Task moved successfully" }
       }
     }
   }

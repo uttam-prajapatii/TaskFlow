@@ -27,8 +27,29 @@ class AuthRepository {
   /**
    * Find a user by their ID.
    */
-  async findUserById(userId) {
-    return User.findById(userId).exec();
+  async findUserById(userId, includePassword = false) {
+    const query = User.findById(userId);
+    if (includePassword) {
+      query.select('+password');
+    }
+    return query.exec();
+  }
+
+  /**
+   * Find a user by active password reset token.
+   */
+  async findUserByResetToken(hashedToken) {
+    return User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: new Date() }
+    }).exec();
+  }
+
+  /**
+   * Update user record.
+   */
+  async updateUser(userId, updateData) {
+    return User.findByIdAndUpdate(userId, updateData, { new: true }).exec();
   }
 
   // ==========================================

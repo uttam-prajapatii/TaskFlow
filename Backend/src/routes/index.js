@@ -5,6 +5,7 @@ import ListRoutes from "../modules/list/list.routes.js";
 import TaskRoutes from "../modules/task/task.routes.js";
 import NotificationRoutes from "../modules/notification/notification.routes.js";
 import CommentRoutes from "../modules/comment/comment.routes.js";
+import LabelRoutes from "../modules/label/label.routes.js";
 import express from "express";
 
 const router = express.Router()
@@ -16,5 +17,6 @@ router.use("/", BoardRoutes);
 router.use("/", ListRoutes);
 router.use("/", TaskRoutes);
 router.use("/", CommentRoutes);
+router.use("/", LabelRoutes);
 
 export default router;

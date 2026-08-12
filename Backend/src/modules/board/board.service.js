@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import boardRepository from './board.repository.js';
 import workspaceRepository from '../workspace/workspace.repository.js';
+import StarredBoard from './starredBoard.model.js';
 import logger from '../../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import {
@@ -103,7 +104,29 @@ class BoardService {
       ];
     }
 
-    return boardRepository.listBoards(workspace._id, filters, { page, limit });
+    const result = await boardRepository.listBoards(workspace._id, filters, { page, limit });
+
+    // Fetch user starred board IDs for lookups
+    const starred = await StarredBoard.find({ userId }).select('boardId').exec();
+    const starredIds = new Set(starred.map((s) => s.boardId.toString()));
+
+    if (Array.isArray(result)) {
+      return result.map((b) => {
+        const obj = b.toObject();
+        obj.isStarred = starredIds.has(b._id.toString());
+        return obj;
+      });
+    }
+
+    if (result.boards) {
+      result.boards = result.boards.map((b) => {
+        const obj = b.toObject();
+        obj.isStarred = starredIds.has(b._id.toString());
+        return obj;
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -131,7 +154,11 @@ class BoardService {
       throw new ForbiddenError('You do not have access to this private board');
     }
 
-    return board;
+    const isStarred = await StarredBoard.exists({ userId, boardId: board._id });
+    const boardObj = board.toObject();
+    boardObj.isStarred = !!isStarred;
+
+    return boardObj;
   }
 
   /**
@@ -290,6 +317,45 @@ class BoardService {
     await boardRepository.softDeleteBoard(boardId);
 
     logger.info(`Board soft deleted successfully`, { boardId, deletedBy: userId });
+  }
+
+  /**
+   * Star a board.
+   */
+  async starBoard(boardId, userId) {
+    this.validateId(boardId, 'board');
+    const board = await boardRepository.findBoardById(boardId);
+    if (!board) {
+      throw new NotFoundError('Board not found');
+    }
+
+    const workspace = await workspaceRepository.findWorkspaceById(board.workspaceId);
+    if (!workspace) {
+      throw new NotFoundError('Workspace not found');
+    }
+
+    const role = getWorkspaceRole(workspace, userId);
+    if (!isWorkspaceViewer(role)) {
+      throw new ForbiddenError('You do not have access to this workspace');
+    }
+
+    // Upsert StarredBoard entry to prevent duplicates
+    await StarredBoard.findOneAndUpdate(
+      { userId, boardId: board._id },
+      { userId, boardId: board._id },
+      { upsert: true, new: true }
+    ).exec();
+
+    logger.info(`Board starred by user`, { boardId, userId });
+  }
+
+  /**
+   * Unstar a board.
+   */
+  async unstarBoard(boardId, userId) {
+    this.validateId(boardId, 'board');
+    await StarredBoard.findOneAndDelete({ userId, boardId }).exec();
+    logger.info(`Board unstarred by user`, { boardId, userId });
   }
 }
 

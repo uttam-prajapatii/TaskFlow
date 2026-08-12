@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import authRepository from './auth.repository.js';
 import tokenService from './token.service.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
@@ -196,6 +197,104 @@ class AuthService {
     });
 
     logger.info(`Verification OTP resent successfully to ${email}`, { userId: user._id });
+  }
+
+  /**
+   * Update current user profile details.
+   */
+  async updateMe(userId, fullName) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new BadRequestError('User not found');
+    }
+
+    if (fullName) {
+      user.fullName = fullName;
+    }
+
+    await user.save();
+    logger.info(`User profile updated: ${user.email}`, { userId: user._id });
+
+    return {
+      _id: user._id,
+      email: user.email,
+      fullName: user.fullName,
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+    };
+  }
+
+  /**
+   * Change password for currently authenticated user.
+   */
+  async updatePassword(userId, currentPassword, newPassword) {
+    const user = await authRepository.findUserById(userId, true);
+    if (!user) {
+      throw new BadRequestError('User not found');
+    }
+
+    const isMatch = await verifyPassword(currentPassword, user.password);
+    if (!isMatch) {
+      throw new BadRequestError('Incorrect current password');
+    }
+
+    user.password = await hashPassword(newPassword);
+    await user.save();
+
+    logger.info(`Password updated successfully for user ${user.email}`, { userId: user._id });
+    
+    // Revoke all refresh tokens for security
+    await authRepository.revokeAllUserTokens(user._id);
+  }
+
+  /**
+   * Request password reset token.
+   */
+  async forgotPassword(email) {
+    const user = await authRepository.findUserByEmail(email);
+    if (!user) {
+      logger.info(`Password reset requested for non-existent email: ${email}`);
+      return; // Return silently to prevent user enumeration
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await authRepository.updateUser(user._id, {
+      passwordResetToken,
+      passwordResetExpires
+    });
+
+    await enqueueEmail('sendPasswordReset', {
+      toEmail: user.email,
+      resetToken
+    });
+
+    logger.info(`Password reset link generated and enqueued for ${email}`, { userId: user._id });
+  }
+
+  /**
+   * Reset password using a reset token.
+   */
+  async resetPassword(token, newPassword) {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await authRepository.findUserByResetToken(hashedToken);
+    if (!user) {
+      throw new BadRequestError('Password reset token is invalid or has expired');
+    }
+
+    user.password = await hashPassword(newPassword);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    logger.info(`Password reset completed successfully for ${user.email}`, { userId: user._id });
+
+    // Revoke all tokens
+    await authRepository.revokeAllUserTokens(user._id);
   }
 }
 

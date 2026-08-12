@@ -740,6 +740,68 @@ class TaskService {
       deletedBy: userId
     });
   }
+
+  /**
+   * Attach a label to a task.
+   */
+  async addLabelToTask(taskId, userId, labelId) {
+    this.validateId(labelId, 'label');
+    const { task, board, workspace, access } = await this.getValidatedTaskContext(taskId, userId);
+
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to add labels on this board');
+    }
+
+    if (isParentArchived({ board, workspace })) {
+      throw new ForbiddenError('Cannot add label because the board or workspace is archived');
+    }
+
+    // Verify if label exists and belongs to this board
+    const label = await mongoose.model('Label').findById(labelId);
+    if (!label || label.boardId.toString() !== board._id.toString()) {
+      throw new BadRequestError('Label not found or does not belong to this board');
+    }
+
+    // Verify if label is already attached
+    const isAttached = task.labels.some((lId) => lId.toString() === labelId.toString());
+    if (isAttached) {
+      throw new BadRequestError('Label is already attached to this task');
+    }
+
+    task.labels.push(labelId);
+    await task.save();
+
+    logger.info(`Label added to task successfully`, { taskId, labelId, addedBy: userId });
+    return task;
+  }
+
+  /**
+   * Remove a label from a task.
+   */
+  async removeLabelFromTask(taskId, userId, labelId) {
+    this.validateId(labelId, 'label');
+    const { task, board, workspace, access } = await this.getValidatedTaskContext(taskId, userId);
+
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to remove labels on this board');
+    }
+
+    if (isParentArchived({ board, workspace })) {
+      throw new ForbiddenError('Cannot remove label because the board or workspace is archived');
+    }
+
+    // Verify if label is attached
+    const isAttached = task.labels.some((lId) => lId.toString() === labelId.toString());
+    if (!isAttached) {
+      throw new BadRequestError('Label is not attached to this task');
+    }
+
+    task.labels.pull(labelId);
+    await task.save();
+
+    logger.info(`Label removed from task successfully`, { taskId, labelId, removedBy: userId });
+    return task;
+  }
 }
 
 export default new TaskService();

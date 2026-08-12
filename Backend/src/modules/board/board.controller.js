@@ -44,6 +44,18 @@ class BoardController {
     await boardService.softDeleteBoard(boardId, req.user._id);
     return ApiResponse.success(res, 'Board deleted successfully', null);
   });
+
+  starBoard = asyncHandler(async (req, res) => {
+    const { boardId } = req.params;
+    await boardService.starBoard(boardId, req.user._id);
+    return ApiResponse.success(res, 'Board starred successfully', null);
+  });
+
+  unstarBoard = asyncHandler(async (req, res) => {
+    const { boardId } = req.params;
+    await boardService.unstarBoard(boardId, req.user._id);
+    return ApiResponse.success(res, 'Board unstarred successfully', null);
+  });
 }
 
 export default new BoardController();

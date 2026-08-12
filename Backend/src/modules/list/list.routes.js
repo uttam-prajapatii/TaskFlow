@@ -13,5 +13,7 @@ router.get('/boards/:boardId/lists', protect, listController.getLists);
 router.patch('/lists/:listId', protect, validateRenameList, listController.renameList);
 router.patch('/lists/:listId/reorder', protect, validateReorderList, listController.reorderList);
 router.delete('/lists/:listId', protect, listController.deleteList);
+router.post('/lists/:listId/archive', protect, listController.archiveList);
+router.post('/lists/:listId/restore', protect, listController.restoreList);
 
 export default router;

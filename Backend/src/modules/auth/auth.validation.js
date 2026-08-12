@@ -139,3 +139,113 @@ export const validateResendOtp = (req, res, next) => {
 
   next();
 };
+
+/**
+ * Middleware to validate profile updates.
+ */
+export const validateUpdateMe = (req, res, next) => {
+  const { fullName } = req.body;
+
+  if (fullName !== undefined) {
+    if (typeof fullName !== 'string') {
+      return next(new BadRequestError('Full name must be a string'));
+    }
+    const trimmedName = fullName.trim();
+    if (trimmedName.length < 2 || trimmedName.length > 50) {
+      return next(new BadRequestError('Full name must be between 2 and 50 characters long'));
+    }
+
+    const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+    if (!nameRegex.test(trimmedName)) {
+      return next(new BadRequestError('Full name can only contain letters, spaces, hyphens, and apostrophes'));
+    }
+    req.body.fullName = trimmedName;
+  }
+
+  next();
+};
+
+/**
+ * Helper to validate password strength.
+ */
+function checkPasswordStrength(password) {
+  if (password.length < 8) {
+    return new BadRequestError('Password must be at least 8 characters long');
+  }
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  if (!hasUppercase || !hasLowercase) {
+    return new BadRequestError('Password must contain both uppercase and lowercase letters');
+  }
+  const hasNumber = /\d/.test(password);
+  if (!hasNumber) {
+    return new BadRequestError('Password must contain at least one number');
+  }
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>\-_]/.test(password);
+  if (!hasSpecial) {
+    return new BadRequestError('Password must contain at least one special character');
+  }
+  return null;
+}
+
+/**
+ * Middleware to validate change password for logged-in users.
+ */
+export const validateUpdatePassword = (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || typeof currentPassword !== 'string') {
+    return next(new BadRequestError('Current password is required'));
+  }
+  if (!newPassword || typeof newPassword !== 'string') {
+    return next(new BadRequestError('New password is required'));
+  }
+
+  const strengthError = checkPasswordStrength(newPassword);
+  if (strengthError) {
+    return next(strengthError);
+  }
+
+  next();
+};
+
+/**
+ * Middleware to validate forgot password request.
+ */
+export const validateForgotPassword = (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email || typeof email !== 'string') {
+    return next(new BadRequestError('Email is required'));
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+  if (!emailRegex.test(email)) {
+    return next(new BadRequestError('Invalid email format'));
+  }
+
+  req.body.email = email.trim().toLowerCase();
+  next();
+};
+
+/**
+ * Middleware to validate reset password request.
+ */
+export const validateResetPassword = (req, res, next) => {
+  const { newPassword } = req.body;
+  const { token } = req.params;
+
+  if (!token || typeof token !== 'string') {
+    return next(new BadRequestError('Reset token is required'));
+  }
+  if (!newPassword || typeof newPassword !== 'string') {
+    return next(new BadRequestError('New password is required'));
+  }
+
+  const strengthError = checkPasswordStrength(newPassword);
+  if (strengthError) {
+    return next(strengthError);
+  }
+
+  next();
+};

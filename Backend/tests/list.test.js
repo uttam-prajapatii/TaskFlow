@@ -255,4 +255,23 @@ describe('List Management Automated Tests', () => {
       expect(dbBoard.listOrder).not.toContain(list._id);
     });
   });
+
+  describe('Archive/Restore List', () => {
+    let list;
+
+    beforeEach(async () => {
+      list = await listService.createList(board._id, member._id, { name: 'Archive Test List' });
+    });
+
+    test('should archive and restore a list', async () => {
+      let listObj = await listService.archiveList(list._id, member._id);
+      expect(listObj.isArchived).toBe(true);
+
+      const dbList = await List.findById(list._id);
+      expect(dbList.isArchived).toBe(true);
+
+      listObj = await listService.restoreList(list._id, member._id);
+      expect(listObj.isArchived).toBe(false);
+    });
+  });
 });

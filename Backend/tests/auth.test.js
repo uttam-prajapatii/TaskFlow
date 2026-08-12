@@ -416,4 +416,38 @@ describe('Authentication System Tests', () => {
       expect(res.cookie).toHaveBeenCalled();
     });
   });
+
+  // ==========================================
+  // Profile & Password Recovery Tests
+  // ==========================================
+  describe('Profile & Password Recovery Services', () => {
+    test('should allow user to update profile name', async () => {
+      const user = await User.create({ email: 'john_profile@test.com', password: 'Password123!', fullName: 'John Doe', isVerified: true });
+      const updated = await authService.updateMe(user._id, 'John Updated');
+      expect(updated.fullName).toBe('John Updated');
+      
+      const dbUser = await User.findById(user._id);
+      expect(dbUser.fullName).toBe('John Updated');
+    });
+
+    test('should handle forgot password and reset token generation', async () => {
+      await User.create({ email: 'john_forgot@test.com', password: 'Password123!', fullName: 'John Doe', isVerified: true });
+      await authService.forgotPassword('john_forgot@test.com');
+      
+      const dbUser = await User.findOne({ email: 'john_forgot@test.com' }).select('+passwordResetToken +passwordResetExpires');
+      expect(dbUser.passwordResetToken).toBeDefined();
+      expect(dbUser.passwordResetExpires).toBeDefined();
+      expect(dbUser.passwordResetExpires.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    test('should fail to reset password with invalid token', async () => {
+      let err;
+      try {
+        await authService.resetPassword('invalid_token', 'NewPassword123!');
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(BadRequestError);
+    });
+  });
 });

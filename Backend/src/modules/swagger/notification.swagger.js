@@ -49,5 +49,27 @@ export const notificationPaths = {
         200: { description: "Notification deleted" }
       }
     }
+  },
+  "/api/v1/notifications/unread-count": {
+    get: {
+      summary: "Get count of unread notifications",
+      tags: ["Notifications"],
+      security: [{ cookieAuth: [] }],
+      responses: {
+        200: {
+          description: "Count of unread notifications",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  count: { type: "integer", example: 5 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 };

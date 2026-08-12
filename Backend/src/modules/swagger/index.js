@@ -5,6 +5,7 @@ import { listPaths } from './list.swagger.js';
 import { taskPaths } from './task.swagger.js';
 import { commentPaths } from './comment.swagger.js';
 import { notificationPaths } from './notification.swagger.js';
+import { labelPaths } from './label.swagger.js';
 
 export const swaggerDocument = {
   openapi: "3.0.0",
@@ -26,7 +27,8 @@ export const swaggerDocument = {
     ...listPaths,
     ...taskPaths,
     ...commentPaths,
-    ...notificationPaths
+    ...notificationPaths,
+    ...labelPaths
   },
   components: {
     securitySchemes: {
