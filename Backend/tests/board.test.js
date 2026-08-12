@@ -5,6 +5,7 @@ import User from '../src/modules/auth/user.model.js';
 import { Workspace } from '../src/modules/workspace/workspace.model.js';
 import { Board } from '../src/modules/board/board.model.js';
 import boardService from '../src/modules/board/board.service.js';
+import StarredBoard from '../src/modules/board/starredBoard.model.js';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../src/utils/errors.js';
 
 dotenv.config();
@@ -28,6 +29,7 @@ describe('Board Management Automated Tests', () => {
     await User.deleteMany({});
     await Workspace.deleteMany({});
     await Board.deleteMany({});
+    await StarredBoard.deleteMany({});
     await mongoose.connection.close();
   });
 
@@ -35,6 +37,7 @@ describe('Board Management Automated Tests', () => {
     await User.deleteMany({});
     await Workspace.deleteMany({});
     await Board.deleteMany({});
+    await StarredBoard.deleteMany({});
 
     // Create test users
     owner = await User.create({ email: 'owner@test.com', password: 'password123', fullName: 'Workspace Owner', isActive: true });
@@ -314,6 +317,36 @@ describe('Board Management Automated Tests', () => {
       }
       expect(fetchError).toBeDefined();
       expect(fetchError).toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe('Board Starring', () => {
+    let testBoard;
+
+    beforeEach(async () => {
+      testBoard = await boardService.createBoard(workspace._id, member._id, {
+        name: 'Starring Test Board',
+        visibility: 'workspace'
+      });
+    });
+
+    test('should star and unstar a board and check list state', async () => {
+      let boards = await boardService.listBoards(workspace._id, member._id, {});
+      const bObj = boards.boards.find((b) => b._id.toString() === testBoard._id.toString());
+      expect(bObj.isStarred).toBe(false);
+
+      await boardService.starBoard(testBoard._id, member._id);
+      
+      boards = await boardService.listBoards(workspace._id, member._id, {});
+      const bObjStarred = boards.boards.find((b) => b._id.toString() === testBoard._id.toString());
+      expect(bObjStarred.isStarred).toBe(true);
+
+      const starredExists = await StarredBoard.exists({ userId: member._id, boardId: testBoard._id });
+      expect(starredExists).toBeTruthy();
+
+      await boardService.unstarBoard(testBoard._id, member._id);
+      const starredExistsAfter = await StarredBoard.exists({ userId: member._id, boardId: testBoard._id });
+      expect(starredExistsAfter).toBeFalsy();
     });
   });
 });

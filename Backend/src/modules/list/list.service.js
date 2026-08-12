@@ -236,6 +236,62 @@ class ListService {
       deletedBy: userId
     });
   }
+
+  /**
+   * Archive a list.
+   * User must be workspace Member/Admin.
+   */
+  async archiveList(listId, userId) {
+    this.validateId(listId, 'list');
+
+    const list = await listRepository.findListById(listId);
+    if (!list) {
+      throw new NotFoundError('List not found');
+    }
+
+    const { board, workspace, access } = await this.getValidatedParentContext(list.boardId, userId);
+
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to archive lists on this board');
+    }
+
+    if (isParentArchived({ board, workspace })) {
+      throw new ForbiddenError('Cannot archive list because the board or workspace is archived');
+    }
+
+    const updated = await listRepository.updateList(listId, { isArchived: true });
+
+    logger.info(`List archived successfully`, { listId, archivedBy: userId });
+    return updated;
+  }
+
+  /**
+   * Restore an archived list.
+   * User must be workspace Member/Admin.
+   */
+  async restoreList(listId, userId) {
+    this.validateId(listId, 'list');
+
+    const list = await listRepository.findListById(listId);
+    if (!list) {
+      throw new NotFoundError('List not found');
+    }
+
+    const { board, workspace, access } = await this.getValidatedParentContext(list.boardId, userId);
+
+    if (!access.canWrite) {
+      throw new ForbiddenError('You do not have permission to restore lists on this board');
+    }
+
+    if (isParentArchived({ board, workspace })) {
+      throw new ForbiddenError('Cannot restore list because the board or workspace is archived');
+    }
+
+    const updated = await listRepository.updateList(listId, { isArchived: false });
+
+    logger.info(`List restored successfully`, { listId, restoredBy: userId });
+    return updated;
+  }
 }
 
 export default new ListService();

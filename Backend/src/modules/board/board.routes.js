@@ -15,5 +15,7 @@ router.patch('/boards/:boardId', protect, validateUpdateBoard, boardController.u
 router.post('/boards/:boardId/archive', protect, boardController.archiveBoard);
 router.delete('/boards/:boardId', protect, boardController.deleteBoard);
 router.post('/boards/:boardId/restore', protect, boardController.restoreBoard);
+router.post('/boards/:boardId/star', protect, boardController.starBoard);
+router.delete('/boards/:boardId/star', protect, boardController.unstarBoard);
 
 export default router;

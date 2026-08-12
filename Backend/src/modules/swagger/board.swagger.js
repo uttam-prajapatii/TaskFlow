@@ -114,5 +114,29 @@ export const boardPaths = {
         200: { description: "Board restored successfully" }
       }
     }
+  },
+  "/api/v1/boards/{boardId}/star": {
+    post: {
+      summary: "Star a board",
+      tags: ["Boards"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "boardId", in: "path", required: true, schema: { type: "string" } }
+      ],
+      responses: {
+        200: { description: "Board starred successfully" }
+      }
+    },
+    delete: {
+      summary: "Unstar a board",
+      tags: ["Boards"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "boardId", in: "path", required: true, schema: { type: "string" } }
+      ],
+      responses: {
+        200: { description: "Board unstarred successfully" }
+      }
+    }
   }
 };

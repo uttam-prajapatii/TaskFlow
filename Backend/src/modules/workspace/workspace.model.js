@@ -24,6 +24,10 @@ const WorkspaceSchema = new Schema({
     type: String,
     default: null
   },
+  accentColor: {
+    type: String,
+    default: '#4F46E5'
+  },
   ownerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',

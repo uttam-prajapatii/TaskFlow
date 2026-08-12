@@ -15,7 +15,7 @@ class WorkspaceService {
    * Create a new workspace.
    * Creator user is assigned as the owner, and also added to the members list with the 'admin' role.
    */
-  async createWorkspace(userId, { name, description, settings }) {
+  async createWorkspace(userId, { name, description, settings, accentColor }) {
     const existingByName = await workspaceRepository.findWorkspaceByNameAndOwner(name, userId);
     if (existingByName) {
       throw new BadRequestError('A workspace with this name already exists');
@@ -26,6 +26,7 @@ class WorkspaceService {
       slug,
       description: description || '',
       ownerId: userId,
+      accentColor: accentColor,
       members: [
         {
           userId,
@@ -119,9 +120,51 @@ class WorkspaceService {
         ...updateData.settings
       };
     }
+    if (updateData.accentColor !== undefined) {
+      allowedUpdates.accentColor = updateData.accentColor;
+    }
 
     const updatedWorkspace = await workspaceRepository.updateWorkspace(workspace._id, allowedUpdates);
     logger.info(`Workspace updated`, { workspaceId: workspace._id, updatedBy: userId, updatedFields: Object.keys(allowedUpdates) });
+    return updatedWorkspace;
+  }
+
+  /**
+   * Upload logo for a workspace.
+   * Only owner or admins of the workspace are allowed.
+   */
+  async uploadLogo(workspaceId, userId, file) {
+    const workspace = await workspaceRepository.findWorkspaceByIdOrSlug(workspaceId);
+    if (!workspace) {
+      throw new NotFoundError('Workspace not found');
+    }
+
+    const ownerStrId = getStrId(workspace.ownerId);
+    const userStrId = userId.toString();
+
+    const isOwner = ownerStrId === userStrId;
+    const isAdmin = workspace.members.some(
+      (m) => m.role === 'admin' && m.userId && getStrId(m.userId) === userStrId
+    );
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenError('Only workspace admins or owners can update the logo');
+    }
+
+    if (!file) {
+      throw new BadRequestError('Logo file is required');
+    }
+
+    const { uploadStream } = await import('../../config/cloudinary.js');
+    const uploadResult = await uploadStream(file.buffer, {
+      folder: 'taskflow/workspaces',
+      public_id: `workspace_${workspace._id}_logo`
+    });
+
+    const logoUrl = uploadResult.secure_url;
+    const updatedWorkspace = await workspaceRepository.updateWorkspace(workspace._id, { logoUrl });
+    logger.info(`Workspace logo updated`, { workspaceId: workspace._id, updatedBy: userId, logoUrl });
+
     return updatedWorkspace;
   }
 

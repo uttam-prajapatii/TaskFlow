@@ -15,6 +15,8 @@ import {
 } from './task.validation.js';
 import { configureUpload } from '../../middlewares/fileUpload.js';
 
+import { validateLabelId } from '../label/label.validation.js';
+
 const router = express.Router();
 
 // Board and list task routes
@@ -36,5 +38,9 @@ router.delete('/tasks/:taskId/assignees/:userId', protect, validateTaskId, valid
 // Attachment routes
 router.post('/tasks/:taskId/attachments', protect, validateTaskId, configureUpload(), taskController.uploadAttachment);
 router.delete('/tasks/:taskId/attachments/:attachmentId', protect, validateTaskId, validateAttachmentIdParam, taskController.deleteAttachment);
+
+// Task label routes
+router.post('/tasks/:taskId/labels', protect, validateTaskId, taskController.addLabel);
+router.delete('/tasks/:taskId/labels/:labelId', protect, validateTaskId, validateLabelId, taskController.removeLabel);
 
 export default router;

@@ -3,6 +3,7 @@ import workspaceController from './workspace.controller.js';
 import activityLogController from '../activityLog/activityLog.controller.js';
 import { validateCreateWorkspace, validateUpdateWorkspace, validateInviteMember, validateChangeRole } from './workspace.validation.js';
 import { protect } from '../auth/auth.middleware.js';
+import { configureUpload } from '../../middlewares/fileUpload.js';
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.get('/', protect, workspaceController.listWorkspaces);
 router.get('/:workspaceId', protect, workspaceController.getWorkspaceDetails);
 router.get('/:workspaceId/activity-logs', protect, activityLogController.getActivityLogs);
 router.get('/:workspaceId/analytics', protect, workspaceController.getWorkspaceAnalytics);
+router.post('/:workspaceId/logo', protect, configureUpload({ allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg'], maxSizeInBytes: 2 * 1024 * 1024 }), workspaceController.uploadLogo);
 router.patch('/:workspaceId', protect, validateUpdateWorkspace, workspaceController.updateWorkspace);
 router.delete('/:workspaceId', protect, workspaceController.deleteWorkspace);
 

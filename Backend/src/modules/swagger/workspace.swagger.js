@@ -26,7 +26,8 @@ export const workspacePaths = {
               required: ["name"],
               properties: {
                 name: { type: "string", example: "Product Team" },
-                description: { type: "string", example: "Workspace for planning product roadmap" }
+                description: { type: "string", example: "Workspace for planning product roadmap" },
+                accentColor: { type: "string", example: "#4F46E5" }
               }
             }
           }
@@ -64,7 +65,8 @@ export const workspacePaths = {
               type: "object",
               properties: {
                 name: { type: "string", example: "Updated Team Name" },
-                description: { type: "string", example: "Updated description text" }
+                description: { type: "string", example: "Updated description text" },
+                accentColor: { type: "string", example: "#4F46E5" }
               }
             }
           }
@@ -178,24 +180,19 @@ export const workspacePaths = {
       }
     }
   },
-  "/api/v1/workspaces/invite/accept": {
+  "/api/v1/workspaces/invites/{token}/accept": {
     post: {
       summary: "Accept workspace invitation link",
       tags: ["Workspace Members"],
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              required: ["token"],
-              properties: {
-                token: { type: "string", example: "invite-token-value" }
-              }
-            }
-          }
+      parameters: [
+        {
+          name: "token",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "Invitation token from email link"
         }
-      },
+      ],
       responses: {
         200: { description: "Joined workspace successfully" }
       }
@@ -253,6 +250,35 @@ export const workspacePaths = {
       ],
       responses: {
         200: { description: "Left workspace successfully" }
+      }
+    }
+  },
+  "/api/v1/workspaces/{workspaceId}/logo": {
+    post: {
+      summary: "Upload workspace logo",
+      tags: ["Workspaces"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "workspaceId", in: "path", required: true, schema: { type: "string" } }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              required: ["file"],
+              properties: {
+                file: { type: "string", format: "binary", description: "Logo image file (PNG/JPG, max 2MB)" }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: { description: "Logo uploaded successfully" },
+        400: { description: "Bad Request" },
+        401: { description: "Unauthorized" }
       }
     }
   }

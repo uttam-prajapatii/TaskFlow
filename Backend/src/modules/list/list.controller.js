@@ -32,6 +32,18 @@ class ListController {
     await listService.deleteList(listId, req.user._id);
     return ApiResponse.success(res, 'List deleted successfully', null);
   });
+
+  archiveList = asyncHandler(async (req, res) => {
+    const { listId } = req.params;
+    const list = await listService.archiveList(listId, req.user._id);
+    return ApiResponse.success(res, 'List archived successfully', list);
+  });
+
+  restoreList = asyncHandler(async (req, res) => {
+    const { listId } = req.params;
+    const list = await listService.restoreList(listId, req.user._id);
+    return ApiResponse.success(res, 'List restored successfully', list);
+  });
 }
 
 export default new ListController();

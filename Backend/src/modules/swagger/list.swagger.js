@@ -77,7 +77,7 @@ export const listPaths = {
     }
   },
   "/api/v1/lists/{listId}/reorder": {
-    post: {
+    patch: {
       summary: "Reorder list position on board",
       tags: ["Lists"],
       security: [{ cookieAuth: [] }],
@@ -100,6 +100,32 @@ export const listPaths = {
       },
       responses: {
         200: { description: "List reordered successfully" }
+      }
+    }
+  },
+  "/api/v1/lists/{listId}/archive": {
+    post: {
+      summary: "Archive a list",
+      tags: ["Lists"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "listId", in: "path", required: true, schema: { type: "string" } }
+      ],
+      responses: {
+        200: { description: "List archived successfully" }
+      }
+    }
+  },
+  "/api/v1/lists/{listId}/restore": {
+    post: {
+      summary: "Restore an archived list",
+      tags: ["Lists"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "listId", in: "path", required: true, schema: { type: "string" } }
+      ],
+      responses: {
+        200: { description: "List restored successfully" }
       }
     }
   }

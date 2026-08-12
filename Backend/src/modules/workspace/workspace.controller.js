@@ -138,6 +138,15 @@ class WorkspaceController {
     const analytics = await workspaceService.getWorkspaceAnalytics(workspaceId, req.user._id);
     return ApiResponse.success(res, 'Workspace analytics retrieved successfully', analytics);
   });
+
+  /**
+   * Upload workspace logo.
+   */
+  uploadLogo = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    const workspace = await workspaceService.uploadLogo(workspaceId, req.user._id, req.file);
+    return ApiResponse.success(res, 'Workspace logo uploaded successfully', workspace);
+  });
 }
 
 export default new WorkspaceController();

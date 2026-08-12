@@ -4,21 +4,25 @@ import { BadRequestError } from '../../utils/errors.js';
  * Middleware to validate and sanitize workspace creation inputs.
  */
 export const validateCreateWorkspace = (req, res, next) => {
-const { name, description, settings } = req.body;
+  const { name, description, settings, accentColor } = req.body;
 
-const error = validateName(name)
-|| validateDescription(description)
-|| validateSettings(settings);
+  const error = validateName(name)
+    || validateDescription(description)
+    || validateSettings(settings)
+    || validateAccentColor(accentColor);
 
-if (error) return next(error);
+  if (error) return next(error);
 
-// Sanitize
-req.body.name = name.trim();
-if (description !== undefined) {
-req.body.description = description.trim();
-}
+  // Sanitize
+  req.body.name = name.trim();
+  if (description !== undefined) {
+    req.body.description = description.trim();
+  }
+  if (accentColor !== undefined) {
+    req.body.accentColor = accentColor.trim();
+  }
 
-next();
+  next();
 };
 
 function validateName(name, isRequired = true) {
@@ -66,14 +70,37 @@ function validateSettings(settings) {
     return new BadRequestError('Settings must be an object');
   }
 
-  const { allowViewerComments, inviteExpiryDays } = settings;
+  const { allowViewerComments, defaultBoardVisibility, inviteExpiryDays } = settings;
 
   if (allowViewerComments !== undefined && typeof allowViewerComments !== 'boolean') {
     return new BadRequestError('allowViewerComments must be a boolean');
   }
 
+  if (
+    defaultBoardVisibility !== undefined &&
+    (typeof defaultBoardVisibility !== 'string' ||
+      !['workspace', 'private'].includes(defaultBoardVisibility))
+  ) {
+    return new BadRequestError("defaultBoardVisibility must be either 'workspace' or 'private'");
+  }
+
   if (inviteExpiryDays !== undefined && (typeof inviteExpiryDays !== 'number' || inviteExpiryDays <= 0)) {
     return new BadRequestError('inviteExpiryDays must be a positive number');
+  }
+
+  return null;
+}
+
+function validateAccentColor(accentColor) {
+  if (accentColor === undefined) return null;
+
+  if (typeof accentColor !== 'string') {
+    return new BadRequestError('Accent color must be a string');
+  }
+
+  const hexRegex = /^#([0-9a-fA-F]{3}){1,2}$/;
+  if (!hexRegex.test(accentColor.trim())) {
+    return new BadRequestError('Accent color must be a valid hex color code (e.g. #4F46E5)');
   }
 
   return null;
@@ -84,16 +111,17 @@ function validateSettings(settings) {
  * Middleware to validate and sanitize workspace update inputs.
  */
 export const validateUpdateWorkspace = (req, res, next) => {
-  const { name, description, settings } = req.body;
+  const { name, description, settings, accentColor } = req.body;
 
   // If body is empty
-  if (name === undefined && description === undefined && settings === undefined) {
-    return next(new BadRequestError('At least one field (name, description, settings) must be provided for update'));
+  if (name === undefined && description === undefined && settings === undefined && accentColor === undefined) {
+    return next(new BadRequestError('At least one field (name, description, settings, accentColor) must be provided for update'));
   }
 
   const error = (name !== undefined ? validateName(name, false) : null)
     || (description !== undefined ? validateDescription(description) : null)
-    || (settings !== undefined ? validateSettings(settings) : null);
+    || (settings !== undefined ? validateSettings(settings) : null)
+    || (accentColor !== undefined ? validateAccentColor(accentColor) : null);
 
   if (error) return next(error);
 
@@ -103,6 +131,9 @@ export const validateUpdateWorkspace = (req, res, next) => {
   }
   if (description !== undefined) {
     req.body.description = description.trim();
+  }
+  if (accentColor !== undefined) {
+    req.body.accentColor = accentColor.trim();
   }
 
   next();

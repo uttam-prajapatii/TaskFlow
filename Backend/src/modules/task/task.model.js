@@ -37,7 +37,8 @@ const TaskSchema = new Schema({
     default: []
   },
   labels: {
-    type: [String],
+    type: [Schema.Types.ObjectId],
+    ref: 'Label',
     default: []
   },
   priority: {
