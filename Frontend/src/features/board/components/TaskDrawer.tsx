@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+
 import type { Task, BoardList } from '../types';
 import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
 import { PRIORITY_CONFIG, LABEL_COLORS, isOverdue, formatDate } from './KanbanTaskCard';
 import workspaceService from '../../../services/workspace.service';
+import commentService, { type Comment } from '../../../services/comment.service';
 import useAuth from '../../../hooks/useAuth';
-import { toast } from 'sonner';
+import useSocketComments from '../../../hooks/useSocketComments';
 
 interface TaskDrawerProps {
   task: Task | null;
@@ -13,14 +20,30 @@ interface TaskDrawerProps {
   onEdit: (task: Task) => void;
   columns: BoardList[];
   workspaceId?: string;
+  boardId?: string;
 }
 
-interface ActivityComment {
-  id: string;
-  authorName: string;
-  text: string;
-  createdAt: string;
-}
+const commentSchema = z.object({
+  body: z.string().trim().min(1, 'Comment cannot be empty').max(2000, 'Comment too long'),
+});
+
+type CommentFormValues = z.infer<typeof commentSchema>;
+
+const formatRelativeTime = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diffInSeconds < 60) return 'Just now';
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) return `${diffInDays}d ago`;
+  return date.toLocaleDateString();
+};
 
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   task,
@@ -28,13 +51,33 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   onEdit,
   columns,
   workspaceId,
+  boardId: propBoardId,
 }) => {
   const { user: currentUser } = useAuth();
-  const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<ActivityComment[]>([]);
+  const queryClient = useQueryClient();
+
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState('');
   const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email?: string }[]>([]);
 
-  // Fetch workspace members to resolve assignee names
+  const taskId = task ? (task._id || task.id || '') : '';
+  const resolvedBoardId = propBoardId || task?.boardId || (columns[0]?.boardId ?? '');
+
+  // Enable real-time WebSocket comment updates for this task
+  useSocketComments(resolvedBoardId, taskId);
+
+  // React Hook Form for new comment
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CommentFormValues>({
+    resolver: zodResolver(commentSchema),
+    defaultValues: { body: '' },
+  });
+
+  // Fetch workspace members to resolve assignee & mention display names
   const fetchMembers = useCallback(async () => {
     if (!workspaceId) {
       if (currentUser?._id) {
@@ -65,10 +108,65 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   useEffect(() => {
     if (task) {
       fetchMembers();
-      setComments([]);
-      setCommentText('');
+      setEditingCommentId(null);
+      setEditingBody('');
+      reset({ body: '' });
     }
-  }, [task, fetchMembers]);
+  }, [task, fetchMembers, reset]);
+
+  // Fetch real comments from backend
+  const {
+    data: comments = [],
+    isLoading: isLoadingComments,
+    isError: isErrorComments,
+    refetch: refetchComments,
+  } = useQuery<Comment[]>({
+    queryKey: ['comments', taskId],
+    queryFn: () => commentService.getComments(taskId),
+    enabled: !!taskId,
+  });
+
+  // Mutations
+  const addCommentMutation = useMutation({
+    mutationFn: (payload: { body: string; mentions?: string[] }) =>
+      commentService.addComment(taskId, payload),
+    onSuccess: () => {
+      reset({ body: '' });
+      queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
+      toast.success('Comment posted');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to post comment');
+    },
+  });
+
+  const updateCommentMutation = useMutation({
+    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
+      commentService.updateComment(taskId, commentId, { body }),
+    onSuccess: () => {
+      setEditingCommentId(null);
+      setEditingBody('');
+      queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
+      toast.success('Comment updated');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to update comment');
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: string) => commentService.deleteComment(taskId, commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
+      toast.success('Comment deleted');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to delete comment');
+    },
+  });
 
   if (!task) return null;
 
@@ -79,7 +177,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   const overdue = isOverdue(task.dueDate) && task.status !== 'done';
   const checklist = task.checklist;
 
-  // Resolve assignee display names cleanly
   const resolveAssigneeName = (assignee: unknown): string => {
     if (typeof assignee === 'object' && assignee !== null) {
       const u = assignee as { fullName?: string; name?: string; email?: string };
@@ -93,28 +190,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     return 'Team Member';
   };
 
-  const handleSendComment = () => {
-    const trimmed = commentText.trim();
-    if (!trimmed) return;
+  const onSubmitAddComment = (data: CommentFormValues) => {
+    // Extract @mentions matching team member names or emails if present
+    const mentions: string[] = [];
+    const text = data.body;
+    teamMembers.forEach((member) => {
+      if (text.includes(`@${member.name}`) || (member.email && text.includes(`@${member.email}`))) {
+        mentions.push(member.id);
+      }
+    });
 
-    const authorName = currentUser?.fullName || currentUser?.email || 'User';
-    const newComment: ActivityComment = {
-      id: `comment-${Date.now()}`,
-      authorName,
-      text: trimmed,
-      createdAt: 'Just now',
-    };
-
-    setComments((prev) => [newComment, ...prev]);
-    setCommentText('');
-    toast.success('Comment posted');
+    addCommentMutation.mutate({ body: text, mentions: mentions.length ? mentions : undefined });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSendComment();
-    }
+  const handleStartEdit = (c: Comment) => {
+    setEditingCommentId(c._id);
+    setEditingBody(c.body);
+  };
+
+  const handleSaveEdit = (commentId: string) => {
+    if (!editingBody.trim()) return;
+    updateCommentMutation.mutate({ commentId, body: editingBody.trim() });
   };
 
   return (
@@ -139,7 +235,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             <button
               type="button"
               onClick={() => onEdit(task)}
-              className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400"
+              className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 cursor-pointer"
               aria-label="Edit task"
             >
               <Icon name="edit" size={15} />
@@ -147,7 +243,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400"
+              className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 cursor-pointer"
               aria-label="Close"
             >
               <Icon name="x" size={16} />
@@ -275,13 +371,16 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             </div>
           )}
 
-          {/* Activity & Comments Stream */}
+          {/* Activity & Real Comments Section */}
           <div>
-            <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-2 flex items-center gap-1">
-              <Icon name="clock" size={12} /> Activity & Comments ({comments.length + 1})
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] text-neutral-400 dark:text-neutral-500 flex items-center gap-1 font-medium">
+                <Icon name="clock" size={12} /> Activity & Comments ({comments.length + 1})
+              </p>
+            </div>
+
             <div className="space-y-3 text-[12px]">
-              {/* Creation Log */}
+              {/* Task Creation Log */}
               <div className="flex gap-2">
                 <Avatar name="TaskFlow" size={20} ring={false} />
                 <p className="text-neutral-500 dark:text-neutral-400">
@@ -290,47 +389,151 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                 </p>
               </div>
 
-              {/* User Comments */}
-              {comments.map((c) => (
-                <div key={c.id} className="flex gap-2 bg-neutral-50 dark:bg-neutral-800/50 p-2.5 rounded-xl border border-neutral-100 dark:border-neutral-800">
-                  <Avatar name={c.authorName} size={22} ring={false} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-neutral-800 dark:text-neutral-200 font-semibold text-[12px]">
-                        {c.authorName}
-                      </span>
-                      <span className="text-[10px] text-neutral-400">{c.createdAt}</span>
+              {/* Loading Comments */}
+              {isLoadingComments ? (
+                <div className="space-y-2 py-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="flex gap-2 bg-neutral-50 dark:bg-neutral-800/40 p-2.5 rounded-xl border border-neutral-100 dark:border-neutral-800 animate-pulse">
+                      <div className="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/4" />
+                        <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
+                      </div>
                     </div>
-                    <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed text-[12.5px] break-words">
-                      {c.text}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : isErrorComments ? (
+                /* Error Comments */
+                <div className="p-3 text-center bg-rose-50 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-900/50">
+                  <p className="text-[12px] text-rose-600 dark:text-rose-400">Failed to load comments</p>
+                  <button
+                    type="button"
+                    onClick={() => refetchComments()}
+                    className="mt-1 text-[11px] font-semibold text-rose-700 dark:text-rose-300 underline cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : comments.length === 0 ? (
+                /* Empty Comments */
+                <div className="py-3 text-center text-neutral-400 dark:text-neutral-500 text-[12px] italic">
+                  No comments yet. Be the first to leave a comment!
+                </div>
+              ) : (
+                /* Real User Comments Stream */
+                comments.map((c) => {
+                  const authorObj = typeof c.authorId === 'object' && c.authorId !== null ? c.authorId : null;
+                  const authorIdStr = authorObj ? authorObj._id : String(c.authorId);
+                  const authorName = authorObj ? (authorObj.fullName || authorObj.email) : 'Teammate';
+                  const isAuthor = currentUser && String(currentUser._id) === String(authorIdStr);
+
+                  return (
+                    <div
+                      key={c._id}
+                      className="group relative flex gap-2.5 bg-neutral-50 dark:bg-neutral-800/50 p-3 rounded-xl border border-neutral-100 dark:border-neutral-800"
+                    >
+                      <Avatar name={authorName} size={24} ring={false} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-neutral-800 dark:text-neutral-200 font-semibold text-[12px]">
+                            {authorName}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-neutral-400 font-medium">
+                              {formatRelativeTime(c.createdAt)}
+                            </span>
+                            {/* Author Action Buttons */}
+                            {isAuthor && editingCommentId !== c._id && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEdit(c)}
+                                  className="p-0.5 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer"
+                                  title="Edit comment"
+                                >
+                                  <Icon name="edit" size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteCommentMutation.mutate(c._id)}
+                                  disabled={deleteCommentMutation.isPending}
+                                  className="p-0.5 rounded text-neutral-400 hover:text-rose-500 cursor-pointer"
+                                  title="Delete comment"
+                                >
+                                  <Icon name="trash-2" size={13} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {editingCommentId === c._id ? (
+                          /* Inline Edit Mode */
+                          <div className="space-y-2 mt-1">
+                            <textarea
+                              value={editingBody}
+                              onChange={(e) => setEditingBody(e.target.value)}
+                              className="w-full p-2 text-[12.5px] rounded-lg border border-orange-300 dark:border-orange-500/40 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 outline-none resize-none focus:ring-2 focus:ring-orange-400/30"
+                              rows={2}
+                            />
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setEditingCommentId(null)}
+                                className="px-2.5 py-1 text-[11px] rounded-md font-medium text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(c._id)}
+                                disabled={updateCommentMutation.isPending || !editingBody.trim()}
+                                className="px-2.5 py-1 text-[11px] rounded-md font-semibold text-white bg-orange-500 hover:bg-orange-600 transition disabled:opacity-50 cursor-pointer"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Read Mode */
+                          <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed text-[12.5px] break-words">
+                            {c.body}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
 
-        {/* Comment input footer */}
-        <div className="px-5 py-3 border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-          <div className="flex items-center gap-2">
-            <input
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Add a comment…"
-              className="flex-1 px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400"
-            />
-            <button
-              type="button"
-              onClick={handleSendComment}
-              disabled={!commentText.trim()}
-              className="px-3.5 py-2 text-[12.5px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition disabled:opacity-40 cursor-pointer"
-            >
-              Send
-            </button>
+        {/* Comment Input Form (React Hook Form + Zod) */}
+        <form
+          onSubmit={handleSubmit(onSubmitAddComment)}
+          className="px-5 py-3 border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900"
+        >
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <input
+                {...register('body')}
+                placeholder="Add a comment… (Use @name to mention team members)"
+                className="flex-1 px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400"
+              />
+              <button
+                type="submit"
+                disabled={addCommentMutation.isPending}
+                className="px-3.5 py-2 text-[12.5px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition disabled:opacity-40 cursor-pointer shrink-0"
+              >
+                {addCommentMutation.isPending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+            {errors.body && (
+              <span className="text-[11px] text-rose-500 px-1">{errors.body.message}</span>
+            )}
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

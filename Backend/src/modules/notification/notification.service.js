@@ -46,6 +46,14 @@ class NotificationService {
   }
 
   /**
+   * Get unread notification count for the user.
+   */
+  async getUnreadCount(userId) {
+    const unreadCount = await notificationRepository.countUnread(userId);
+    return { unreadCount };
+  }
+
+  /**
    * Mark a specific notification as read.
    */
   async markAsRead(id, userId) {

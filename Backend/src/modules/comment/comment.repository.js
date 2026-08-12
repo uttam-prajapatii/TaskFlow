@@ -35,6 +35,16 @@ class CommentRepository {
   }
 
   /**
+   * Update a comment by its ID.
+   */
+  async updateComment(id, data) {
+    return Comment.findByIdAndUpdate(id, data, { new: true })
+      .populate('authorId', '_id fullName email')
+      .populate('mentions', '_id fullName email')
+      .lean();
+  }
+
+  /**
    * Delete all comments of a specific task.
    */
   async deleteCommentsByTask(taskId) {

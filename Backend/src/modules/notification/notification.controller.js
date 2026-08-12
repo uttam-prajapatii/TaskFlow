@@ -16,6 +16,19 @@ class NotificationController {
   });
 
   /**
+   * Get unread notification count for the authenticated user.
+   */
+  getUnreadCount = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const result = await notificationService.getUnreadCount(userId);
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  });
+
+  /**
    * Mark a single notification as read.
    */
   markAsRead = asyncHandler(async (req, res) => {
