@@ -66,9 +66,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const isOwner = myRole === 'owner';
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 max-w-[840px]">
       {/* Workspace Logo Setting */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-2xs">
         <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
           Workspace Avatar / Logo
         </h3>
@@ -99,7 +99,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         </div>
       </div>
       {/* Workspace Name Setting */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-2xs">
         <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
           Workspace name
         </h3>
@@ -168,7 +168,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Leave Workspace */}
-      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 shadow-2xs">
         <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
           Leave workspace
         </h3>
@@ -188,7 +188,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       {/* Delete Workspace (Owner Only) */}
       {isOwner && (
-        <div className="bg-white dark:bg-neutral-900 border border-rose-200 dark:border-rose-900/40 rounded-2xl p-5 shadow-2xs">
+        <div className="bg-white dark:bg-neutral-900 border border-rose-200 dark:border-rose-900/40 rounded-2xl p-6 shadow-2xs">
           <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400 mb-1">
             Delete workspace
           </h3>

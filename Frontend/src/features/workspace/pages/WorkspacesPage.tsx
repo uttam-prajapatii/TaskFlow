@@ -146,10 +146,10 @@ export const WorkspacesPage: React.FC = () => {
 
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-6 md:p-10 overflow-y-auto">
+      <main className="flex-1 min-w-0 h-screen overflow-y-auto p-6 md:p-10">
         <div className="max-w-6xl mx-auto">
           {/* Header section */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">

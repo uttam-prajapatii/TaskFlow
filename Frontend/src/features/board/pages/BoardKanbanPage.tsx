@@ -428,7 +428,7 @@ export const BoardKanbanPage: React.FC = () => {
   const boardName = board?.name || board?.title || 'Kanban Board';
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans select-none">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans select-none">
       <Sidebar />
 
       <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">

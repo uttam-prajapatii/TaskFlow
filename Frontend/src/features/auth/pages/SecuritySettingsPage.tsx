@@ -102,25 +102,25 @@ export const SecuritySettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-6 md:p-10 overflow-y-auto">
-        <div className="max-w-2xl mx-auto space-y-6">
+      <main className="flex-1 min-w-0 h-screen overflow-y-auto p-4 sm:p-6 md:p-10">
+        <div className="max-w-[840px] mx-auto space-y-6">
           {/* Header */}
           <div className="pb-6 border-b border-neutral-200 dark:border-neutral-800">
             <h1 className="text-2xl md:text-3xl font-bold font-display text-neutral-900 dark:text-neutral-100">
               Account & Security Settings
             </h1>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-              Manage your personal profile information and password for <strong className="text-neutral-800 dark:text-neutral-200">{user?.email}</strong>.
+              Manage your personal profile information and security settings for <strong className="text-neutral-800 dark:text-neutral-200">{user?.email}</strong>.
             </p>
           </div>
 
           {/* Profile Name Card */}
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 md:p-8 shadow-2xs">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-neutral-100 dark:border-neutral-800">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
                 <Icon name="user" size={20} />
               </div>
               <div>
@@ -135,7 +135,7 @@ export const SecuritySettingsPage: React.FC = () => {
 
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5 select-none">
                   Full Name
                 </label>
                 <input
@@ -143,7 +143,7 @@ export const SecuritySettingsPage: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Enter your full name"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-xs text-neutral-900 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/80 focus:bg-white dark:focus:bg-neutral-800 text-xs sm:text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                 />
               </div>
 
@@ -151,7 +151,7 @@ export const SecuritySettingsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={savingProfile || !fullName.trim()}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingProfile ? 'Saving...' : 'Save Profile'}
                 </button>
@@ -162,7 +162,7 @@ export const SecuritySettingsPage: React.FC = () => {
           {/* Password Form Card */}
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 md:p-8 shadow-2xs">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-neutral-100 dark:border-neutral-800">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
                 <Icon name="lock" size={20} />
               </div>
               <div>
@@ -176,19 +176,20 @@ export const SecuritySettingsPage: React.FC = () => {
             </div>
 
             {apiError && (
-              <div className="mb-6 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-600 text-xs font-semibold flex items-center gap-2">
+              <div className="mb-4 p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
                 <Icon name="alert-circle" size={16} className="shrink-0 text-rose-500" />
                 <span>{apiError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <FormInput
                 label="Current Password"
                 id="current-pass"
                 type="password"
                 placeholder="Enter current password"
                 autoComplete="current-password"
+                containerClassName=""
                 {...register('currentPassword')}
                 error={errors.currentPassword?.message}
               />
@@ -200,6 +201,7 @@ export const SecuritySettingsPage: React.FC = () => {
                   type="password"
                   placeholder="Enter new password"
                   autoComplete="new-password"
+                  containerClassName=""
                   {...register('newPassword', { deps: ['confirmNewPassword'] })}
                   error={errors.newPassword?.message}
                 />
@@ -209,15 +211,15 @@ export const SecuritySettingsPage: React.FC = () => {
                     <p className="text-[11px] font-bold text-neutral-400 dark:text-neutral-400 uppercase tracking-wider mb-1">
                       New Password Requirements
                     </p>
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                       {passwordRules.map((rule, idx) => (
                         <div key={idx} className="flex items-center gap-1.5 text-[11.5px]">
                           <Icon
                             name={rule.met ? 'check' : 'circle'}
                             size={12}
-                            className={rule.met ? 'text-emerald-500 font-bold' : 'text-neutral-300 dark:text-neutral-600'}
+                            className={rule.met ? 'text-emerald-500 font-bold shrink-0' : 'text-neutral-300 dark:text-neutral-600 shrink-0'}
                           />
-                          <span className={rule.met ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-neutral-400'}>
+                          <span className={rule.met ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-neutral-400 dark:text-neutral-500'}>
                             {rule.label}
                           </span>
                         </div>
@@ -233,15 +235,16 @@ export const SecuritySettingsPage: React.FC = () => {
                 type="password"
                 placeholder="Confirm new password"
                 autoComplete="new-password"
+                containerClassName=""
                 {...register('confirmNewPassword', { deps: ['newPassword'] })}
                 error={errors.confirmNewPassword?.message}
               />
 
-              <div className="pt-3 flex justify-end">
+              <div className="pt-2 flex justify-end">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Updating Password...' : 'Update Password'}
                 </button>

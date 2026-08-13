@@ -128,11 +128,11 @@ export const NotificationsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans">
       {/* Sidebar stays ALWAYS open on left */}
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-6 md:p-10 overflow-y-auto">
+      <main className="flex-1 min-w-0 h-screen overflow-y-auto p-6 md:p-10">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-neutral-200 dark:border-neutral-800">
