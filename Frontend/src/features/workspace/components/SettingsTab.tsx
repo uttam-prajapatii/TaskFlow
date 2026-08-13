@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Workspace } from '../types';
 import Icon from '../../../components/UI/Icon';
 import ConfirmModal from '../../../components/UI/ConfirmModal';
+import workspaceService from '../../../services/workspace.service';
+import { toast } from 'sonner';
 
 interface SettingsTabProps {
   ws: Workspace;
@@ -10,6 +12,7 @@ interface SettingsTabProps {
   onRename: (name: string) => void;
   onDelete: () => void;
   onLeave: () => void;
+  onRefresh?: () => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -19,12 +22,36 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onRename,
   onDelete,
   onLeave,
+  onRefresh,
 }) => {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(ws.name);
   const [renameError, setRenameError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const wsId = ws._id || ws.id;
+    if (!wsId) return;
+
+    try {
+      setUploadingLogo(true);
+      const formData = new FormData();
+      formData.append('logo', file);
+      await workspaceService.uploadLogo(wsId, formData);
+      toast.success('Workspace logo updated!');
+      if (onRefresh) onRefresh();
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      toast.error(errorObj.response?.data?.message || 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const submitRename = () => {
     if (!renameValue.trim() || renameValue.trim().length < 3) {
@@ -40,6 +67,37 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   return (
     <div className="space-y-4 max-w-2xl">
+      {/* Workspace Logo Setting */}
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
+        <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+          Workspace Avatar / Logo
+        </h3>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
+          Upload an image icon (PNG, JPG max 2MB) for your workspace.
+        </p>
+        <div className="flex items-center gap-4">
+          {ws.logoUrl ? (
+            <img src={ws.logoUrl} alt="Logo" className="w-12 h-12 rounded-xl object-cover border border-neutral-200" />
+          ) : (
+            <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-lg border border-orange-500/20">
+              {ws.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          {canManage && (
+            <div>
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadingLogo}
+                className="px-3.5 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer disabled:opacity-50"
+              >
+                {uploadingLogo ? 'Uploading…' : 'Upload Logo'}
+              </button>
+              <input type="file" ref={logoInputRef} onChange={handleLogoChange} accept="image/png,image/jpeg,image/jpg" className="hidden" />
+            </div>
+          )}
+        </div>
+      </div>
       {/* Workspace Name Setting */}
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs">
         <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">

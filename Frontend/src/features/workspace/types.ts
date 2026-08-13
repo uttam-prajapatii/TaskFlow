@@ -70,3 +70,49 @@ export interface InviteMemberPayload {
   email: string;
   role: WorkspaceRole;
 }
+
+export interface WorkspaceAnalytics {
+  totalBoards: number;
+  totalMembers: number;
+  totalTasks: number;
+  completedTasks: number;
+  activeTasks: number;
+  completionRate: number;
+  priorityBreakdown: {
+    low: number;
+    medium: number;
+    high: number;
+    urgent: number;
+  };
+  velocity: Array<{
+    weekStart: string;
+    completedCount: number;
+  }>;
+  averageCycleTimeDays: number;
+}
+
+export interface ActivityLogActor {
+  _id: string;
+  fullName?: string;
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
+export interface ActivityLogItem {
+  _id: string;
+  workspaceId: string;
+  actorId: string | ActivityLogActor;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ActivityLogsResponse {
+  logs: ActivityLogItem[];
+  total: number;
+  page: number;
+  limit: number;
+}

@@ -1,14 +1,25 @@
 export type PriorityLevel = 'urgent' | 'high' | 'medium' | 'low';
 
 export interface ChecklistItem {
+  _id?: string;
   id?: string;
-  title: string;
-  isCompleted: boolean;
+  text: string;
+  isDone: boolean;
 }
 
 export interface TaskChecklist {
   done: number;
   total: number;
+}
+
+export interface TaskAttachmentItem {
+  _id: string;
+  id?: string;
+  originalName: string;
+  fileUrl: string;
+  mimeType?: string;
+  size?: number;
+  createdAt?: string;
 }
 
 export interface Label {
@@ -39,9 +50,9 @@ export interface Task {
   dueDate?: string | null;
   assignees?: Array<string | TaskAssigneeUser>;
   labels?: Array<string | Label>;
-  attachments?: number;
+  attachments?: number | TaskAttachmentItem[];
   comments?: number;
-  checklist?: TaskChecklist;
+  checklist?: ChecklistItem[] | TaskChecklist;
   position?: number;
   createdAt?: string | number;
   updatedAt?: string | number;

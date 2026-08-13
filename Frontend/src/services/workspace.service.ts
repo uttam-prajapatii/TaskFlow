@@ -6,6 +6,8 @@ import type {
   CreateWorkspacePayload,
   UpdateWorkspacePayload,
   InviteMemberPayload,
+  WorkspaceAnalytics,
+  ActivityLogsResponse,
 } from '../features/workspace/types';
 
 export const workspaceService = {
@@ -91,6 +93,28 @@ export const workspaceService = {
   async acceptInvite(token: string): Promise<{ workspaceId: string; message: string }> {
     const response = await api.post(`/api/v1/workspaces/invites/${token}/accept`);
     return response.data;
+  },
+
+  // Get workspace analytics
+  async getWorkspaceAnalytics(workspaceId: string): Promise<WorkspaceAnalytics> {
+    const response = await api.get(`/api/v1/workspaces/${workspaceId}/analytics`);
+    return response.data?.data;
+  },
+
+  // Get workspace activity audit logs
+  async getActivityLogs(workspaceId: string, page = 1, limit = 20): Promise<ActivityLogsResponse> {
+    const response = await api.get(`/api/v1/workspaces/${workspaceId}/activity-logs`, {
+      params: { page, limit },
+    });
+    return response.data?.data || { logs: [], total: 0, page, limit };
+  },
+
+  // Upload workspace logo image
+  async uploadLogo(workspaceId: string, formData: FormData): Promise<Workspace> {
+    const response = await api.post(`/api/v1/workspaces/${workspaceId}/logo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data?.data;
   },
 };
 

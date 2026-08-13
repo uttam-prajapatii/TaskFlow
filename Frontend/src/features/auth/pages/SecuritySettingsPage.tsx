@@ -34,6 +34,24 @@ export const SecuritySettingsPage: React.FC = () => {
   const { user } = useAuth();
   const [apiError, setApiError] = useState<string | null>(null);
 
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) return;
+    try {
+      setSavingProfile(true);
+      await authService.updateMe({ fullName: fullName.trim() });
+      toast.success('Profile full name updated!');
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      toast.error(errorObj.response?.data?.message || 'Failed to update profile name');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const {
     register,
     handleSubmit,
@@ -88,18 +106,60 @@ export const SecuritySettingsPage: React.FC = () => {
       <Sidebar />
 
       <main className="flex-1 min-w-0 p-6 md:p-10 overflow-y-auto">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
           {/* Header */}
-          <div className="mb-8 pb-6 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="pb-6 border-b border-neutral-200 dark:border-neutral-800">
             <h1 className="text-2xl md:text-3xl font-bold font-display text-neutral-900 dark:text-neutral-100">
-              Account Security & Password
+              Account & Security Settings
             </h1>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-              Manage your password and security settings for <strong className="text-neutral-800 dark:text-neutral-200">{user?.email}</strong>.
+              Manage your personal profile information and password for <strong className="text-neutral-800 dark:text-neutral-200">{user?.email}</strong>.
             </p>
           </div>
 
-          {/* Form Card */}
+          {/* Profile Name Card */}
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 md:p-8 shadow-2xs">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-neutral-100 dark:border-neutral-800">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                <Icon name="user" size={20} />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
+                  Profile Information
+                </h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Update your display name visible across team workspaces.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your full name"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-xs text-neutral-900 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40"
+                />
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={savingProfile || !fullName.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
+                >
+                  {savingProfile ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Password Form Card */}
           <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6 md:p-8 shadow-2xs">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-neutral-100 dark:border-neutral-800">
               <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
