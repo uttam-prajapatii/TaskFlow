@@ -649,6 +649,7 @@ export const BoardKanbanPage: React.FC = () => {
         defaultColumnId={defaultColForTask}
         saving={savingTask}
         workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
+        boardId={boardId}
       />
 
       {/* Task Detail Drawer */}

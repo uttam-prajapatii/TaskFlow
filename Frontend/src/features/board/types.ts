@@ -11,6 +11,15 @@ export interface TaskChecklist {
   total: number;
 }
 
+export interface Label {
+  _id: string;
+  id?: string;
+  boardId: string;
+  name: string;
+  color?: string;
+  createdAt?: string;
+}
+
 export interface TaskAssigneeUser {
   _id: string;
   fullName?: string;
@@ -29,7 +38,7 @@ export interface Task {
   boardId?: string;
   dueDate?: string | null;
   assignees?: Array<string | TaskAssigneeUser>;
-  labels?: string[];
+  labels?: Array<string | Label>;
   attachments?: number;
   comments?: number;
   checklist?: TaskChecklist;

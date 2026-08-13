@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import type { Task, BoardList } from '../types';
 import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
-import { PRIORITY_CONFIG, LABEL_COLORS, isOverdue, formatDate } from './KanbanTaskCard';
+import { PRIORITY_CONFIG, getLabelMeta, isOverdue, formatDate } from './KanbanTaskCard';
 import workspaceService from '../../../services/workspace.service';
 import commentService, { type Comment } from '../../../services/comment.service';
 import useAuth from '../../../hooks/useAuth';
@@ -317,17 +317,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5">Labels</p>
             <div className="flex flex-wrap gap-1.5">
               {task.labels && task.labels.length ? (
-                task.labels.map((l) => (
-                  <span
-                    key={l}
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
-                      LABEL_COLORS[l] ||
-                      'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
-                    }`}
-                  >
-                    {l}
-                  </span>
-                ))
+                task.labels.map((l, idx) => {
+                  const meta = getLabelMeta(l);
+                  const keyStr = typeof l === 'object' && l !== null ? l._id : `drawer-label-${idx}`;
+                  return (
+                    <span
+                      key={keyStr}
+                      style={meta.style}
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${meta.className}`}
+                    >
+                      {meta.name}
+                    </span>
+                  );
+                })
               ) : (
                 <span className="text-[12px] text-neutral-400 dark:text-neutral-500">None</span>
               )}
