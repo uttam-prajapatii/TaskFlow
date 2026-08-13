@@ -2,11 +2,14 @@ import api from './api';
 import type {
   ApiResponse,
   AuthSuccessData,
+  ForgotPasswordDTO,
   LoginDTO,
   MeSuccessData,
   RefreshSuccessData,
   RegisterDTO,
   ResendOtpDTO,
+  ResetPasswordDTO,
+  UpdatePasswordDTO,
   VerifyOtpDTO,
 } from '../features/auth/types';
 
@@ -64,6 +67,30 @@ export const authService = {
    */
   async logout(): Promise<ApiResponse<null>> {
     const response = await api.post<ApiResponse<null>>('/api/v1/auth/logout', {});
+    return response.data;
+  },
+
+  /**
+   * Request password reset link email
+   */
+  async forgotPassword(data: ForgotPasswordDTO): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>('/api/v1/auth/forgot-password', data);
+    return response.data;
+  },
+
+  /**
+   * Reset password using token
+   */
+  async resetPassword(token: string, data: ResetPasswordDTO): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>(`/api/v1/auth/reset-password/${encodeURIComponent(token)}`, data);
+    return response.data;
+  },
+
+  /**
+   * Update password for logged-in user
+   */
+  async updatePassword(data: UpdatePasswordDTO): Promise<ApiResponse<null>> {
+    const response = await api.patch<ApiResponse<null>>('/api/v1/auth/update-password', data);
     return response.data;
   },
 };

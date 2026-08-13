@@ -181,7 +181,7 @@ export async function sendDueDateReminderEmail({ toEmail, taskTitle, dueDate, ta
  * @returns {Promise<Object>} Mail sending metadata
  */
 export async function sendPasswordResetEmail({ toEmail, resetToken }) {
-  const resetUrl = `${process.env.APP_BASE_URL || 'https://taskflow.app'}/reset-password?token=${resetToken}`;
+  const resetUrl = `${process.env.APP_BASE_URL}/reset-password?token=${resetToken}`;
   return sendEmail({
     to: toEmail,
     subject: 'Reset your TaskFlow password',

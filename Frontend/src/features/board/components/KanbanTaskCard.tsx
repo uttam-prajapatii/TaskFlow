@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Task, PriorityLevel } from '../types';
+import type { Task, PriorityLevel, Label } from '../types';
 import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
 
@@ -44,6 +44,34 @@ export const LABEL_COLORS: Record<string, string> = {
   bug: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
   research: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300',
   marketing: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300',
+};
+
+export const getLabelMeta = (label: string | Label): { name: string; style?: React.CSSProperties; className: string } => {
+  if (typeof label === 'object' && label !== null) {
+    const name = label.name || 'Label';
+    const color = label.color || '#4F46E5';
+    if (/^#([0-9a-fA-F]{3}){1,2}$/.test(color)) {
+      return {
+        name,
+        style: {
+          backgroundColor: `${color}1A`,
+          color: color,
+          borderColor: `${color}33`,
+        },
+        className: 'border font-medium',
+      };
+    }
+    return {
+      name,
+      className: LABEL_COLORS[name.toLowerCase()] || 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
+    };
+  }
+
+  const labelStr = String(label);
+  return {
+    name: labelStr,
+    className: LABEL_COLORS[labelStr.toLowerCase()] || 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
+  };
 };
 
 const TODAY = new Date();
@@ -189,17 +217,19 @@ export const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
 
       {task.labels && task.labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2.5">
-          {task.labels.map((l) => (
-            <span
-              key={l}
-              className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                LABEL_COLORS[l] ||
-                'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
-              }`}
-            >
-              {l}
-            </span>
-          ))}
+          {task.labels.map((l, idx) => {
+            const meta = getLabelMeta(l);
+            const keyStr = typeof l === 'object' && l !== null ? l._id : `label-${idx}`;
+            return (
+              <span
+                key={keyStr}
+                style={meta.style}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${meta.className}`}
+              >
+                {meta.name}
+              </span>
+            );
+          })}
         </div>
       )}
 

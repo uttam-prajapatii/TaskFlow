@@ -56,6 +56,19 @@ export interface LoginDTO {
   password: string;
 }
 
+export interface ForgotPasswordDTO {
+  email: string;
+}
+
+export interface ResetPasswordDTO {
+  newPassword: string;
+}
+
+export interface UpdatePasswordDTO {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface AuthResult {
   requiresOtp: boolean;
   email?: string;

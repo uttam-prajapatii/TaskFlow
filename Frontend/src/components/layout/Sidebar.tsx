@@ -284,6 +284,16 @@ export const Sidebar: React.FC = () => {
             <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
           </button>
 
+          {/* Account Security Button */}
+          <button
+            type="button"
+            onClick={() => navigate('/settings/password')}
+            title="Account Security & Password"
+            className="p-1.5 rounded-xl text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer"
+          >
+            <Icon name="lock" size={15} />
+          </button>
+
           {/* Settings Link Button */}
           <button
             type="button"

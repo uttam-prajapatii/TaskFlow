@@ -23,6 +23,7 @@ class TaskRepository {
     return Task.findOne({ _id: id, isDeleted: { $ne: true } })
       .populate('assignees', 'fullName email')
       .populate('createdBy', 'fullName email')
+      .populate('labels')
       .exec();
   }
 
@@ -42,6 +43,7 @@ class TaskRepository {
     return Task.find({ boardId, isDeleted: { $ne: true }, ...filters })
       .populate('assignees', 'fullName email')
       .populate('createdBy', 'fullName email')
+      .populate('labels')
       .sort({ listId: 1, position: 1 })
       .exec();
   }

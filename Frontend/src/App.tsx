@@ -6,6 +6,8 @@ import { AuthProvider } from './features/auth/context/AuthContext';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import PostLoginRedirect from './features/auth/components/PostLoginRedirect';
 import AuthPage from './features/auth/pages/AuthPage';
+import ResetPasswordPage from './features/auth/pages/ResetPasswordPage';
+import SecuritySettingsPage from './features/auth/pages/SecuritySettingsPage';
 
 import OnboardingPage from './features/workspace/pages/OnboardingPage';
 import WorkspaceSelectorPage from './features/workspace/pages/WorkspaceSelectorPage';
@@ -33,6 +35,15 @@ function App() {
             <Route path="/register" element={<AuthPage mode="signup" />} />
             <Route path="/verify-otp" element={<AuthPage mode="verify-otp" />} />
             <Route path="/forgot-password" element={<AuthPage mode="signin" />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route
+              path="/settings/password"
+              element={
+                <ProtectedRoute>
+                  <SecuritySettingsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/onboarding"
               element={

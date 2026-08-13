@@ -4,9 +4,10 @@ interface FormInputProps {
   label: string;
   id: string;
   type: string;
+  name?: string;
   placeholder?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   required?: boolean;
@@ -18,6 +19,7 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({
   label,
   id,
   type,
+  name,
   placeholder,
   value,
   onChange,
@@ -50,6 +52,7 @@ const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({
         <input
           ref={ref}
           id={id}
+          name={name}
           type={inputType}
           placeholder={placeholder}
           value={value}
