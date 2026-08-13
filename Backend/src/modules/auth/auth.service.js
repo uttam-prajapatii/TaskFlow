@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import authRepository from './auth.repository.js';
 import tokenService from './token.service.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
-import { BadRequestError, UnauthorizedError } from '../../utils/errors.js';
+import { BadRequestError, UnauthorizedError, NotFoundError } from '../../utils/errors.js';
 import logger from '../../utils/logger.js';
 import redisClient from '../../config/redis.js';
 import { enqueueEmail } from '../email/email.queue.js';
@@ -255,7 +255,7 @@ class AuthService {
     const user = await authRepository.findUserByEmail(email);
     if (!user) {
       logger.info(`Password reset requested for non-existent email: ${email}`);
-      return; // Return silently to prevent user enumeration
+      throw new NotFoundError('User with this email does not exist');
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');

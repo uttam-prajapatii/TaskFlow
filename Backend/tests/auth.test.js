@@ -6,7 +6,7 @@ import tokenService from '../src/modules/auth/token.service.js';
 import User from '../src/modules/auth/user.model.js';
 import RefreshToken from '../src/modules/auth/refreshToken.model.js';
 import redisClient from '../src/config/redis.js';
-import { UnauthorizedError, BadRequestError } from '../src/utils/errors.js';
+import { UnauthorizedError, BadRequestError, NotFoundError } from '../src/utils/errors.js';
 import { cookieConfig } from '../src/modules/auth/auth.utils.js';
 
 // Load environment variables for the test context
@@ -438,6 +438,18 @@ describe('Authentication System Tests', () => {
       expect(dbUser.passwordResetToken).toBeDefined();
       expect(dbUser.passwordResetExpires).toBeDefined();
       expect(dbUser.passwordResetExpires.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    test('should throw NotFoundError for non-existent email in forgot password', async () => {
+      let err;
+      try {
+        await authService.forgotPassword('non_existent@test.com');
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeDefined();
+      expect(err).toBeInstanceOf(NotFoundError);
+      expect(err.message).toBe('User with this email does not exist');
     });
 
     test('should fail to reset password with invalid token', async () => {
