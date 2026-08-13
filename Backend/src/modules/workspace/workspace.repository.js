@@ -16,8 +16,8 @@ class WorkspaceRepository {
    */
   async findWorkspaceById(id) {
     return Workspace.findOne({ _id: id, isDeleted: { $ne: true } })
-      .populate('ownerId', 'fullName email')
-      .populate('members.userId', 'fullName email')
+      .populate('ownerId', 'fullName email avatarUrl')
+      .populate('members.userId', 'fullName email avatarUrl')
       .exec();
   }
 
@@ -57,9 +57,27 @@ class WorkspaceRepository {
       slug: idOrSlug.toLowerCase().trim(),
       isDeleted: { $ne: true }
     })
-      .populate('ownerId', 'fullName email')
-      .populate('members.userId', 'fullName email')
+      .populate('ownerId', 'fullName email avatarUrl')
+      .populate('members.userId', 'fullName email avatarUrl')
       .exec();
+  }
+  
+  /**
+   * Find workspace owner and member IDs only (lightweight query for search access check).
+   */
+  async findWorkspaceMembersOnly(idOrSlug) {
+    if (!idOrSlug) return null;
+    
+    const query = { isDeleted: { $ne: true } };
+    if (mongoose.Types.ObjectId.isValid(idOrSlug)) {
+      query._id = idOrSlug;
+    } else if (typeof idOrSlug === 'string') {
+      query.slug = idOrSlug.toLowerCase().trim();
+    } else {
+      return null;
+    }
+
+    return Workspace.findOne(query, 'ownerId members.userId').lean();
   }
 
   /**
@@ -82,8 +100,8 @@ class WorkspaceRepository {
       if (view === 'compact') {
         builder = builder.select('_id slug name logoUrl');
       } else {
-        builder = builder.populate('ownerId', 'fullName email')
-          .populate('members.userId', 'fullName email');
+        builder = builder.populate('ownerId', 'fullName email avatarUrl')
+          .populate('members.userId', 'fullName email avatarUrl');
       }
       return builder.sort({ createdAt: -1 }).exec();
     }
@@ -95,8 +113,8 @@ class WorkspaceRepository {
     if (view === 'compact') {
       builder = builder.select('_id slug name logoUrl');
     } else {
-      builder = builder.populate('ownerId', 'fullName email')
-        .populate('members.userId', 'fullName email');
+      builder = builder.populate('ownerId', 'fullName email avatarUrl')
+        .populate('members.userId', 'fullName email avatarUrl');
     }
 
     const workspaces = await builder
@@ -125,8 +143,8 @@ class WorkspaceRepository {
       updateData,
       { new: true, runValidators: true }
     )
-      .populate('ownerId', 'fullName email')
-      .populate('members.userId', 'fullName email')
+      .populate('ownerId', 'fullName email avatarUrl')
+      .populate('members.userId', 'fullName email avatarUrl')
       .exec();
   }
 
