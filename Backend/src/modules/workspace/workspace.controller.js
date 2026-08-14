@@ -147,6 +147,21 @@ class WorkspaceController {
     const workspace = await workspaceService.uploadLogo(workspaceId, req.user._id, req.file);
     return ApiResponse.success(res, 'Workspace logo uploaded successfully', workspace);
   });
+
+  /**
+   * Search workspace members by name or email.
+   */
+  searchMembers = asyncHandler(async (req, res) => {
+    const { workspaceId } = req.params;
+    const { q, query, limit, page } = req.query;
+    const searchQ = q || query || '';
+    const members = await workspaceService.searchMembers(workspaceId, req.user._id, {
+      q: searchQ,
+      limit,
+      page
+    });
+    return ApiResponse.success(res, 'Members searched successfully', members);
+  });
 }
 
 export default new WorkspaceController();

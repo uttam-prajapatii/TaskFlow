@@ -466,6 +466,35 @@ describe('Workspace Management System Tests', () => {
       expect(nextError).toBeDefined();
       expect(nextError.message).toBe("View parameter must be either 'compact' or 'full'");
     });
+
+    test('should search workspace members via controller endpoint', async () => {
+      const ws = await workspaceService.createWorkspace(userOwner._id, { name: 'Search Controller WS' });
+      
+      const req = {
+        user: { _id: userOwner._id },
+        params: { workspaceId: ws._id.toString() },
+        query: { q: 'Owner', limit: '10', page: '1' }
+      };
+
+      let responseData;
+      const res = {
+        status: mock(function() { return this; }),
+        json: mock(function(data) { responseData = data; return this; })
+      };
+      
+      let nextError;
+      const next = mock(err => { nextError = err; });
+
+      await workspaceController.searchMembers(req, res, next);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(responseData).toBeDefined();
+      expect(responseData.status).toBe('success');
+      expect(responseData.data).toBeDefined();
+      expect(responseData.data).toHaveLength(1);
+      expect(responseData.data[0].name).toBe('Workspace Owner');
+    });
   });
 
   // ==========================================
@@ -676,6 +705,53 @@ describe('Workspace Management System Tests', () => {
       expect(error).toBeDefined();
       expect(error).toBeInstanceOf(BadRequestError);
       expect(error.message).toBe('Workspace owner cannot leave the workspace');
+    });
+
+    test('should search workspace members and return lite matches by name or email', async () => {
+      // Add members
+      ws.members.push({ userId: userAdmin._id, role: 'admin', joinedAt: new Date() });
+      ws.members.push({ userId: userViewer._id, role: 'viewer', joinedAt: new Date() });
+      await ws.save();
+
+      // Update one of the users to have an avatarUrl
+      userAdmin.avatarUrl = 'https://example.com/avatar.png';
+      await userAdmin.save();
+
+      // Search by name
+      let results = await workspaceService.searchMembers(ws._id, userOwner._id, { q: 'Admin' });
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe('Admin Member');
+      expect(results[0].email).toBe('admin_member@example.com');
+      expect(results[0].avatar).toBe('https://example.com/avatar.png');
+
+      // Search by email
+      results = await workspaceService.searchMembers(ws._id, userOwner._id, { q: 'viewer_member@example.com' });
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe('Viewer Member');
+      expect(results[0].avatar).toBeNull();
+
+      // Search with empty query returns all members (owner + admin + viewer = 3)
+      results = await workspaceService.searchMembers(ws._id, userOwner._id, { q: '' });
+      expect(results).toHaveLength(3);
+
+      // Search with query that matches nothing returns empty array
+      results = await workspaceService.searchMembers(ws._id, userOwner._id, { q: 'nonexistent' });
+      expect(results).toHaveLength(0);
+
+      // Escape special characters test
+      results = await workspaceService.searchMembers(ws._id, userOwner._id, { q: 'Admin+Member' });
+      expect(results).toHaveLength(0);
+    });
+
+    test('should enforce workspace access control during search', async () => {
+      let error;
+      try {
+        await workspaceService.searchMembers(ws._id, userExternal._id, { q: 'Owner' });
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(ForbiddenError);
     });
   });
 });

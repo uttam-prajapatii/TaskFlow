@@ -669,9 +669,68 @@ class WorkspaceService {
       activeTasksCount: activeTasks,
       completedTasksCount: completedTasks.length,
       priorityBreakdown,
-      velocity,
       averageCycleTimeDays
     };
+  }
+
+  /**
+   * Search workspace members by name or email.
+   * Only accessible by workspace members/owners.
+   */
+  async searchMembers(workspaceId, userId, { q = '', limit = 20, page = 1 } = {}) {
+    const workspace = await workspaceRepository.findWorkspaceMembersOnly(workspaceId);
+    if (!workspace) {
+      throw new NotFoundError('Workspace not found');
+    }
+
+    const ownerStrId = getStrId(workspace.ownerId);
+    const userStrId = userId.toString();
+
+    const isOwner = ownerStrId === userStrId;
+    const isMember = workspace.members.some(
+      (m) => m.userId && getStrId(m.userId) === userStrId
+    );
+
+    if (!isOwner && !isMember) {
+      throw new ForbiddenError('You do not have access to this workspace');
+    }
+
+    const memberIds = workspace.members.map((m) => m.userId).filter(Boolean);
+    if (!memberIds.some((id) => getStrId(id) === ownerStrId)) {
+      memberIds.push(workspace.ownerId);
+    }
+
+    const userQuery = {
+      _id: { $in: memberIds },
+      isActive: true
+    };
+
+    const trimmedQ = (q || '').trim();
+    if (trimmedQ) {
+      const escapedQuery = trimmedQ.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(escapedQuery, 'i');
+      userQuery.$or = [
+        { fullName: regex },
+        { email: regex }
+      ];
+    }
+
+    const parsedPage = Number.parseInt(page, 10) || 1;
+    const parsedLimit = Number.parseInt(limit, 10) || 20;
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const matchedUsers = await User.find(userQuery)
+      .select('fullName email avatarUrl')
+      .skip(skip)
+      .limit(parsedLimit)
+      .lean();
+
+    return matchedUsers.map((user) => ({
+      _id: user._id,
+      name: user.fullName,
+      email: user.email,
+      avatar: user.avatarUrl || null
+    }));
   }
 }
 

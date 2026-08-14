@@ -114,6 +114,47 @@ export const workspacePaths = {
       }
     }
   },
+  "/api/v1/workspaces/{workspaceId}/members/search": {
+    get: {
+      summary: "Search workspace members",
+      tags: ["Workspace Members"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+        { name: "q", in: "query", required: false, schema: { type: "string" }, description: "Search query matching user full name or email" },
+        { name: "page", in: "query", required: false, schema: { type: "integer", default: 1 } },
+        { name: "limit", in: "query", required: false, schema: { type: "integer", default: 20 } }
+      ],
+      responses: {
+        200: {
+          description: "Search results representing a lite response of matched workspace members",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  status: { type: "string", example: "success" },
+                  message: { type: "string", example: "Members searched successfully" },
+                  data: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        _id: { type: "string", example: "60c72b2f9b1d8e001c8e4321" },
+                        name: { type: "string", example: "Jane Doe" },
+                        email: { type: "string", format: "email", example: "jane.doe@example.com" },
+                        avatar: { type: "string", nullable: true, example: "https://example.com/avatar.png" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   "/api/v1/workspaces/{workspaceId}/members": {
     get: {
       summary: "List all members of a workspace",

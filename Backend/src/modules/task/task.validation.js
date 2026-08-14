@@ -65,7 +65,9 @@ export const validateCreateTask = (req, res, next) => {
 
   if (dueDate !== undefined && dueDate !== null) {
     const parsedDate = new Date(dueDate);
-    if (Number.isNaN(parsedDate.getTime()) || parsedDate < new Date().getTime()) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (Number.isNaN(parsedDate.getTime()) || parsedDate < startOfToday) {
       return next(new BadRequestError('Invalid due date format'));
     }
     req.body.dueDate = parsedDate;
@@ -105,7 +107,9 @@ export const validateUpdateTask = (req, res, next) => {
 
   if (dueDate !== undefined && dueDate !== null) {
     const parsedDate = new Date(dueDate);
-    if (Number.isNaN(parsedDate.getTime()) || parsedDate < new Date().getTime()) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (Number.isNaN(parsedDate.getTime()) || parsedDate < startOfToday) {
       return next(new BadRequestError('Invalid due date format'));
     }
     req.body.dueDate = parsedDate;

@@ -18,6 +18,7 @@ router.patch('/:workspaceId', protect, validateUpdateWorkspace, workspaceControl
 router.delete('/:workspaceId', protect, workspaceController.deleteWorkspace);
 
 // Members and invitations routes
+router.get('/:workspaceId/members/search', protect, workspaceController.searchMembers);
 router.get('/:workspaceId/members', protect, workspaceController.listMembers);
 router.post('/:workspaceId/invites', protect, validateInviteMember, workspaceController.inviteMember);
 router.get('/:workspaceId/invites', protect, workspaceController.listPendingInvites);
