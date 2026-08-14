@@ -18,6 +18,8 @@ interface MentionCommentInputProps {
   submitButtonLabel?: string;
 }
 
+const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
   workspaceId,
   onSubmit,
@@ -33,16 +35,17 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
   const [filteredMembers, setFilteredMembers] = useState<WorkspaceMemberInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
-  const [selectedMentionMap, setSelectedMentionMap] = useState<Map<string, string>>(new Map()); // name -> id
+  const [selectedMentionMap, setSelectedMentionMap] = useState<Map<string, string>>(new Map()); // name/email -> id
   const [inputError, setInputError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Pre-fetch workspace members if workspaceId is present
+  // Pre-fetch workspace members strictly from the active workspace
   useEffect(() => {
     if (!workspaceId) {
       setMembers([]);
+      setFilteredMembers([]);
       return;
     }
     let isCancelled = false;
@@ -55,12 +58,16 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
           const id = uObj ? uObj._id : (m.userId as string);
           const name = uObj ? (uObj.fullName || uObj.name || uObj.email || 'Member') : 'Member';
           const email = uObj ? uObj.email : undefined;
-          return { id, name, email };
+          const avatar = uObj ? (uObj as { avatarUrl?: string }).avatarUrl : undefined;
+          return { id, name, email, avatar };
         });
         setMembers(formatted);
       })
       .catch(() => {
-        if (!isCancelled) setMembers([]);
+        if (!isCancelled) {
+          setMembers([]);
+          setFilteredMembers([]);
+        }
       });
 
     return () => {
@@ -68,14 +75,30 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
     };
   }, [workspaceId]);
 
-  // Fetch or filter workspace members when search query changes
+  // Filter members based on search query
   useEffect(() => {
     if (!isOpen) return;
 
     const trimmed = searchQuery.trim().toLowerCase();
 
-    // If workspace search API is available, search debounced or filter local
-    if (workspaceId && trimmed.length > 0) {
+    if (!trimmed) {
+      setFilteredMembers(members);
+      setSelectedIndex(0);
+      return;
+    }
+
+    // Filter local members first for instantaneous zero-latency response
+    const localFiltered = members.filter(
+      (m) =>
+        m.name.toLowerCase().includes(trimmed) ||
+        (m.email && m.email.toLowerCase().includes(trimmed))
+    );
+
+    setFilteredMembers(localFiltered);
+    setSelectedIndex(0);
+
+    // If workspace search API is available, also search remote if needed
+    if (workspaceId && trimmed.length >= 2) {
       let isCancelled = false;
       workspaceService
         .searchMembers(workspaceId, trimmed)
@@ -88,66 +111,119 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
               email: u.email,
               avatar: u.avatar,
             }));
-            setFilteredMembers(mapped);
-          } else {
-            // Fallback filter local
-            const localFiltered = members.filter(
-              (m) =>
-                m.name.toLowerCase().includes(trimmed) ||
-                (m.email && m.email.toLowerCase().includes(trimmed))
-            );
-            setFilteredMembers(localFiltered);
+            // Merge deduplicated
+            setFilteredMembers((prev) => {
+              const combined = [...prev];
+              mapped.forEach((item) => {
+                if (!combined.some((c) => c.id === item.id)) {
+                  combined.push(item);
+                }
+              });
+              return combined;
+            });
           }
-          setSelectedIndex(0);
         })
         .catch(() => {
-          if (isCancelled) return;
-          const localFiltered = members.filter(
-            (m) =>
-              m.name.toLowerCase().includes(trimmed) ||
-              (m.email && m.email.toLowerCase().includes(trimmed))
-          );
-          setFilteredMembers(localFiltered);
-          setSelectedIndex(0);
+          // Keep local filtered on error
         });
 
       return () => {
         isCancelled = true;
       };
-    } else {
-      setFilteredMembers(members);
-      setSelectedIndex(0);
     }
   }, [isOpen, searchQuery, workspaceId, members]);
 
-  // Check text around cursor for mention trigger `@`
+  // Precise mention token parser using cursor position
+  const evaluateMentionTrigger = useCallback(
+    (currentVal: string, cursorPos: number) => {
+      const textBeforeCursor = currentVal.slice(0, cursorPos);
+
+      // Find the nearest '@' before the cursor on the current line
+      let activeAtIndex = -1;
+      for (let i = cursorPos - 1; i >= 0; i--) {
+        if (textBeforeCursor[i] === '\n') {
+          break; // Mentions do not cross newline boundaries
+        }
+        if (textBeforeCursor[i] === '@') {
+          // Check that '@' is at start of string or preceded by whitespace
+          if (i === 0 || /\s/.test(textBeforeCursor[i - 1])) {
+            activeAtIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (activeAtIndex === -1) {
+        setIsOpen(false);
+        setMentionStartIndex(null);
+        setSearchQuery('');
+        return;
+      }
+
+      const textFromAt = currentVal.slice(activeAtIndex);
+
+      // Check if the '@' at activeAtIndex is an already completed mention
+      // A mention is completed if it matches @<MemberName> and the cursor is after the delimiter/space
+      const isCompleted = members.some((m) => {
+        const mentionPattern = `@${m.name}`;
+        if (textFromAt.startsWith(mentionPattern)) {
+          const charAfter = textFromAt.charAt(mentionPattern.length);
+          // If followed by space or punctuation and cursor is past the completed token
+          if (
+            (charAfter === ' ' ||
+              charAfter === '\n' ||
+              charAfter === ',' ||
+              charAfter === '.' ||
+              charAfter === '!' ||
+              charAfter === '?' ||
+              charAfter === '') &&
+            cursorPos >= activeAtIndex + mentionPattern.length + (charAfter === ' ' ? 1 : 0)
+          ) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (isCompleted) {
+        setIsOpen(false);
+        setMentionStartIndex(null);
+        setSearchQuery('');
+        return;
+      }
+
+      // User is actively typing an uncompleted mention
+      const query = textBeforeCursor.slice(activeAtIndex + 1);
+
+      // Mentions cannot contain newlines or excessive spaces
+      if (query.includes('\n') || query.split(' ').length > 3 || query.length > 40) {
+        setIsOpen(false);
+        setMentionStartIndex(null);
+        setSearchQuery('');
+        return;
+      }
+
+      setMentionStartIndex(activeAtIndex);
+      setSearchQuery(query);
+      setIsOpen(true);
+    },
+    [members]
+  );
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     const cursorPos = e.target.selectionStart || 0;
     setText(val);
     if (inputError) setInputError(null);
+    evaluateMentionTrigger(val, cursorPos);
+  };
 
-    const textBeforeCursor = val.slice(0, cursorPos);
-    // Find the last '@' symbol before cursor that is preceded by start of string or whitespace
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-
-    if (lastAtIndex !== -1) {
-      const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
-      if (charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0) {
-        const query = textBeforeCursor.slice(lastAtIndex + 1);
-        // Valid query must not contain newlines
-        if (!query.includes('\n')) {
-          setMentionStartIndex(lastAtIndex);
-          setSearchQuery(query);
-          setIsOpen(true);
-          return;
-        }
-      }
+  const handleSelectOrKeyUp = () => {
+    if (textareaRef.current) {
+      const val = textareaRef.current.value;
+      const cursorPos = textareaRef.current.selectionStart || 0;
+      evaluateMentionTrigger(val, cursorPos);
     }
-
-    setIsOpen(false);
-    setMentionStartIndex(null);
-    setSearchQuery('');
   };
 
   // Insert selected member mention into comment
@@ -176,7 +252,7 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
       setMentionStartIndex(null);
       setSearchQuery('');
 
-      // Restore focus and update cursor position
+      // Restore focus and position cursor right after the mention token
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
@@ -255,17 +331,24 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
     // Extract mentioned user IDs present in the comment body
     const mentionedIdsSet = new Set<string>();
 
-    // 1. Check known selected mentions map
-    selectedMentionMap.forEach((id, name) => {
-      if (trimmed.includes(`@${name}`)) {
-        mentionedIdsSet.add(id);
+    // 1. Check loaded workspace members
+    members.forEach((m) => {
+      const nameRegex = new RegExp(`@${escapeRegex(m.name)}(?:\\b|\\s|$)`, 'i');
+      if (nameRegex.test(trimmed)) {
+        mentionedIdsSet.add(m.id);
+      } else if (m.email) {
+        const emailRegex = new RegExp(`@${escapeRegex(m.email)}(?:\\b|\\s|$)`, 'i');
+        if (emailRegex.test(trimmed)) {
+          mentionedIdsSet.add(m.id);
+        }
       }
     });
 
-    // 2. Also check loaded workspace members
-    members.forEach((m) => {
-      if (trimmed.includes(`@${m.name}`) || (m.email && trimmed.includes(`@${m.email}`))) {
-        mentionedIdsSet.add(m.id);
+    // 2. Check tracked selected mentions map
+    selectedMentionMap.forEach((id, name) => {
+      const reg = new RegExp(`@${escapeRegex(name)}(?:\\b|\\s|$)`, 'i');
+      if (reg.test(trimmed)) {
+        mentionedIdsSet.add(id);
       }
     });
 
@@ -339,6 +422,8 @@ export const MentionCommentInput: React.FC<MentionCommentInputProps> = ({
             ref={textareaRef}
             value={text}
             onChange={handleInputChange}
+            onKeyUp={handleSelectOrKeyUp}
+            onClick={handleSelectOrKeyUp}
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder={placeholder}

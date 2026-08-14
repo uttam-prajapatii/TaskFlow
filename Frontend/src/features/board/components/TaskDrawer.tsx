@@ -717,13 +717,41 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
 
             <div className="space-y-3 text-[12px]">
               {/* Task Creation Log */}
-              <div className="flex gap-2">
-                <Avatar name="TaskFlow" size={20} ring={false} />
-                <p className="text-neutral-500 dark:text-neutral-400">
-                  <span className="text-neutral-700 dark:text-neutral-200 font-medium">TaskFlow</span>{' '}
-                  created this task
-                </p>
-              </div>
+              {(() => {
+                const creatorRaw = populatedTask?.createdBy || activeTask?.createdBy;
+                let creatorName = 'Former member';
+                if (typeof creatorRaw === 'object' && creatorRaw !== null) {
+                  creatorName = creatorRaw.fullName || creatorRaw.name || creatorRaw.email || 'Former member';
+                } else if (typeof creatorRaw === 'string' && creatorRaw) {
+                  const matched = teamMembers.find((m) => m.id === creatorRaw);
+                  if (matched) {
+                    creatorName = matched.name || matched.email || 'Former member';
+                  } else if (currentUser && String(currentUser._id) === creatorRaw) {
+                    creatorName = currentUser.fullName || currentUser.email || 'You';
+                  }
+                }
+
+                const taskCreatedAtStr = populatedTask?.createdAt || activeTask?.createdAt;
+
+                return (
+                  <div className="flex gap-2 items-start">
+                    <Avatar name={creatorName} size={20} ring={false} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-neutral-500 dark:text-neutral-400 leading-normal">
+                        <span className="text-neutral-700 dark:text-neutral-200 font-medium">
+                          {creatorName}
+                        </span>{' '}
+                        created this task
+                      </p>
+                      {taskCreatedAtStr && (
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                          {formatRelativeTime(String(taskCreatedAtStr))}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Loading Comments */}
               {isLoadingComments ? (
