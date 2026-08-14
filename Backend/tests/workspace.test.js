@@ -639,16 +639,27 @@ describe('Workspace Management System Tests', () => {
 
     test('should allow admin/owner to change role of a member, and forbid changing owner role', async () => {
       ws.members.push({ userId: userAdmin._id, role: 'viewer', joinedAt: new Date() });
+      ws.members.push({ userId: userViewer._id, role: 'member', joinedAt: new Date() });
       await ws.save();
 
-      // Owner changes userAdmin role to admin
-      const members = await workspaceService.changeMemberRole(ws._id, userOwner._id, userAdmin._id, 'admin');
+      // Owner changes userViewer role to admin
+      const members = await workspaceService.changeMemberRole(ws._id, userOwner._id, userViewer._id, 'admin');
       const targetMember = members.find(m => {
         const idStr = m.userId && (m.userId._id ? m.userId._id.toString() : m.userId.toString());
-        return idStr === userAdmin._id.toString();
+        return idStr === userViewer._id.toString();
       });
       expect(targetMember).toBeDefined();
       expect(targetMember.role).toBe('admin');
+
+      // Regular member (viewer) attempts to change role -> ForbiddenError
+      let fbError;
+      try {
+        await workspaceService.changeMemberRole(ws._id, userAdmin._id, userViewer._id, 'member');
+      } catch (err) {
+        fbError = err;
+      }
+      expect(fbError).toBeDefined();
+      expect(fbError).toBeInstanceOf(ForbiddenError);
 
       // Attempt to change owner's role -> BadRequestError
       let error;
@@ -664,14 +675,25 @@ describe('Workspace Management System Tests', () => {
 
     test('should allow admin/owner to remove member, and forbid removing owner', async () => {
       ws.members.push({ userId: userAdmin._id, role: 'member', joinedAt: new Date() });
+      ws.members.push({ userId: userViewer._id, role: 'viewer', joinedAt: new Date() });
       await ws.save();
 
-      // Remove member
+      // Regular member (viewer) attempts to remove member -> ForbiddenError
+      let fbError;
+      try {
+        await workspaceService.removeMember(ws._id, userViewer._id, userAdmin._id);
+      } catch (err) {
+        fbError = err;
+      }
+      expect(fbError).toBeDefined();
+      expect(fbError).toBeInstanceOf(ForbiddenError);
+
+      // Remove member by owner
       const result = await workspaceService.removeMember(ws._id, userOwner._id, userAdmin._id);
       expect(result.message).toBe('Member removed successfully');
 
       const updatedWs = await workspaceService.getWorkspaceDetails(ws._id, userOwner._id);
-      expect(updatedWs.members).toHaveLength(1); // Only owner left
+      expect(updatedWs.members).toHaveLength(2); // Owner and viewer
 
       // Attempt to remove owner -> BadRequestError
       let error;

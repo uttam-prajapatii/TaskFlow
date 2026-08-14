@@ -239,7 +239,7 @@ export const workspacePaths = {
       }
     }
   },
-  "/api/v1/workspaces/{workspaceId}/members/{userId}/role": {
+  "/api/v1/workspaces/{workspaceId}/members/{userId}": {
     patch: {
       summary: "Change workspace member role",
       tags: ["Workspace Members"],
@@ -265,9 +265,7 @@ export const workspacePaths = {
       responses: {
         200: { description: "Member role updated successfully" }
       }
-    }
-  },
-  "/api/v1/workspaces/{workspaceId}/members/{userId}": {
+    },
     delete: {
       summary: "Remove member from workspace",
       tags: ["Workspace Members"],

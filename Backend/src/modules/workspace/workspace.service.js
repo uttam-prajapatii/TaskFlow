@@ -323,46 +323,55 @@ class WorkspaceService {
       throw new BadRequestError('Invitation token is required');
     }
 
-    const invite = await workspaceRepository.findInviteByToken(token);
+    // 1. Atomically claim the invite (sets status to 'accepted' to block other concurrent requests)
+    const invite = await workspaceRepository.claimInviteByToken(token);
     if (!invite) {
-      throw new NotFoundError('Invitation is invalid, expired, or has been revoked');
+      throw new NotFoundError('Invitation is invalid, expired, or has already been accepted/revoked');
     }
 
-    // Security check: email must match
+    // 2. Security check: email must match
     if (authenticatedUser.email.toLowerCase() !== invite.email.toLowerCase()) {
+      // Rollback invite status to 'pending' since the user wasn't authorized to claim it
+      invite.status = 'pending';
+      await invite.save();
       throw new ForbiddenError('This invitation was sent to a different email address');
     }
 
+    // 3. Find workspace
     const workspace = await workspaceRepository.findWorkspaceById(invite.workspaceId);
     if (!workspace) {
+      // Rollback invite status to 'pending'
+      invite.status = 'pending';
+      await invite.save();
       throw new NotFoundError('Workspace not found');
     }
 
     const userStrId = authenticatedUser._id.toString();
 
-    // Check if they are already a member
+    // 4. Check if they are already a member
     const isMember = workspace.members.some(
       (m) => m.userId && getStrId(m.userId) === userStrId
     );
     if (isMember) {
-      // Mark invite as accepted/expired to clean up
-      invite.status = 'accepted';
-      await invite.save();
+      // Keep invite as 'accepted' since they are already members, but throw bad request
       throw new BadRequestError('You are already a member of this workspace');
     }
 
-    // Add member
+    // 5. Add member
     workspace.members.push({
       userId: authenticatedUser._id,
       role: invite.role,
       joinedAt: new Date()
     });
 
-    await workspace.save();
-
-    // Mark invite as accepted
-    invite.status = 'accepted';
-    await invite.save();
+    try {
+      await workspace.save();
+    } catch (err) {
+      // Rollback invite status to 'pending' if saving workspace fails
+      invite.status = 'pending';
+      await invite.save();
+      throw err;
+    }
 
     logger.info(`Invitation accepted`, { workspaceId: workspace._id, role: invite.role, userId: authenticatedUser._id, inviteId: invite._id });
 

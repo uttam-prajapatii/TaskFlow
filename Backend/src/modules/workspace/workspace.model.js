@@ -35,6 +35,7 @@ const WorkspaceSchema = new Schema({
   },
   members: {
     type: [MemberSchema],
+    unique:true,
     default: []
   },
   settings: {
