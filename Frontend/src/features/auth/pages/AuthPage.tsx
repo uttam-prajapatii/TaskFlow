@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import BrandPanel from '../components/BrandPanel';
 import SignInForm from '../components/SignInForm';
 import SignUpForm from '../components/SignUpForm';
@@ -12,23 +12,33 @@ interface AuthPageProps {
 
 const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, isLoading } = useAuth();
   const isSignIn = mode === 'signin';
   const isVerifyOtp = mode === 'verify-otp';
 
+  const redirectUrl = searchParams.get('redirect') || '/dashboard';
+
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate('/dashboard', { replace: true });
+      navigate(redirectUrl, { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, redirectUrl]);
 
   const handleNavigateLogin = useCallback(() => {
-    navigate('/login');
-  }, [navigate]);
+    navigate({
+      pathname: '/login',
+      search: location.search,
+    });
+  }, [navigate, location.search]);
 
   const handleNavigateRegister = useCallback(() => {
-    navigate('/register');
-  }, [navigate]);
+    navigate({
+      pathname: '/register',
+      search: location.search,
+    });
+  }, [navigate, location.search]);
 
   return (
     <div className="w-full min-h-screen md:h-screen md:overflow-hidden bg-white grid grid-cols-1 md:grid-cols-[1.05fr_1fr] select-none">

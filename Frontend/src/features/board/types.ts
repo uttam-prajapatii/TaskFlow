@@ -54,6 +54,7 @@ export interface Task {
   comments?: number;
   checklist?: ChecklistItem[] | TaskChecklist;
   position?: number;
+  createdBy?: string | TaskAssigneeUser;
   createdAt?: string | number;
   updatedAt?: string | number;
 }

@@ -1,5 +1,5 @@
 export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
-export type InviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
+export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'revoked';
 
 export interface WorkspaceSettings {
   color?: string;
@@ -48,6 +48,27 @@ export interface WorkspaceInvite {
   token?: string;
   sentAt?: string;
   createdAt: string;
+}
+
+export interface WorkspaceInviteDetails {
+  valid: boolean;
+  status: InviteStatus;
+  email: string;
+  role: WorkspaceRole;
+  expiresAt: string;
+  workspace?: {
+    _id: string;
+    name: string;
+    description?: string;
+    logo?: string | null;
+  } | null;
+  invitedBy?: {
+    _id: string;
+    fullName?: string;
+    email: string;
+    avatarUrl?: string | null;
+  } | null;
+  userExists: boolean;
 }
 
 export interface CreateWorkspacePayload {

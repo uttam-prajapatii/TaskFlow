@@ -18,11 +18,13 @@ router.patch('/:workspaceId', protect, validateUpdateWorkspace, workspaceControl
 router.delete('/:workspaceId', protect, workspaceController.deleteWorkspace);
 
 // Members and invitations routes
+router.get('/invites/:token', workspaceController.getInviteDetails);
+router.post('/invites/:token/accept', protect, workspaceController.acceptInvite);
+router.post('/invites/:token/decline', protect, workspaceController.declineInvite);
 router.get('/:workspaceId/members/search', protect, workspaceController.searchMembers);
 router.get('/:workspaceId/members', protect, workspaceController.listMembers);
 router.post('/:workspaceId/invites', protect, validateInviteMember, workspaceController.inviteMember);
 router.get('/:workspaceId/invites', protect, workspaceController.listPendingInvites);
-router.post('/invites/:token/accept', protect, workspaceController.acceptInvite);
 router.delete('/:workspaceId/invites/:inviteId', protect, workspaceController.revokeInvite);
 router.patch('/:workspaceId/members/:userId', protect, validateChangeRole, workspaceController.changeMemberRole);
 router.delete('/:workspaceId/members/:userId', protect, workspaceController.removeMember);

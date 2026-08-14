@@ -502,32 +502,64 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   <div key={n} className="h-6 w-16 bg-neutral-200 dark:bg-neutral-800 rounded-full animate-pulse" />
                 ))}
               </div>
-            ) : boardLabels.length === 0 ? (
+            ) : boardLabels.length === 0 && form.labels.length === 0 ? (
               <div className="py-2 text-[12px] text-neutral-400 dark:text-neutral-500 italic">
                 No labels on this board yet. Click "Create label" to add one!
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {boardLabels.map((l) => {
-                  const isSelected = form.labels.includes(l._id);
-                  const meta = getLabelMeta(l);
-                  return (
-                    <button
-                      type="button"
-                      key={l._id}
-                      onClick={() => toggleLabel(l._id)}
-                      style={isSelected ? meta.style : undefined}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
-                        isSelected
-                          ? meta.className + ' ring-2 ring-orange-500/50 shadow-2xs font-semibold'
-                          : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
-                      }`}
-                    >
-                      {isSelected && <Icon name="check" size={11} className="text-orange-500" />}
-                      <span>{meta.name}</span>
-                    </button>
-                  );
-                })}
+                {(() => {
+                  const allKnownLabels = [...boardLabels];
+                  if (initial?.labels) {
+                    initial.labels.forEach((l) => {
+                      if (typeof l === 'object' && l !== null && l._id) {
+                        if (!allKnownLabels.some((known) => known._id === l._id)) {
+                          allKnownLabels.push(l as Label);
+                        }
+                      }
+                    });
+                  }
+
+                  return allKnownLabels.map((l) => {
+                    const isSelected = form.labels.includes(l._id);
+                    const meta = getLabelMeta(l);
+                    return (
+                      <div
+                        key={l._id}
+                        style={isSelected ? meta.style : undefined}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium transition select-none ${
+                          isSelected
+                            ? meta.className + ' ring-2 ring-orange-500/50 shadow-2xs font-semibold'
+                            : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleLabel(l._id)}
+                          className="inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          {isSelected && <Icon name="check" size={11} className="text-orange-500 shrink-0" />}
+                          <span>{meta.name}</span>
+                        </button>
+
+                        {isSelected && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleLabel(l._id);
+                            }}
+                            className="p-0.5 -mr-1 rounded-full hover:bg-black/10 dark:hover:bg-white/20 text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-100 transition cursor-pointer"
+                            title={`Remove ${meta.name}`}
+                            aria-label={`Remove ${meta.name}`}
+                          >
+                            <Icon name="x" size={12} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>

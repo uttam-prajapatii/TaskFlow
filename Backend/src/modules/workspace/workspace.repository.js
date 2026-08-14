@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Workspace } from './workspace.model.js';
 import { WorkspaceInvite } from './workspaceInvite.model.js';
+import User from '../auth/user.model.js';
 
 class WorkspaceRepository {
   /**
@@ -250,6 +251,36 @@ class WorkspaceRepository {
         expiresAt: { $gt: new Date() }
       },
       { status: 'accepted' },
+      { new: true }
+    ).exec();
+  }
+
+  /**
+   * Find an invitation by token with populated workspace and inviter details.
+   */
+  async findInviteByToken(token) {
+    return WorkspaceInvite.findOne({ token })
+      .populate('workspaceId', 'name description logo settings')
+      .populate('invitedBy', 'fullName email avatarUrl')
+      .exec();
+  }
+
+  /**
+   * Atomically decline a pending invitation by updating its status to 'declined'.
+   */
+  async declineInviteByToken(token) {
+    return WorkspaceInvite.findOneAndUpdate(
+      {
+        token,
+        status: 'pending',
+        isDeleted: { $ne: true },
+        expiresAt: { $gt: new Date() }
+      },
+      {
+        status: 'declined',
+        isDeleted: true,
+        deletedAt: new Date()
+      },
       { new: true }
     ).exec();
   }

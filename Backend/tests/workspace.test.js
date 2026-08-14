@@ -635,6 +635,52 @@ describe('Workspace Management System Tests', () => {
       // Invite status in database is now accepted
       const updatedInvite = await mongoose.model('WorkspaceInvites').findById(invite._id);
       expect(updatedInvite.status).toBe('accepted');
+
+      // Re-accepting already accepted invite returns alreadyMember: true
+      const reAcceptResult = await workspaceService.acceptInvite(invite.token, userAdmin);
+      expect(reAcceptResult.alreadyMember).toBe(true);
+    });
+
+    test('should allow retrieving invite details via getInviteDetails', async () => {
+      const invite = await workspaceService.inviteMember(ws._id, userOwner._id, {
+        email: 'viewer_member@example.com',
+        role: 'viewer'
+      });
+
+      const details = await workspaceService.getInviteDetails(invite.token);
+      expect(details).toBeDefined();
+      expect(details.valid).toBe(true);
+      expect(details.status).toBe('pending');
+      expect(details.email).toBe('viewer_member@example.com');
+      expect(details.role).toBe('viewer');
+      expect(details.workspace.name).toBe(ws.name);
+      expect(details.invitedBy.email).toBe(userOwner.email);
+      expect(details.userExists).toBe(true); // viewer_member@example.com exists in users
+    });
+
+    test('should allow invited user to decline invite', async () => {
+      const invite = await workspaceService.inviteMember(ws._id, userOwner._id, {
+        email: 'viewer_member@example.com',
+        role: 'viewer'
+      });
+
+      // Decline with wrong user
+      let error;
+      try {
+        await workspaceService.declineInvite(invite.token, userExternal);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(ForbiddenError);
+
+      // Decline with correct user
+      const result = await workspaceService.declineInvite(invite.token, userViewer);
+      expect(result.message).toBe('Invitation declined successfully');
+
+      const updatedInvite = await mongoose.model('WorkspaceInvites').findById(invite._id);
+      expect(updatedInvite.status).toBe('declined');
+      expect(updatedInvite.isDeleted).toBe(true);
     });
 
     test('should allow admin/owner to change role of a member, and forbid changing owner role', async () => {

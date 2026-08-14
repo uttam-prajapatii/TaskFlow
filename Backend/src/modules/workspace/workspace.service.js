@@ -315,6 +315,83 @@ class WorkspaceService {
   }
 
   /**
+   * Get public details of an invitation by its token.
+   */
+  async getInviteDetails(token) {
+    if (!token) {
+      throw new BadRequestError('Invitation token is required');
+    }
+
+    const invite = await workspaceRepository.findInviteByToken(token);
+    if (!invite) {
+      throw new NotFoundError('Invitation not found or invalid');
+    }
+
+    let computedStatus = invite.status;
+    const isExpired = new Date(invite.expiresAt) < new Date();
+
+    if (invite.isDeleted) {
+      computedStatus = invite.status === 'declined' ? 'declined' : 'revoked';
+    } else if (isExpired && computedStatus === 'pending') {
+      computedStatus = 'expired';
+    }
+
+    const userExists = await User.exists({ email: invite.email.toLowerCase() });
+
+    return {
+      valid: computedStatus === 'pending',
+      status: computedStatus,
+      email: invite.email,
+      role: invite.role,
+      expiresAt: invite.expiresAt,
+      workspace: invite.workspaceId ? {
+        _id: invite.workspaceId._id,
+        name: invite.workspaceId.name,
+        description: invite.workspaceId.description,
+        logo: invite.workspaceId.logo || null,
+      } : null,
+      invitedBy: invite.invitedBy ? {
+        _id: invite.invitedBy._id,
+        fullName: invite.invitedBy.fullName,
+        email: invite.invitedBy.email,
+        avatarUrl: invite.invitedBy.avatarUrl || null,
+      } : null,
+      userExists: Boolean(userExists),
+    };
+  }
+
+  /**
+   * Decline an invitation using its secure token.
+   * Invited user must be logged in/authenticated.
+   */
+  async declineInvite(token, authenticatedUser) {
+    if (!token) {
+      throw new BadRequestError('Invitation token is required');
+    }
+
+    const existingInvite = await workspaceRepository.findInviteByToken(token);
+    if (!existingInvite) {
+      throw new NotFoundError('Invitation not found or invalid');
+    }
+
+    if (authenticatedUser.email.toLowerCase() !== existingInvite.email.toLowerCase()) {
+      throw new ForbiddenError('This invitation was sent to a different email address');
+    }
+
+    if (existingInvite.isDeleted || existingInvite.status !== 'pending' || new Date(existingInvite.expiresAt) < new Date()) {
+      throw new BadRequestError('Invitation is no longer active or has already been processed');
+    }
+
+    await workspaceRepository.declineInviteByToken(token);
+
+    logger.info(`Invitation declined`, { workspaceId: existingInvite.workspaceId?._id || existingInvite.workspaceId, email: existingInvite.email, userId: authenticatedUser._id });
+
+    return {
+      message: 'Invitation declined successfully'
+    };
+  }
+
+  /**
    * Accept an invitation using its secure token.
    * Invited user must be logged in/authenticated.
    */
@@ -323,9 +400,31 @@ class WorkspaceService {
       throw new BadRequestError('Invitation token is required');
     }
 
-    // 1. Atomically claim the invite (sets status to 'accepted' to block other concurrent requests)
-    const invite = await workspaceRepository.claimInviteByToken(token);
+    // 1. Check if user already claimed this invite previously
+    let invite = await workspaceRepository.claimInviteByToken(token);
     if (!invite) {
+      // Check if it was already accepted by this user
+      const existingInvite = await workspaceRepository.findInviteByToken(token);
+      if (
+        existingInvite &&
+        existingInvite.status === 'accepted' &&
+        existingInvite.email.toLowerCase() === authenticatedUser.email.toLowerCase()
+      ) {
+        const wsId = existingInvite.workspaceId?._id || existingInvite.workspaceId;
+        const workspace = await workspaceRepository.findWorkspaceById(wsId);
+        const isMember = workspace?.members?.some(
+          (m) => m.userId && getStrId(m.userId) === authenticatedUser._id.toString()
+        );
+        if (isMember) {
+          return {
+            message: 'You have already joined this workspace',
+            workspaceId: wsId,
+            role: existingInvite.role,
+            alreadyMember: true
+          };
+        }
+      }
+
       throw new NotFoundError('Invitation is invalid, expired, or has already been accepted/revoked');
     }
 
@@ -353,8 +452,13 @@ class WorkspaceService {
       (m) => m.userId && getStrId(m.userId) === userStrId
     );
     if (isMember) {
-      // Keep invite as 'accepted' since they are already members, but throw bad request
-      throw new BadRequestError('You are already a member of this workspace');
+      // Keep invite as 'accepted' since they are already members
+      return {
+        message: 'You are already a member of this workspace',
+        workspaceId: workspace._id,
+        role: invite.role,
+        alreadyMember: true
+      };
     }
 
     // 5. Add member
