@@ -86,11 +86,29 @@ class WorkspaceController {
   });
 
   /**
+   * Get invite details by token (public inspection).
+   */
+  getInviteDetails = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const invite = await workspaceService.getInviteDetails(token);
+    return ApiResponse.success(res, 'Invitation details retrieved successfully', invite);
+  });
+
+  /**
    * Accept invitation.
    */
   acceptInvite = asyncHandler(async (req, res) => {
     const { token } = req.params;
     const result = await workspaceService.acceptInvite(token, req.user);
+    return ApiResponse.success(res, result.message, result);
+  });
+
+  /**
+   * Decline invitation.
+   */
+  declineInvite = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const result = await workspaceService.declineInvite(token, req.user);
     return ApiResponse.success(res, result.message, result);
   });
 

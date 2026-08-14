@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import OAuthButtons from './OAuthButtons';
 import FormInput from './FormInput';
 import useAuth from '../../../hooks/useAuth';
@@ -38,13 +38,22 @@ const PASSWORD_RULES: PasswordRule[] = [
 ];
 
 const SignUpForm: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [policyType, setPolicyType] = useState<'terms' | 'privacy' | null>(null);
+
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    if (emailParam && !email) {
+      setEmail(emailParam);
+    }
+  }, [searchParams, email]);
 
   const [touched, setTouched] = useState<FormTouched>({});
   const [errors, setErrors] = useState<FormErrors>({});
@@ -282,10 +291,14 @@ const SignUpForm: React.FC = () => {
       setIsSubmitting(true);
       try {
         const result = await register({ fullName: name, email, password });
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
         if (result?.requiresOtp) {
-          navigate('/verify-otp');
+          navigate({
+            pathname: '/verify-otp',
+            search: location.search,
+          });
         } else {
-          navigate('/dashboard');
+          navigate(redirectUrl, { replace: true });
         }
       } catch (error) {
         console.debug('Registration submission failed:', error);
@@ -293,7 +306,7 @@ const SignUpForm: React.FC = () => {
         setIsSubmitting(false);
       }
     },
-    [agreeTerms, email, isSubmitting, name, navigate, password, register]
+    [agreeTerms, email, isSubmitting, location.search, name, navigate, password, register, searchParams]
   );
 
   const isPasswordTooShort = password.length > 0 && password.length < 8;

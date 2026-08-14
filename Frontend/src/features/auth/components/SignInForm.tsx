@@ -1,12 +1,14 @@
-import React, { useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import OAuthButtons from './OAuthButtons';
 import FormInput from './FormInput';
 import useAuth from '../../../hooks/useAuth';
 import ForgotPasswordModal from './ForgotPasswordModal';
 
 const SignInForm: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,6 +16,13 @@ const SignInForm: React.FC = () => {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    if (emailParam && !email) {
+      setEmail(emailParam);
+    }
+  }, [searchParams, email]);
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -41,10 +50,14 @@ const SignInForm: React.FC = () => {
       setIsSubmitting(true);
       try {
         const result = await login({ email, password });
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
         if (result?.requiresOtp) {
-          navigate('/verify-otp');
+          navigate({
+            pathname: '/verify-otp',
+            search: location.search,
+          });
         } else {
-          navigate('/dashboard');
+          navigate(redirectUrl, { replace: true });
         }
       } catch (error) {
         // SonarQube S108: Explicitly handling catch block.
@@ -54,7 +67,7 @@ const SignInForm: React.FC = () => {
         setIsSubmitting(false);
       }
     },
-    [email, isSubmitting, login, navigate, password]
+    [email, isSubmitting, location.search, login, navigate, password, searchParams]
   );
 
   return (

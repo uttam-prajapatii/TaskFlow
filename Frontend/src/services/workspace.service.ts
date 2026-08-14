@@ -102,9 +102,21 @@ export const workspaceService = {
     await api.post(`/api/v1/workspaces/${workspaceId}/leave`);
   },
 
+  // Get public invitation details by token
+  async getInviteDetails(token: string): Promise<WorkspaceInviteDetails> {
+    const response = await api.get(`/api/v1/workspaces/invites/${token}`);
+    return response.data?.data;
+  },
+
   // Accept invitation token
-  async acceptInvite(token: string): Promise<{ workspaceId: string; message: string }> {
+  async acceptInvite(token: string): Promise<{ workspaceId: string; message: string; role?: string; alreadyMember?: boolean }> {
     const response = await api.post(`/api/v1/workspaces/invites/${token}/accept`);
+    return response.data;
+  },
+
+  // Decline invitation token
+  async declineInvite(token: string): Promise<{ message: string }> {
+    const response = await api.post(`/api/v1/workspaces/invites/${token}/decline`);
     return response.data;
   },
 

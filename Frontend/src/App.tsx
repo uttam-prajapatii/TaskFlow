@@ -62,19 +62,11 @@ function App() {
             />
             <Route
               path="/invite/:token"
-              element={
-                <ProtectedRoute>
-                  <AcceptInvitePage />
-                </ProtectedRoute>
-              }
+              element={<AcceptInvitePage />}
             />
             <Route
               path="/workspaces/invite/:token"
-              element={
-                <ProtectedRoute>
-                  <AcceptInvitePage />
-                </ProtectedRoute>
-              }
+              element={<AcceptInvitePage />}
             />
             <Route
               path="/dashboard"

@@ -83,4 +83,7 @@ WorkspaceSchema.pre('save', function (next) {
   next();
 });
 
-export const Workspace = mongoose.model('Workspaces', WorkspaceSchema);
+export const Workspace = mongoose.models.Workspace || mongoose.model('Workspace', WorkspaceSchema, 'workspaces');
+if (!mongoose.models.Workspaces) {
+  mongoose.model('Workspaces', WorkspaceSchema, 'workspaces');
+}

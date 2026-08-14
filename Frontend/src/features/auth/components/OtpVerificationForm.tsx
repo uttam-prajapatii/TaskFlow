@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
 import Icon from '../../../components/UI/Icon';
 import { toast } from 'sonner';
@@ -101,6 +101,9 @@ export const OtpVerificationForm: React.FC = () => {
     inputRefs.current[focusIndex]?.focus();
   }, []);
 
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -112,7 +115,8 @@ export const OtpVerificationForm: React.FC = () => {
 
       try {
         await verifyOtp({ email: pendingEmail, otp: code });
-        navigate('/dashboard', { replace: true });
+        const redirectUrl = searchParams.get('redirect') || '/dashboard';
+        navigate(redirectUrl, { replace: true });
       } catch (err: unknown) {
         const error = err as { response?: { data?: { message?: string } }; message?: string };
         const msg = error.response?.data?.message || error.message || 'Invalid or expired verification code';
@@ -122,7 +126,7 @@ export const OtpVerificationForm: React.FC = () => {
         setIsSubmitting(false);
       }
     },
-    [otp, isSubmitting, pendingEmail, verifyOtp, navigate]
+    [otp, isSubmitting, pendingEmail, verifyOtp, searchParams, navigate]
   );
 
   const handleResend = useCallback(async () => {

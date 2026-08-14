@@ -23,7 +23,7 @@ const InviteSchema = new Schema({
     unique: true },
   status: { 
     type: String, 
-    enum: ['pending', 'accepted', 'expired'],
+    enum: ['pending', 'accepted', 'declined', 'expired', 'revoked'],
     default: 'pending' },
   expiresAt: { 
     type: Date, 
@@ -41,4 +41,7 @@ const InviteSchema = new Schema({
 // TTL index — auto-remove expired invites after 7 days
 InviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
 
-export const WorkspaceInvite = mongoose.model('WorkspaceInvites', InviteSchema);
+export const WorkspaceInvite = mongoose.models.WorkspaceInvite || mongoose.model('WorkspaceInvite', InviteSchema, 'workspaceinvites');
+if (!mongoose.models.WorkspaceInvites) {
+  mongoose.model('WorkspaceInvites', InviteSchema, 'workspaceinvites');
+}
