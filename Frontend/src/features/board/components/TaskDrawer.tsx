@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { toast } from 'sonner';
 
 import type { Task, BoardList, ChecklistItem, TaskAttachmentItem } from '../types';
@@ -14,6 +11,7 @@ import taskService from '../../../services/task.service';
 import commentService, { type Comment } from '../../../services/comment.service';
 import useAuth from '../../../hooks/useAuth';
 import useSocketComments from '../../../hooks/useSocketComments';
+import MentionCommentInput from './MentionCommentInput';
 
 interface TaskDrawerProps {
   task: Task | null;
@@ -24,11 +22,24 @@ interface TaskDrawerProps {
   boardId?: string;
 }
 
-const commentSchema = z.object({
-  body: z.string().trim().min(1, 'Comment cannot be empty').max(2000, 'Comment too long'),
-});
-
-type CommentFormValues = z.infer<typeof commentSchema>;
+const renderCommentBody = (text: string) => {
+  // Regex to match @mentions: @word or @Word Word
+  const mentionRegex = /(@[a-zA-Z0-9_\.\-]+(?:\s[a-zA-Z0-9_\.\-]+)?)/g;
+  const parts = text.split(mentionRegex);
+  return parts.map((part, idx) => {
+    if (part.startsWith('@') && part.trim().length > 1) {
+      return (
+        <span
+          key={idx}
+          className="inline-flex items-center font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-1.5 py-0.5 rounded text-[12px] align-baseline mx-0.5"
+        >
+          {part}
+        </span>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+};
 
 const formatRelativeTime = (dateStr?: string): string => {
   if (!dateStr) return '';
@@ -68,17 +79,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
 
   // Enable real-time WebSocket comment updates for this task
   useSocketComments(resolvedBoardId, taskId);
-
-  // React Hook Form for new comment
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<CommentFormValues>({
-    resolver: zodResolver(commentSchema),
-    defaultValues: { body: '' },
-  });
 
   // Fetch full populated task details (checklist array + populated attachments)
   const { data: populatedTask } = useQuery<Task>({
@@ -123,9 +123,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       setEditingCommentId(null);
       setEditingBody('');
       setNewChecklistText('');
-      reset({ body: '' });
     }
-  }, [task, fetchMembers, reset]);
+  }, [task, fetchMembers]);
 
   // Fetch real comments from backend
   const {
@@ -187,7 +186,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     mutationFn: (payload: { body: string; mentions?: string[] }) =>
       commentService.addComment(taskId, payload),
     onSuccess: () => {
-      reset({ body: '' });
       queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
       toast.success('Comment posted');
     },
@@ -265,18 +263,6 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     const formData = new FormData();
     formData.append('file', file);
     uploadAttachmentMutation.mutate(formData);
-  };
-
-  const onSubmitAddComment = (data: CommentFormValues) => {
-    const mentions: string[] = [];
-    const text = data.body;
-    teamMembers.forEach((member) => {
-      if (text.includes(`@${member.name}`) || (member.email && text.includes(`@${member.email}`))) {
-        mentions.push(member.id);
-      }
-    });
-
-    addCommentMutation.mutate({ body: text, mentions: mentions.length ? mentions : undefined });
   };
 
   const handleStartEdit = (c: Comment) => {
@@ -734,7 +720,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                         ) : (
                           /* Read Mode */
                           <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed text-[12.5px] break-words">
-                            {c.body}
+                            {renderCommentBody(c.body)}
                           </p>
                         )}
                       </div>
@@ -746,31 +732,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           </div>
         </div>
 
-        {/* Comment Input Form (React Hook Form + Zod) */}
-        <form
-          onSubmit={handleSubmit(onSubmitAddComment)}
-          className="px-5 py-3 border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900"
-        >
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <input
-                {...register('body')}
-                placeholder="Add a comment… (Use @name to mention team members)"
-                className="flex-1 px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400"
-              />
-              <button
-                type="submit"
-                disabled={addCommentMutation.isPending}
-                className="px-3.5 py-2 text-[12.5px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition disabled:opacity-40 cursor-pointer shrink-0"
-              >
-                {addCommentMutation.isPending ? 'Sending…' : 'Send'}
-              </button>
-            </div>
-            {errors.body && (
-              <span className="text-[11px] text-rose-500 px-1">{errors.body.message}</span>
-            )}
-          </div>
-        </form>
+        {/* Comment Input Form with @Mention Autocomplete */}
+        <div className="px-5 py-3 border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+          <MentionCommentInput
+            workspaceId={workspaceId}
+            onSubmit={(body, mentions) => {
+              addCommentMutation.mutate({
+                body,
+                mentions: mentions.length > 0 ? mentions : undefined,
+              });
+            }}
+            disabled={addCommentMutation.isPending}
+          />
+        </div>
       </div>
     </div>
   );

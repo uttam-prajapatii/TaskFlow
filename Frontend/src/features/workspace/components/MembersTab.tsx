@@ -9,22 +9,31 @@ import ConfirmModal from '../../../components/UI/ConfirmModal';
 interface MembersTabProps {
   members: WorkspaceMember[];
   currentUserId?: string;
+  creatorId?: string;
   canManage: boolean;
   onUpdateRole: (userId: string, role: WorkspaceRole) => void;
   onRemoveMember: (userId: string) => void;
   onOpenInvite: () => void;
 }
 
-const ROLE_LABELS: Record<WorkspaceRole, string> = {
-  owner: 'Owner',
+const ROLE_LABELS: Record<string, string> = {
+  owner: 'Admin',
   admin: 'Admin',
   member: 'Member',
   viewer: 'Viewer',
 };
 
+const ROLE_TONES: Record<string, 'brand' | 'warning' | 'neutral' | 'success'> = {
+  owner: 'warning',
+  admin: 'warning',
+  member: 'neutral',
+  viewer: 'neutral',
+};
+
 export const MembersTab: React.FC<MembersTabProps> = ({
   members,
   currentUserId,
+  creatorId,
   canManage,
   onUpdateRole,
   onRemoveMember,
@@ -54,13 +63,14 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           const uId = userObj?._id || (typeof m.userId === 'string' ? m.userId : `m-${i}`);
           const userName = userObj?.fullName || userObj?.name || 'Member';
           const userEmail = userObj?.email || '';
-          const isSelf = uId === currentUserId;
-          const isTargetOwner = m.role === 'owner';
+          const isSelf = Boolean(currentUserId && String(uId) === String(currentUserId));
+          const isCreator = Boolean(creatorId && String(uId) === String(creatorId)) || m.role === 'owner';
+          const displayRole = ROLE_LABELS[m.role] || (isCreator ? 'Admin' : m.role);
 
           const roleItems: MenuItem[] = (['admin', 'member', 'viewer'] as WorkspaceRole[]).map(
             (r) => ({
               label: ROLE_LABELS[r],
-              icon: m.role === r ? 'check' : undefined,
+              icon: (m.role === r || (m.role === 'owner' && r === 'admin')) ? 'check' : undefined,
               onClick: () => onUpdateRole(uId, r),
             })
           );
@@ -76,6 +86,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           );
 
           const isMenuOpen = roleMenuFor === uId;
+          const canEditThisMember = canManage && !isSelf && !isCreator;
 
           return (
             <div
@@ -101,7 +112,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                 )}
               </div>
 
-              {canManage && !isTargetOwner ? (
+              {canEditThisMember ? (
                 <DropdownMenu
                   open={isMenuOpen}
                   setOpen={(v) => setRoleMenuFor(v ? uId : null)}
@@ -112,7 +123,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                       onClick={() => setRoleMenuFor(isMenuOpen ? null : uId)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800/80 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer"
                     >
-                      <span>{ROLE_LABELS[m.role] || m.role}</span>
+                      <span>{displayRole}</span>
                       <Icon
                         name="chevron-down"
                         size={13}
@@ -125,8 +136,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                   items={roleItems}
                 />
               ) : (
-                <Badge tone={isTargetOwner ? 'brand' : 'neutral'}>
-                  {ROLE_LABELS[m.role] || m.role}
+                <Badge tone={ROLE_TONES[m.role] || (displayRole === 'Admin' ? 'warning' : 'neutral')}>
+                  {displayRole}
                 </Badge>
               )}
             </div>
