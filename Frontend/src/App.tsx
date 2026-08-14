@@ -8,6 +8,7 @@ import PostLoginRedirect from './features/auth/components/PostLoginRedirect';
 import AuthPage from './features/auth/pages/AuthPage';
 import ResetPasswordPage from './features/auth/pages/ResetPasswordPage';
 import SecuritySettingsPage from './features/auth/pages/SecuritySettingsPage';
+import OAuthCallbackPage from './features/auth/pages/OAuthCallbackPage';
 
 import OnboardingPage from './features/workspace/pages/OnboardingPage';
 import WorkspaceSelectorPage from './features/workspace/pages/WorkspaceSelectorPage';
@@ -32,6 +33,7 @@ function App() {
           <Toaster position="top-right" richColors closeButton />
           <Routes>
             <Route path="/login" element={<AuthPage mode="signin" />} />
+            <Route path="/auth/callback" element={<OAuthCallbackPage />} />
             <Route path="/register" element={<AuthPage mode="signup" />} />
             <Route path="/verify-otp" element={<AuthPage mode="verify-otp" />} />
             <Route path="/forgot-password" element={<AuthPage mode="signin" />} />

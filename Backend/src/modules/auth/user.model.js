@@ -18,9 +18,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    googleId: {
+      type: String,
+      default: null,
+    },
+    githubId: {
+      type: String,
+      default: null,
+    },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: [
+        function() {
+          return !this.googleId && !this.githubId;
+        },
+        'Password is required',
+      ],
       select: false, // Prevent password from being returned in standard queries
     },
     isActive: {

@@ -2,6 +2,8 @@ import authService from './auth.service.js';
 import ApiResponse from '../../utils/apiResponse.js';
 import asyncHandler from '../../utils/asyncHandler.js';
 import { setTokenCookies, clearTokenCookies, getRefreshTokenFromRequest } from './auth.utils.js';
+import logger from '../../utils/logger.js';
+
 
 class AuthController {
   /**
@@ -133,6 +135,82 @@ class AuthController {
     
     clearTokenCookies(res);
     return ApiResponse.success(res, 'Password reset successfully. Please log in with your new password.', null);
+  });
+
+  /**
+   * Redirect to Google OAuth consent page.
+   */
+  googleAuth = asyncHandler(async (req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const callbackUrl = process.env.GOOGLE_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/v1/auth/google/callback`;
+
+    if (!clientId) {
+      return res.redirect(`${process.env.APP_BASE_URL}/login?error=${encodeURIComponent('Google OAuth Client ID is not configured')}`);
+    }
+
+    const scope = encodeURIComponent('profile email');
+    const redirectUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${scope}`;
+    
+    return res.redirect(redirectUrl);
+  });
+
+  /**
+   * Handle Google OAuth callback.
+   */
+  googleAuthCallback = asyncHandler(async (req, res) => {
+    const { code, error } = req.query;
+
+    if (error) {
+      logger.error('Google OAuth callback returned error:', error);
+      return res.redirect(`${process.env.APP_BASE_URL}/login?error=${encodeURIComponent(error)}`);
+    }
+
+    try {
+      const result = await authService.handleGoogleCallback(code);
+      setTokenCookies(res, result.tokens);
+      return res.redirect(`${process.env.APP_BASE_URL}/auth/callback?success=true`);
+    } catch (err) {
+      logger.error('Google callback handling failed:', err);
+      return res.redirect(`${process.env.APP_BASE_URL}/login?error=${encodeURIComponent(err.message || 'Authentication failed')}`);
+    }
+  });
+
+  /**
+   * Redirect to GitHub OAuth consent page.
+   */
+  githubAuth = asyncHandler(async (req, res) => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    const callbackUrl = process.env.GITHUB_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/v1/auth/github/callback`;
+
+    if (!clientId) {
+      return res.redirect(`${process.env.APP_BASE_URL}/login?error=${encodeURIComponent('GitHub OAuth Client ID is not configured')}`);
+    }
+
+    const scope = encodeURIComponent('user:email');
+    const redirectUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${scope}`;
+    
+    return res.redirect(redirectUrl);
+  });
+
+  /**
+   * Handle GitHub OAuth callback.
+   */
+  githubAuthCallback = asyncHandler(async (req, res) => {
+    const { code, error } = req.query;
+
+    if (error) {
+      logger.error('GitHub OAuth callback returned error:', error);
+      return res.redirect(`${process.env.APP_BASE_URL}/login?error=${encodeURIComponent(error)}`);
+    }
+
+    try {
+      const result = await authService.handleGithubCallback(code);
+      setTokenCookies(res, result.tokens);
+      return res.redirect(`${process.env.APP_BASE_URL}/auth/callback?success=true`);
+    } catch (err) {
+      logger.error('GitHub callback handling failed:', err);
+      return res.redirect(`${process.env.APP_BASE_URL}/login?error=${encodeURIComponent(err.message || 'Authentication failed')}`);
+    }
   });
 }
 

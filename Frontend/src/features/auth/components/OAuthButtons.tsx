@@ -2,11 +2,13 @@ import React, { useCallback } from 'react';
 
 const OAuthButtons: React.FC = () => {
   const handleGoogleLogin = useCallback(() => {
-    console.debug('Initiating Google OAuth login...');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    window.location.href = `${apiUrl}/api/v1/auth/google`;
   }, []);
 
   const handleGitHubLogin = useCallback(() => {
-    console.debug('Initiating GitHub OAuth login...');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    window.location.href = `${apiUrl}/api/v1/auth/github`;
   }, []);
 
   return (
