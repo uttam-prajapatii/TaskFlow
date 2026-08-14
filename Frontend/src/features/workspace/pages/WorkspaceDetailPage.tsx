@@ -10,6 +10,7 @@ import { getColorHex } from '../components/WorkspaceCard';
 import MembersTab from '../components/MembersTab';
 import InvitationsTab from '../components/InvitationsTab';
 import SettingsTab from '../components/SettingsTab';
+import ActivityTab from '../components/ActivityTab';
 import InviteMemberModal from '../components/InviteMemberModal';
 import BoardCard from '../../board/components/BoardCard';
 import CreateBoardModal from '../../board/components/CreateBoardModal';
@@ -37,16 +38,16 @@ export const WorkspaceDetailPage: React.FC = () => {
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
 
-  const tabParam = searchParams.get('tab') as 'boards' | 'members' | 'invitations' | 'settings' | null;
-  const [activeTab, setActiveTabState] = useState<'boards' | 'members' | 'invitations' | 'settings'>(tabParam || 'boards');
+  const tabParam = searchParams.get('tab') as 'boards' | 'members' | 'invitations' | 'activity' | 'settings' | null;
+  const [activeTab, setActiveTabState] = useState<'boards' | 'members' | 'invitations' | 'activity' | 'settings'>(tabParam || 'boards');
 
   useEffect(() => {
-    if (tabParam && ['boards', 'members', 'invitations', 'settings'].includes(tabParam)) {
+    if (tabParam && ['boards', 'members', 'invitations', 'activity', 'settings'].includes(tabParam)) {
       setActiveTabState(tabParam);
     }
   }, [tabParam]);
 
-  const setActiveTab = (tab: 'boards' | 'members' | 'invitations' | 'settings') => {
+  const setActiveTab = (tab: 'boards' | 'members' | 'invitations' | 'activity' | 'settings') => {
     setActiveTabState(tab);
     setSearchParams({ tab });
   };
@@ -263,14 +264,15 @@ export const WorkspaceDetailPage: React.FC = () => {
     { id: 'boards', label: 'Boards', icon: 'layoutGrid' },
     { id: 'members', label: 'Members', icon: 'users' },
     { id: 'invitations', label: 'Invitations', icon: 'mail' },
+    { id: 'activity', label: 'Activity Logs', icon: 'activity' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
   return (
-    <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-6 md:p-10 overflow-y-auto">
+      <main className="flex-1 min-w-0 h-screen overflow-y-auto p-6 md:p-10">
         <div className="max-w-5xl mx-auto">
           {/* Back button */}
           <button
@@ -467,6 +469,10 @@ export const WorkspaceDetailPage: React.FC = () => {
             />
           )}
 
+          {activeTab === 'activity' && (
+            <ActivityTab workspaceId={workspaceId || ''} />
+          )}
+
           {activeTab === 'settings' && (
             <SettingsTab
               ws={workspace}
@@ -475,6 +481,7 @@ export const WorkspaceDetailPage: React.FC = () => {
               onRename={handleRenameWorkspace}
               onDelete={handleDeleteWorkspace}
               onLeave={handleLeaveWorkspace}
+              onRefresh={loadWorkspaceData}
             />
           )}
         </div>

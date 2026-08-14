@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
-import type { Task, BoardList } from '../types';
+import type { Task, BoardList, ChecklistItem, TaskAttachmentItem } from '../types';
 import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
 import { PRIORITY_CONFIG, getLabelMeta, isOverdue, formatDate } from './KanbanTaskCard';
 import workspaceService from '../../../services/workspace.service';
+import taskService from '../../../services/task.service';
 import commentService, { type Comment } from '../../../services/comment.service';
 import useAuth from '../../../hooks/useAuth';
 import useSocketComments from '../../../hooks/useSocketComments';
@@ -55,10 +56,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
 }) => {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState('');
   const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email?: string }[]>([]);
+  const [newChecklistText, setNewChecklistText] = useState('');
 
   const taskId = task ? (task._id || task.id || '') : '';
   const resolvedBoardId = propBoardId || task?.boardId || (columns[0]?.boardId ?? '');
@@ -76,6 +79,15 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     resolver: zodResolver(commentSchema),
     defaultValues: { body: '' },
   });
+
+  // Fetch full populated task details (checklist array + populated attachments)
+  const { data: populatedTask } = useQuery<Task>({
+    queryKey: ['task-details', taskId],
+    queryFn: () => taskService.getTaskDetails(taskId),
+    enabled: !!taskId,
+  });
+
+  const activeTask = populatedTask || task;
 
   // Fetch workspace members to resolve assignee & mention display names
   const fetchMembers = useCallback(async () => {
@@ -110,6 +122,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       fetchMembers();
       setEditingCommentId(null);
       setEditingBody('');
+      setNewChecklistText('');
       reset({ body: '' });
     }
   }, [task, fetchMembers, reset]);
@@ -126,7 +139,50 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     enabled: !!taskId,
   });
 
-  // Mutations
+  // Checklist Mutations
+  const checklistMutation = useMutation({
+    mutationFn: ({ action, payload }: { action: string; payload: Record<string, unknown> }) =>
+      taskService.checklistOperation(taskId, action, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
+      setNewChecklistText('');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Checklist update failed');
+    },
+  });
+
+  // Attachment Mutations
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: (formData: FormData) => taskService.uploadAttachment(taskId, formData),
+    onSuccess: () => {
+      toast.success('File attached successfully');
+      queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Attachment upload failed');
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: (attachmentId: string) => taskService.deleteAttachment(taskId, attachmentId),
+    onSuccess: () => {
+      toast.success('Attachment removed');
+      queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to remove attachment');
+    },
+  });
+
+  // Comment Mutations
   const addCommentMutation = useMutation({
     mutationFn: (payload: { body: string; mentions?: string[] }) =>
       commentService.addComment(taskId, payload),
@@ -168,14 +224,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     },
   });
 
-  if (!task) return null;
+  if (!task || !activeTask) return null;
 
-  const colId = task.status || task.listId;
+  const colId = activeTask.status || activeTask.listId;
   const colIdStr = typeof colId === 'object' && colId !== null ? (colId as { _id?: string })._id : colId;
   const currentCol = columns.find((c) => (c._id || c.id) === colIdStr);
-  const priorityMeta = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-  const overdue = isOverdue(task.dueDate) && task.status !== 'done';
-  const checklist = task.checklist;
+  const priorityMeta = PRIORITY_CONFIG[activeTask.priority] || PRIORITY_CONFIG.medium;
+  const overdue = isOverdue(activeTask.dueDate) && activeTask.status !== 'done';
+
+  // Checklist Items & Counts
+  const checklistItems: ChecklistItem[] = Array.isArray(activeTask.checklist) ? activeTask.checklist : [];
+  const doneChecklistCount = checklistItems.filter((i) => i.isDone).length;
+  const totalChecklistCount = checklistItems.length;
+
+  // Attachments List
+  const attachmentsList: TaskAttachmentItem[] = Array.isArray(activeTask.attachments) ? (activeTask.attachments as TaskAttachmentItem[]) : [];
 
   const resolveAssigneeName = (assignee: unknown): string => {
     if (typeof assignee === 'object' && assignee !== null) {
@@ -190,8 +253,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     return 'Team Member';
   };
 
+  const handleAddChecklistItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChecklistText.trim()) return;
+    checklistMutation.mutate({ action: 'add', payload: { text: newChecklistText.trim() } });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    uploadAttachmentMutation.mutate(formData);
+  };
+
   const onSubmitAddComment = (data: CommentFormValues) => {
-    // Extract @mentions matching team member names or emails if present
     const mentions: string[] = [];
     const text = data.body;
     teamMembers.forEach((member) => {
@@ -234,7 +310,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => onEdit(task)}
+              onClick={() => onEdit(activeTask)}
               className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 cursor-pointer"
               aria-label="Edit task"
             >
@@ -256,10 +332,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           {/* Title & Description */}
           <div>
             <h2 className="text-[17px] font-semibold text-neutral-900 dark:text-neutral-100 leading-snug mb-2">
-              {task.title}
+              {activeTask.title}
             </h2>
             <p className="text-[13px] text-neutral-500 dark:text-neutral-400 leading-relaxed">
-              {task.description || 'No description provided.'}
+              {activeTask.description || 'No description provided.'}
             </p>
           </div>
 
@@ -269,7 +345,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
               <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Status</p>
               <p className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
-                {currentCol?.title || task.status || 'To Do'}
+                {currentCol?.title || activeTask.status || 'To Do'}
               </p>
             </div>
 
@@ -291,7 +367,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                 }`}
               >
                 <Icon name="calendar" size={13} />{' '}
-                {formatDate(task.dueDate) || 'No Due Date'}
+                {formatDate(activeTask.dueDate) || 'No Due Date'}
               </p>
             </div>
 
@@ -299,7 +375,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
               <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Created Date</p>
               <p className="flex items-center gap-1 font-medium text-neutral-700 dark:text-neutral-300">
                 <Icon name="clock" size={13} className="text-neutral-400" />
-                {task.createdAt ? formatDate(String(task.createdAt)) || 'N/A' : 'N/A'}
+                {activeTask.createdAt ? formatDate(String(activeTask.createdAt)) || 'N/A' : 'N/A'}
               </p>
             </div>
 
@@ -307,7 +383,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
               <p className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-1">Updated Date</p>
               <p className="flex items-center gap-1 font-medium text-neutral-700 dark:text-neutral-300">
                 <Icon name="refresh-cw" size={12} className="text-neutral-400" />
-                {task.updatedAt ? formatDate(String(task.updatedAt)) || 'N/A' : 'N/A'}
+                {activeTask.updatedAt ? formatDate(String(activeTask.updatedAt)) || 'N/A' : 'N/A'}
               </p>
             </div>
           </div>
@@ -316,8 +392,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           <div>
             <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5">Labels</p>
             <div className="flex flex-wrap gap-1.5">
-              {task.labels && task.labels.length ? (
-                task.labels.map((l, idx) => {
+              {activeTask.labels && activeTask.labels.length ? (
+                activeTask.labels.map((l, idx) => {
                   const meta = getLabelMeta(l);
                   const keyStr = typeof l === 'object' && l !== null ? l._id : `drawer-label-${idx}`;
                   return (
@@ -340,8 +416,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           <div>
             <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5">Assignees</p>
             <div className="flex flex-wrap gap-2">
-              {task.assignees && task.assignees.length ? (
-                task.assignees.map((a, i) => {
+              {activeTask.assignees && activeTask.assignees.length ? (
+                activeTask.assignees.map((a, i) => {
                   const aName = resolveAssigneeName(a);
                   return (
                     <span
@@ -358,20 +434,179 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             </div>
           </div>
 
-          {/* Checklist */}
-          {checklist && checklist.total > 0 && (
-            <div>
-              <p className="text-[12px] text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">
-                <Icon name="check" size={12} /> Checklist · {checklist.done}/{checklist.total}
+          {/* Interactive Checklist Section */}
+          <div className="border-t border-neutral-100 dark:border-neutral-800 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
+                <Icon name="check-square" size={14} className="text-orange-500" />
+                Checklist {totalChecklistCount > 0 && `· ${doneChecklistCount}/${totalChecklistCount}`}
               </p>
-              <div className="h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+              {totalChecklistCount > 0 && (
+                <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                  {Math.round((doneChecklistCount / totalChecklistCount) * 100)}%
+                </span>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            {totalChecklistCount > 0 && (
+              <div className="h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden mb-3">
                 <div
-                  className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full"
-                  style={{ width: `${(checklist.done / checklist.total) * 100}%` }}
+                  className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-300"
+                  style={{ width: `${(doneChecklistCount / totalChecklistCount) * 100}%` }}
                 />
               </div>
+            )}
+
+            {/* Checklist Items List */}
+            <div className="space-y-1.5 mb-3">
+              {checklistItems.map((item) => {
+                const itemId = item._id || item.id || '';
+                return (
+                  <div
+                    key={itemId}
+                    className="group flex items-center justify-between p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/60 border border-transparent hover:border-neutral-200 dark:hover:border-neutral-800 transition"
+                  >
+                    <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={item.isDone}
+                        onChange={() =>
+                          checklistMutation.mutate({
+                            action: 'update',
+                            payload: { itemId, isDone: !item.isDone },
+                          })
+                        }
+                        disabled={checklistMutation.isPending}
+                        className="w-4 h-4 rounded text-orange-500 border-neutral-300 focus:ring-orange-500 cursor-pointer"
+                      />
+                      <span
+                        className={`text-[12.5px] truncate ${
+                          item.isDone
+                            ? 'line-through text-neutral-400 dark:text-neutral-500'
+                            : 'text-neutral-700 dark:text-neutral-200 font-medium'
+                        }`}
+                      >
+                        {item.text}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        checklistMutation.mutate({
+                          action: 'remove',
+                          payload: { itemId },
+                        })
+                      }
+                      disabled={checklistMutation.isPending}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-rose-500 transition cursor-pointer"
+                      title="Remove checklist item"
+                    >
+                      <Icon name="x" size={13} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          )}
+
+            {/* Add Checklist Item Form */}
+            <form onSubmit={handleAddChecklistItem} className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Add checklist item…"
+                value={newChecklistText}
+                onChange={(e) => setNewChecklistText(e.target.value)}
+                className="flex-1 px-3 py-1.5 text-[12.5px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 text-neutral-900 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40"
+              />
+              <button
+                type="submit"
+                disabled={checklistMutation.isPending || !newChecklistText.trim()}
+                className="px-3 py-1.5 text-[12px] font-semibold rounded-lg text-white bg-orange-500 hover:bg-orange-600 transition disabled:opacity-40 cursor-pointer shrink-0"
+              >
+                Add
+              </button>
+            </form>
+          </div>
+
+          {/* File Attachments Section */}
+          <div className="border-t border-neutral-100 dark:border-neutral-800 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
+                <Icon name="paperclip" size={14} className="text-orange-500" />
+                Attachments ({attachmentsList.length})
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadAttachmentMutation.isPending}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100 transition cursor-pointer"
+              >
+                <Icon name="plus" size={12} />
+                {uploadAttachmentMutation.isPending ? 'Uploading…' : 'Attach File'}
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+
+            {attachmentsList.length === 0 ? (
+              <p className="text-[12px] text-neutral-400 dark:text-neutral-500 italic py-1">
+                No file attachments yet.
+              </p>
+            ) : (
+              <div className="space-y-2 mt-2">
+                {attachmentsList.map((att) => {
+                  const attId = att._id || att.id || '';
+                  return (
+                    <div
+                      key={attId}
+                      className="flex items-center justify-between p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-800/40"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-neutral-600 dark:text-neutral-300 shrink-0">
+                          <Icon name="file" size={15} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+                            {att.originalName}
+                          </p>
+                          <p className="text-[10px] text-neutral-400">
+                            {att.size ? `${(att.size / 1024).toFixed(1)} KB` : 'Attachment'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {att.fileUrl && (
+                          <a
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg text-neutral-400 hover:text-orange-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition"
+                            title="Download file"
+                          >
+                            <Icon name="download" size={14} />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => deleteAttachmentMutation.mutate(attId)}
+                          disabled={deleteAttachmentMutation.isPending}
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                          title="Delete attachment"
+                        >
+                          <Icon name="trash-2" size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Activity & Real Comments Section */}
           <div>

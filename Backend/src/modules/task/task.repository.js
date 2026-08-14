@@ -24,6 +24,7 @@ class TaskRepository {
       .populate('assignees', 'fullName email')
       .populate('createdBy', 'fullName email')
       .populate('labels')
+      .populate('attachments')
       .exec();
   }
 

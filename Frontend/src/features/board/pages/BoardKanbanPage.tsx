@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
@@ -14,14 +14,17 @@ import ConfirmModal from '../../../components/UI/ConfirmModal';
 import boardService from '../../../services/board.service';
 import listService from '../../../services/list.service';
 import taskService from '../../../services/task.service';
+import { useWorkspace } from '../../../context/WorkspaceContext';
 import type { Board, BoardList, Task, CreateTaskPayload, PriorityLevel } from '../types';
 
 export const BoardKanbanPage: React.FC = () => {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
+  const { currentWorkspace } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
   const [board, setBoard] = useState<Board | null>(null);
+  const [isStarred, setIsStarred] = useState(false);
   const [columns, setColumns] = useState<BoardList[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
 
@@ -66,6 +69,7 @@ export const BoardKanbanPage: React.FC = () => {
       if (!silent) setLoading(true);
       const bDetails = await boardService.getBoardDetails(boardId);
       setBoard(bDetails);
+      setIsStarred(!!(bDetails as { isStarred?: boolean }).isStarred);
 
       try {
         const lists = await listService.getBoardLists(boardId);
@@ -393,6 +397,23 @@ export const BoardKanbanPage: React.FC = () => {
     { label: 'Alphabetical', icon: sortBy === 'alpha' ? 'check' : undefined, onClick: () => setSortBy('alpha') },
   ];
 
+  const handleToggleStar = async () => {
+    if (!boardId) return;
+    try {
+      if (isStarred) {
+        await boardService.unstarBoard(boardId);
+        setIsStarred(false);
+        toast.success('Board unstarred');
+      } else {
+        await boardService.starBoard(boardId);
+        setIsStarred(true);
+        toast.success('Board starred!');
+      }
+    } catch {
+      toast.error('Failed to update board star status');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -407,34 +428,31 @@ export const BoardKanbanPage: React.FC = () => {
   const boardName = board?.name || board?.title || 'Kanban Board';
 
   return (
-    <div className="flex min-h-screen bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+    <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans select-none">
       <Sidebar />
 
       <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
-        {/* Top bar */}
-        <div className="border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shrink-0">
-          <div className="flex items-center justify-between px-5 py-2.5 border-b border-neutral-100 dark:border-neutral-900">
-            <div className="flex items-center gap-1.5 text-[12.5px] text-neutral-400">
-              <Link to="/workspaces" className="hover:text-neutral-600 dark:hover:text-neutral-200">
-                Workspaces
-              </Link>
-              <span>/</span>
-              <span className="text-neutral-700 dark:text-neutral-200 font-medium">
+        {/* Header Bar */}
+        <div className="bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-100 dark:border-neutral-800/80">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+              <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                {currentWorkspace?.name || 'Workspace'}
+              </span>
+              <span className="text-xs text-neutral-300 dark:text-neutral-700">/</span>
+              <span className="text-xs font-bold text-neutral-800 dark:text-neutral-200">
                 {boardName}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  if (columns.length === 0) {
-                    toast.error('Please create a list first before adding tasks');
-                    setAddingList(true);
-                    return;
-                  }
                   setEditingTask(null);
-                  setDefaultColForTask(columns[0]?._id);
+                  setDefaultColForTask(columns[0]?._id || columns[0]?.id || '');
+                  setTargetPositionForTask(0);
                   setTaskModalOpen(true);
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-xs shadow-orange-500/25 transition cursor-pointer"
@@ -448,9 +466,19 @@ export const BoardKanbanPage: React.FC = () => {
 
           {/* Board Title & Toolbar */}
           <div className="flex flex-wrap items-center justify-between px-5 py-3 gap-3">
-            <h1 className="text-[17px] font-semibold text-neutral-900 dark:text-neutral-100">
-              {boardName}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-[17px] font-semibold text-neutral-900 dark:text-neutral-100">
+                {boardName}
+              </h1>
+              <button
+                type="button"
+                onClick={handleToggleStar}
+                className="p-1 rounded-lg text-amber-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+                title={isStarred ? 'Unstar board' : 'Star board'}
+              >
+                <Icon name="star" size={18} className={isStarred ? 'fill-amber-400 text-amber-500' : 'text-neutral-400'} />
+              </button>
+            </div>
 
             <div className="flex items-center gap-2">
               {/* Search */}

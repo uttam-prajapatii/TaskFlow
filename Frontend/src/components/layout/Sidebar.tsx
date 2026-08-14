@@ -174,7 +174,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-900 flex flex-col h-screen shrink-0 select-none font-sans">
+    <aside className="w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-900 flex flex-col h-screen shrink-0 sticky top-0 z-20 select-none font-sans">
       {/* BRAND HEADER (OFFICIAL LOGO) */}
       <Link to="/workspace-select" className="p-4 flex items-center gap-3 group">
         <img
@@ -255,30 +255,32 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* USER PROFILE & FOOTER CONTROLS (THEME TOGGLE, SETTINGS, SIGN OUT) */}
-      <div className="p-3 border-t border-neutral-100 dark:border-neutral-900 bg-neutral-50/50 dark:bg-neutral-950/50">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl">
-          <Avatar name={user?.fullName || 'User'} size={32} ring={false} />
+      {/* USER PROFILE & FOOTER CONTROLS */}
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/30 shrink-0">
+        <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-100/60 dark:hover:bg-neutral-900/60 transition-colors">
+          <Avatar name={user?.fullName || 'User'} size={36} ring={false} />
           <div className="flex-1 min-w-0">
-            <p className="text-[12.5px] font-bold text-neutral-800 dark:text-neutral-100 truncate leading-tight">
+            <p className="text-[13px] font-bold text-neutral-900 dark:text-neutral-100 truncate leading-tight">
               {user?.fullName || 'TaskFlow User'}
             </p>
-            <p className="text-[10.5px] text-neutral-400 truncate">{user?.email}</p>
+            <p className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+              {user?.email || 'user@taskflow.com'}
+            </p>
           </div>
         </div>
 
-        {/* Footer Actions: Theme Toggle, Settings, Sign Out */}
-        <div className="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-neutral-100 dark:border-neutral-900">
+        {/* Footer Actions: Theme Toggle, Security, Settings, Sign Out */}
+        <div className="flex items-center justify-between gap-1 mt-2 pt-2 border-t border-neutral-200/60 dark:border-neutral-800/80">
           {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer font-semibold text-[11px]"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer font-semibold text-xs"
           >
             <Icon
               name={theme === 'dark' ? 'moon' : 'sun'}
-              size={14}
+              size={15}
               className={theme === 'dark' ? 'text-amber-400' : 'text-amber-500'}
             />
             <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
@@ -289,7 +291,7 @@ export const Sidebar: React.FC = () => {
             type="button"
             onClick={() => navigate('/settings/password')}
             title="Account Security & Password"
-            className="p-1.5 rounded-xl text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer"
+            className="p-2 rounded-xl text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer shrink-0"
           >
             <Icon name="lock" size={15} />
           </button>
@@ -299,7 +301,7 @@ export const Sidebar: React.FC = () => {
             type="button"
             onClick={() => navigate(currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=settings` : '/workspaces/manage')}
             title="Workspace Settings"
-            className="p-1.5 rounded-xl text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer"
+            className="p-2 rounded-xl text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-200/60 dark:hover:bg-neutral-800 transition cursor-pointer shrink-0"
           >
             <Icon name="settings" size={15} />
           </button>
@@ -309,7 +311,7 @@ export const Sidebar: React.FC = () => {
             type="button"
             onClick={() => logout()}
             title="Sign Out"
-            className="p-1.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer"
+            className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer shrink-0"
           >
             <Icon name="log-out" size={15} />
           </button>

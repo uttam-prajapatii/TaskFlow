@@ -45,6 +45,18 @@ export const boardService = {
   async deleteBoard(boardId: string): Promise<void> {
     await api.delete(`/api/v1/boards/${boardId}`);
   },
+
+  // Star board
+  async starBoard(boardId: string): Promise<Board> {
+    const response = await api.post(`/api/v1/boards/${boardId}/star`);
+    return response.data?.data;
+  },
+
+  // Unstar board
+  async unstarBoard(boardId: string): Promise<Board> {
+    const response = await api.delete(`/api/v1/boards/${boardId}/star`);
+    return response.data?.data;
+  },
 };
 
 export default boardService;

@@ -93,6 +93,14 @@ export const authService = {
     const response = await api.patch<ApiResponse<null>>('/api/v1/auth/update-password', data);
     return response.data;
   },
+
+  /**
+   * Update authenticated user profile full name
+   */
+  async updateMe(data: { fullName: string }): Promise<ApiResponse<MeSuccessData>> {
+    const response = await api.patch<ApiResponse<MeSuccessData>>('/api/v1/auth/me', data);
+    return response.data;
+  },
 };
 
 export default authService;
