@@ -1,5 +1,5 @@
 import api from './api';
-import type { Task, CreateTaskPayload, UpdateTaskPayload, MoveTaskPayload } from '../features/board/types';
+import type { Task, CreateTaskPayload, UpdateTaskPayload, MoveTaskPayload, ActivityLog } from '../features/board/types';
 
 export const taskService = {
   // Get tasks for a board
@@ -90,6 +90,12 @@ export const taskService = {
   // Delete task
   async deleteTask(taskId: string): Promise<void> {
     await api.delete(`/api/v1/tasks/${taskId}`);
+  },
+
+  // Get activity logs for a task
+  async getTaskActivityLogs(taskId: string): Promise<ActivityLog[]> {
+    const response = await api.get(`/api/v1/tasks/${taskId}/activity-logs`);
+    return response.data?.data?.logs || [];
   },
 };
 

@@ -7,6 +7,7 @@ import { Board } from '../src/modules/board/board.model.js';
 import { List } from '../src/modules/list/list.model.js';
 import { Task } from '../src/modules/task/task.model.js';
 import { TaskAttachment } from '../src/modules/task/taskAttachment.model.js';
+import { Label } from '../src/modules/label/label.model.js';
 import taskService from '../src/modules/task/task.service.js';
 import listService from '../src/modules/list/list.service.js';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../src/utils/errors.js';
@@ -492,6 +493,35 @@ describe('Task Management Automated Tests', () => {
       const results = await taskService.getAssignedTasks(member._id, { priority: 'high' });
       expect(results.length).toBe(1);
       expect(results[0]._id.toString()).toBe(taskHigh._id.toString());
+    });
+  });
+
+  describe('Get Task Activity Logs', () => {
+    test('should allow workspace viewer to see task details activity logs', async () => {
+      const task = await taskService.createTask(listTodo._id, member._id, {
+        title: 'Activity Log Task'
+      });
+
+      const result = await taskService.getTaskActivityLogs(task._id, viewer._id, {});
+      expect(result).toBeDefined();
+      expect(result.logs.length).toBeGreaterThan(0);
+      expect(result.logs[0].action).toBe('task:create');
+      expect(result.logs[0].actorId.fullName).toBe('Workspace Member');
+    });
+
+    test('should block stranger from seeing task activity logs', async () => {
+      const task = await taskService.createTask(listTodo._id, member._id, {
+        title: 'Secure Activity Log Task'
+      });
+
+      let error;
+      try {
+        await taskService.getTaskActivityLogs(task._id, stranger._id, {});
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeDefined();
+      expect(error).toBeInstanceOf(ForbiddenError);
     });
   });
 });

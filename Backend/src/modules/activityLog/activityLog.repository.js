@@ -20,9 +20,29 @@ class ActivityLogRepository {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('actorId', '_id name email avatarUrl')
+        .populate('actorId', '_id fullName email avatarUrl')
         .lean(),
       ActivityLog.countDocuments({ workspaceId })
+    ]);
+
+    return { logs, total, page, limit };
+  }
+
+  /**
+   * Fetch paginated activity logs for a specific task, sorted from newest to oldest.
+   * Populates details about the acting user.
+   */
+  async findActivityLogsByTask(taskId, { page = 1, limit = 20 } = {}) {
+    const skip = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      ActivityLog.find({ entityId: taskId, entityType: 'Task' })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('actorId', '_id fullName email avatarUrl')
+        .lean(),
+      ActivityLog.countDocuments({ entityId: taskId, entityType: 'Task' })
     ]);
 
     return { logs, total, page, limit };
