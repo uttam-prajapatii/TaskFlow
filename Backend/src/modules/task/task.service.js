@@ -861,6 +861,23 @@ class TaskService {
 
     return taskRepository.findAssignedTasks(userId, allowedBoardIds, filters);
   }
+
+  /**
+   * Retrieve activity logs for a specific task.
+   * User must have view permission on the task.
+   */
+  async getTaskActivityLogs(taskId, userId, query) {
+    const { task, access } = await this.getValidatedTaskContext(taskId, userId);
+
+    if (!access.canView) {
+      throw new ForbiddenError('You do not have permission to view this task history');
+    }
+
+    const page = parseInt(query.page, 10) || 1;
+    const limit = parseInt(query.limit, 10) || 20;
+
+    return activityLogService.getTaskActivityLogs(task._id, { page, limit });
+  }
 }
 
 export default new TaskService();

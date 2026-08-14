@@ -60,6 +60,13 @@ class ActivityLogService {
 
     return activityLogRepository.findActivityLogsByWorkspace(workspace._id, { page, limit });
   }
+
+  /**
+   * Retrieve activity logs for a specific task.
+   */
+  async getTaskActivityLogs(taskId, { page, limit }) {
+    return activityLogRepository.findActivityLogsByTask(taskId, { page, limit });
+  }
 }
 
 export default new ActivityLogService();

@@ -180,6 +180,21 @@ export const taskPaths = {
       }
     }
   },
+  "/api/v1/tasks/{taskId}/activity-logs": {
+    get: {
+      summary: "Get activity logs of a specific task",
+      tags: ["Tasks"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        { name: "taskId", in: "path", required: true, schema: { type: "string" } },
+        { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+        { name: "limit", in: "query", schema: { type: "integer", default: 20 } }
+      ],
+      responses: {
+        200: { description: "Task activity logs retrieved successfully" }
+      }
+    }
+  },
   "/api/v1/tasks/{taskId}/archive": {
     post: {
       summary: "Archive task",

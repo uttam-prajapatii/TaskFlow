@@ -29,6 +29,7 @@ router.get('/tasks/me', protect, taskController.getAssignedTasks);
 
 // Individual task routes
 router.get('/tasks/:taskId', protect, validateTaskId, taskController.getTaskDetails);
+router.get('/tasks/:taskId/activity-logs', protect, validateTaskId, taskController.getTaskActivityLogs);
 router.patch('/tasks/:taskId', protect, validateTaskId, validateUpdateTask, taskController.updateTask);
 router.patch('/tasks/:taskId/move', protect, validateTaskId, validateMoveTask, taskController.moveTask);
 router.delete('/tasks/:taskId', protect, validateTaskId, taskController.deleteTask);

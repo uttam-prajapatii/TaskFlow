@@ -130,3 +130,24 @@ export interface MoveTaskPayload {
   targetPosition?: number;
   position?: number;
 }
+
+export interface ActivityLog {
+  _id: string;
+  workspaceId: string;
+  actorId: {
+    _id: string;
+    fullName: string;
+    email: string;
+    avatarUrl?: string | null;
+  };
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata?: {
+    title?: string;
+    updatedFields?: string[];
+    fromListName?: string;
+    toListName?: string;
+  };
+  createdAt: string;
+}
