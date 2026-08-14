@@ -237,6 +237,22 @@ class WorkspaceRepository {
       { new: true }
     ).exec();
   }
+
+  /**
+   * Atomically claim a pending invitation by updating its status to 'accepted'.
+   */
+  async claimInviteByToken(token) {
+    return WorkspaceInvite.findOneAndUpdate(
+      {
+        token,
+        status: 'pending',
+        isDeleted: { $ne: true },
+        expiresAt: { $gt: new Date() }
+      },
+      { status: 'accepted' },
+      { new: true }
+    ).exec();
+  }
 }
 
 export default new WorkspaceRepository();

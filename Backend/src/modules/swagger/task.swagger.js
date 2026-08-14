@@ -46,6 +46,89 @@ export const taskPaths = {
       }
     }
   },
+  "/api/v1/tasks/me": {
+    get: {
+      summary: "Get tasks assigned to the current user",
+      tags: ["Tasks"],
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "isArchived",
+          in: "query",
+          description: "Filter by archived status (true or false). Defaults to false.",
+          schema: { type: "string", enum: ["true", "false"], default: "false" }
+        },
+        {
+          name: "priority",
+          in: "query",
+          description: "Filter by priority",
+          schema: { type: "string", enum: ["low", "medium", "high", "urgent"] }
+        },
+        {
+          name: "search",
+          in: "query",
+          description: "Full-text search on task title and description",
+          schema: { type: "string" }
+        }
+      ],
+      responses: {
+        200: {
+          description: "Assigned tasks retrieved successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    _id: { type: "string" },
+                    title: { type: "string" },
+                    description: { type: "string" },
+                    priority: { type: "string" },
+                    dueDate: { type: "string", format: "date-time" },
+                    isArchived: { type: "boolean" },
+                    listId: {
+                      type: "object",
+                      properties: {
+                        _id: { type: "string" },
+                        name: { type: "string" }
+                      }
+                    },
+                    boardId: {
+                      type: "object",
+                      properties: {
+                        _id: { type: "string" },
+                        name: { type: "string" }
+                      }
+                    },
+                    assignees: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          _id: { type: "string" },
+                          fullName: { type: "string" },
+                          email: { type: "string" }
+                        }
+                      }
+                    },
+                    createdBy: {
+                      type: "object",
+                      properties: {
+                        _id: { type: "string" },
+                        fullName: { type: "string" },
+                        email: { type: "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   "/api/v1/tasks/{taskId}": {
     get: {
       summary: "Get task details",

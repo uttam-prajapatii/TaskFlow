@@ -94,6 +94,16 @@ class BoardRepository {
       { new: true }
     ).exec();
   }
+
+  /**
+   * Find active boards in multiple workspaces.
+   */
+  async findActiveBoardsByWorkspaces(workspaceIds) {
+    return Board.find({
+      workspaceId: { $in: workspaceIds },
+      isDeleted: { $ne: true }
+    }).exec();
+  }
 }
 
 export default new BoardRepository();

@@ -443,4 +443,55 @@ describe('Task Management Automated Tests', () => {
       expect(error).toBeInstanceOf(ForbiddenError);
     });
   });
+
+  describe('Get Assigned Tasks (Me)', () => {
+    test('should return tasks assigned to the current user', async () => {
+      const task = await taskService.createTask(listTodo._id, member._id, {
+        title: 'Assigned Task 1'
+      });
+      await taskService.addAssignee(task._id, member._id, member._id);
+
+      const results = await taskService.getAssignedTasks(member._id, {});
+      expect(results).toBeDefined();
+      expect(results.length).toBe(1);
+      expect(results[0]._id.toString()).toBe(task._id.toString());
+      expect(results[0].assignees[0]._id.toString()).toBe(member._id.toString());
+    });
+
+    test('should filter out tasks from private boards where user has no access', async () => {
+      const privateBoard = await Board.create({
+        name: 'Private Board',
+        workspaceId: workspace._id,
+        createdBy: member._id,
+        visibility: 'private'
+      });
+      const listPrivate = await listService.createList(privateBoard._id, member._id, { name: 'Private Todo' });
+      
+      const task = await taskService.createTask(listPrivate._id, member._id, {
+        title: 'Private Task'
+      });
+      await taskService.addAssignee(task._id, member._id, viewer._id);
+
+      const results = await taskService.getAssignedTasks(viewer._id, {});
+      expect(results.length).toBe(0);
+    });
+
+    test('should filter assigned tasks by priority', async () => {
+      const taskHigh = await taskService.createTask(listTodo._id, member._id, {
+        title: 'High Priority Task',
+        priority: 'high'
+      });
+      const taskLow = await taskService.createTask(listTodo._id, member._id, {
+        title: 'Low Priority Task',
+        priority: 'low'
+      });
+
+      await taskService.addAssignee(taskHigh._id, member._id, member._id);
+      await taskService.addAssignee(taskLow._id, member._id, member._id);
+
+      const results = await taskService.getAssignedTasks(member._id, { priority: 'high' });
+      expect(results.length).toBe(1);
+      expect(results[0]._id.toString()).toBe(taskHigh._id.toString());
+    });
+  });
 });

@@ -7,6 +7,7 @@ import workspaceRepository from '../workspace/workspace.repository.js';
 import logger from '../../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import { getTaskAccessRights, isParentArchived, formatGroupedTasks, getStrId, getCloudinaryResourceType } from './task.utils.js';
+import { getWorkspaceRole, canViewBoard } from '../board/board.utils.js';
 import { uploadStream, deleteFromCloudinary } from '../../config/cloudinary.js';
 import { emitToBoard } from '../../config/socket.js';
 import notificationService from '../notification/notification.service.js';
@@ -801,6 +802,64 @@ class TaskService {
 
     logger.info(`Label removed from task successfully`, { taskId, labelId, removedBy: userId });
     return task;
+  }
+
+  /**
+   * Retrieve all active tasks assigned to the current user that they have permissions to view.
+   */
+  async getAssignedTasks(userId, query = {}) {
+    // 1. Get all workspaces user is a member of
+    const workspaces = await workspaceRepository.listWorkspacesForUser(userId);
+    if (!workspaces || workspaces.length === 0) {
+      return [];
+    }
+
+    const workspaceIds = workspaces.map((w) => w._id);
+
+    // 2. Fetch all active boards in these workspaces
+    const boards = await boardRepository.findActiveBoardsByWorkspaces(workspaceIds);
+    if (!boards || boards.length === 0) {
+      return [];
+    }
+
+    // 3. Filter boards where the user has view permissions
+    const workspaceMap = new Map();
+    workspaces.forEach((w) => {
+      workspaceMap.set(w._id.toString(), w);
+    });
+
+    const allowedBoardIds = [];
+    for (const board of boards) {
+      const workspace = workspaceMap.get(board.workspaceId.toString());
+      if (workspace) {
+        const role = getWorkspaceRole(workspace, userId);
+        if (canViewBoard({ board, userRole: role, userId })) {
+          allowedBoardIds.push(board._id);
+        }
+      }
+    }
+
+    if (allowedBoardIds.length === 0) {
+      return [];
+    }
+
+    // 4. Build filters based on queries
+    const filters = {};
+    if (query.isArchived === 'true') {
+      filters.isArchived = true;
+    } else {
+      filters.isArchived = false;
+    }
+
+    if (query.priority) {
+      filters.priority = query.priority;
+    }
+
+    if (query.search) {
+      filters.$text = { $search: query.search };
+    }
+
+    return taskRepository.findAssignedTasks(userId, allowedBoardIds, filters);
   }
 }
 
