@@ -691,6 +691,7 @@ export const BoardKanbanPage: React.FC = () => {
         }}
         columns={columns}
         workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
+        boardId={boardId}
       />
 
       {/* Rename List Modal */}

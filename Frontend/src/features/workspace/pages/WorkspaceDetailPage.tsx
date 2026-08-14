@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import useAuth from '../../../hooks/useAuth';
 import { useWorkspace } from '../../../context/WorkspaceContext';
@@ -29,6 +30,7 @@ export const WorkspaceDetailPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
   const { setCurrentWorkspace, workspaces, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
 
@@ -107,10 +109,11 @@ export const WorkspaceDetailPage: React.FC = () => {
   });
 
   const ownerIdStr = typeof workspace?.ownerId === 'object' && workspace?.ownerId !== null ? workspace.ownerId._id : workspace?.ownerId;
-  const isOwner = String(ownerIdStr) === String(currentUser?._id) || !workspace?.ownerId;
+  const isCreator = Boolean(currentUser?._id && ownerIdStr && String(ownerIdStr) === String(currentUser?._id));
 
-  const myRole: WorkspaceRole = isOwner ? 'owner' : myMemberObj?.role || 'admin';
-  const canManage = isOwner || myRole === 'owner' || myRole === 'admin' || myRole === 'member';
+  // Workspace creator is the Workspace Admin, and invited members have their assigned role
+  const myRole: WorkspaceRole = isCreator ? 'admin' : (myMemberObj?.role === 'owner' ? 'admin' : myMemberObj?.role || 'viewer');
+  const canManage = isCreator || myRole === 'admin';
 
   const handleCreateBoard = async (payload: CreateBoardPayload) => {
     if (!workspaceId) return;
@@ -160,6 +163,8 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.changeMemberRole(workspaceId, userId, role);
       toast.success('Member role updated');
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
       loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -172,6 +177,8 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.removeMember(workspaceId, userId);
       toast.success('Member removed');
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
       loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -186,6 +193,8 @@ export const WorkspaceDetailPage: React.FC = () => {
       await workspaceService.inviteMember(workspaceId, { email, role });
       toast.success(`Invite sent to ${email}`, { id: 'invite-toast' });
       setInviteModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
       loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -201,6 +210,8 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.revokeInvite(workspaceId, inviteId);
       toast.success('Invitation revoked');
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
       loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -453,6 +464,7 @@ export const WorkspaceDetailPage: React.FC = () => {
             <MembersTab
               members={members}
               currentUserId={currentUser?._id}
+              creatorId={ownerIdStr}
               canManage={canManage}
               onUpdateRole={handleUpdateRole}
               onRemoveMember={handleRemoveMember}

@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { workspaceService } from '../../../services/workspace.service';
+import { useWorkspace } from '../../../context/WorkspaceContext';
 import { toast } from 'sonner';
 
 export const AcceptInvitePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { refreshWorkspaces } = useWorkspace();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
   const [errorMessage, setErrorMessage] = useState('');
@@ -26,6 +30,11 @@ export const AcceptInvitePage: React.FC = () => {
         setStatus('success');
         setWorkspaceId(res.workspaceId);
         toast.success(res.message || 'Successfully joined workspace!');
+        queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+        if (res.workspaceId) {
+          queryClient.invalidateQueries({ queryKey: ['workspace', res.workspaceId] });
+        }
+        await refreshWorkspaces();
         setTimeout(() => {
           if (res.workspaceId) {
             navigate(`/workspaces/${res.workspaceId}`);
@@ -44,12 +53,12 @@ export const AcceptInvitePage: React.FC = () => {
     };
 
     processInvite();
-  }, [token, navigate]);
+  }, [token, navigate, queryClient, refreshWorkspaces]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl text-center backdrop-blur-xl">
-        <div className="w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-indigo-400">
+        <div className="w-16 h-16 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-orange-500">
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
@@ -59,7 +68,7 @@ export const AcceptInvitePage: React.FC = () => {
 
         {loading && (
           <div className="py-6 flex flex-col items-center">
-            <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-slate-400 text-sm">Processing invitation request...</p>
           </div>
         )}
@@ -72,7 +81,7 @@ export const AcceptInvitePage: React.FC = () => {
             {workspaceId && (
               <Link
                 to={`/workspaces/${workspaceId}`}
-                className="inline-block w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition"
+                className="inline-block w-full py-2.5 px-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium rounded-xl transition shadow-lg shadow-orange-500/20"
               >
                 Go to Workspace Now
               </Link>

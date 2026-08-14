@@ -42,7 +42,7 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 
   const hex = getColorHex(ws.settings?.color || ws.color);
 
-  const isOwner =
+  const isCreator =
     ws.ownerId === user?._id ||
     (typeof ws.ownerId === 'object' && ws.ownerId !== null && ws.ownerId._id === user?._id);
 
@@ -51,11 +51,11 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     return String(uId) === String(user?._id);
   });
 
-  const role: WorkspaceRole = isOwner ? 'owner' : myMember?.role || 'member';
+  const role: WorkspaceRole = isCreator ? 'admin' : (myMember?.role === 'owner' ? 'admin' : myMember?.role || 'member');
   const isAdmin = role === 'admin';
-  const canRename = isOwner || isAdmin;
-  const canDelete = isOwner;
-  const canLeave = !isOwner;
+  const canRename = isCreator || isAdmin;
+  const canDelete = isCreator;
+  const canLeave = !isCreator;
 
   const memberList = (ws.members || []).map((m) => {
     if (typeof m.userId === 'object' && m.userId !== null) {

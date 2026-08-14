@@ -56,6 +56,19 @@ export const workspaceService = {
     return response.data?.data || [];
   },
 
+  // Search workspace members for mention autocomplete
+  async searchMembers(
+    workspaceId: string,
+    q = '',
+    limit = 20,
+    page = 1
+  ): Promise<{ _id: string; name: string; email: string; avatar?: string | null }[]> {
+    const response = await api.get(`/api/v1/workspaces/${workspaceId}/members/search`, {
+      params: { q, limit, page },
+    });
+    return response.data?.data || [];
+  },
+
   // Invite member to workspace
   async inviteMember(workspaceId: string, payload: InviteMemberPayload): Promise<WorkspaceInvite> {
     const response = await api.post(`/api/v1/workspaces/${workspaceId}/invites`, payload);
