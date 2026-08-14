@@ -25,6 +25,12 @@ router.post('/resend-otp', authRateLimiter, validateResendOtp, authController.re
 router.post('/forgot-password', authRateLimiter, validateForgotPassword, authController.forgotPassword);
 router.post('/reset-password/:token', authRateLimiter, validateResetPassword, authController.resetPassword);
 
+// OAuth routes
+router.get('/google', authController.googleAuth);
+router.get('/google/callback', authController.googleAuthCallback);
+router.get('/github', authController.githubAuth);
+router.get('/github/callback', authController.githubAuthCallback);
+
 // Protected routes
 router.get('/me', protect, authController.getMe);
 router.patch('/me', protect, validateUpdateMe, authController.updateMe);
