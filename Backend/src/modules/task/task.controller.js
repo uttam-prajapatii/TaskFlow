@@ -99,6 +99,11 @@ class TaskController {
     const task = await taskService.removeLabelFromTask(taskId, req.user._id, labelId);
     return ApiResponse.success(res, 'Label removed from task successfully', task);
   });
+
+  getAssignedTasks = asyncHandler(async (req, res) => {
+    const tasks = await taskService.getAssignedTasks(req.user._id, req.query);
+    return ApiResponse.success(res, 'Assigned tasks retrieved successfully', tasks);
+  });
 }
 
 export default new TaskController();

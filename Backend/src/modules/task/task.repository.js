@@ -136,6 +136,25 @@ class TaskRepository {
   async deleteAttachment(id) {
     return TaskAttachment.findByIdAndDelete(id).exec();
   }
+
+  /**
+   * Find tasks assigned to a specific user on allowed boards.
+   */
+  async findAssignedTasks(userId, allowedBoardIds, filters = {}) {
+    const query = {
+      assignees: userId,
+      boardId: { $in: allowedBoardIds },
+      isDeleted: { $ne: true },
+      ...filters
+    };
+    return Task.find(query)
+      .populate('assignees', 'fullName email avatarUrl')
+      .populate('createdBy', 'fullName email avatarUrl')
+      .populate('boardId', 'name')
+      .populate('listId', 'name')
+      .sort({ dueDate: 1, createdAt: -1 })
+      .exec();
+  }
 }
 
 export default new TaskRepository();
