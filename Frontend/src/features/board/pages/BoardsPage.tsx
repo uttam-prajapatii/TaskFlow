@@ -9,6 +9,7 @@ import RenameBoardModal from '../components/RenameBoardModal';
 import workspaceService from '../../../services/workspace.service';
 import boardService from '../../../services/board.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
+import useSocketWorkspaces from '../../../hooks/useSocketWorkspaces';
 import type { Workspace } from '../../workspace/types';
 import type { Board, CreateBoardPayload } from '../types';
 
@@ -27,6 +28,9 @@ export const BoardsPage: React.FC = () => {
 
   const [renameTarget, setRenameTarget] = useState<Board | null>(null);
   const [renaming, setRenaming] = useState(false);
+
+  // Bind workspace WebSocket event listeners
+  useSocketWorkspaces(workspaces, setBoards);
 
   const loadData = useCallback(async () => {
     try {

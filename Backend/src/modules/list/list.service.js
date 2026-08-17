@@ -6,6 +6,7 @@ import { Task } from '../task/task.model.js';
 import logger from '../../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
 import { getListAccessRights, isParentArchived } from './list.utils.js';
+import { emitToBoard } from '../../config/socket.js';
 
 class ListService {
   /**
@@ -82,6 +83,12 @@ class ListService {
       createdBy: userId
     });
 
+    try {
+      emitToBoard(boardId.toString(), 'list:created', list);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast list:created Socket event: ${wsError.message}`);
+    }
+
     return list;
   }
 
@@ -135,6 +142,12 @@ class ListService {
       listId,
       updatedBy: userId
     });
+
+    try {
+      emitToBoard(list.boardId.toString(), 'list:updated', updatedList);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast list:updated Socket event: ${wsError.message}`);
+    }
 
     return updatedList;
   }
@@ -191,6 +204,12 @@ class ListService {
       updatedBy: userId
     });
 
+    try {
+      emitToBoard(list.boardId.toString(), 'list:reordered', { boardId: list.boardId.toString(), listOrder: listIds });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast list:reordered Socket event: ${wsError.message}`);
+    }
+
     // Return the updated list details
     return listRepository.findListById(listId);
   }
@@ -235,6 +254,12 @@ class ListService {
       listId,
       deletedBy: userId
     });
+
+    try {
+      emitToBoard(list.boardId.toString(), 'list:deleted', { listId });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast list:deleted Socket event: ${wsError.message}`);
+    }
   }
 
   /**
@@ -262,6 +287,13 @@ class ListService {
     const updated = await listRepository.updateList(listId, { isArchived: true });
 
     logger.info(`List archived successfully`, { listId, archivedBy: userId });
+
+    try {
+      emitToBoard(list.boardId.toString(), 'list:updated', updated);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast list:updated Socket event: ${wsError.message}`);
+    }
+
     return updated;
   }
 
@@ -290,6 +322,13 @@ class ListService {
     const updated = await listRepository.updateList(listId, { isArchived: false });
 
     logger.info(`List restored successfully`, { listId, restoredBy: userId });
+
+    try {
+      emitToBoard(list.boardId.toString(), 'list:updated', updated);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast list:updated Socket event: ${wsError.message}`);
+    }
+
     return updated;
   }
 }

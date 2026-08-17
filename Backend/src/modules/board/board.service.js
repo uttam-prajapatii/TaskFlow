@@ -4,6 +4,7 @@ import workspaceRepository from '../workspace/workspace.repository.js';
 import StarredBoard from './starredBoard.model.js';
 import logger from '../../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../utils/errors.js';
+import { emitToWorkspace } from '../../config/socket.js';
 import {
   getWorkspaceRole,
   isWorkspaceAdmin,
@@ -65,6 +66,12 @@ class BoardService {
       workspaceId: workspace._id,
       createdBy: userId
     });
+
+    try {
+      emitToWorkspace(workspace._id.toString(), 'board:created', board);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast board:created Socket event: ${wsError.message}`);
+    }
 
     return board;
   }
@@ -219,6 +226,12 @@ class BoardService {
       updatedFields: Object.keys(allowedUpdates)
     });
 
+    try {
+      emitToWorkspace(updatedBoard.workspaceId.toString(), 'board:updated', updatedBoard);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast board:updated Socket event: ${wsError.message}`);
+    }
+
     return updatedBoard;
   }
 
@@ -251,6 +264,12 @@ class BoardService {
     const updatedBoard = await boardRepository.updateBoard(boardId, { isArchived: true });
 
     logger.info(`Board archived successfully`, { boardId, archivedBy: userId });
+
+    try {
+      emitToWorkspace(updatedBoard.workspaceId.toString(), 'board:updated', updatedBoard);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast board:updated Socket event: ${wsError.message}`);
+    }
 
     return updatedBoard;
   }
@@ -285,6 +304,12 @@ class BoardService {
 
     logger.info(`Board restored successfully`, { boardId, restoredBy: userId });
 
+    try {
+      emitToWorkspace(updatedBoard.workspaceId.toString(), 'board:updated', updatedBoard);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast board:updated Socket event: ${wsError.message}`);
+    }
+
     return updatedBoard;
   }
 
@@ -317,6 +342,12 @@ class BoardService {
     await boardRepository.softDeleteBoard(boardId);
 
     logger.info(`Board soft deleted successfully`, { boardId, deletedBy: userId });
+
+    try {
+      emitToWorkspace(board.workspaceId.toString(), 'board:deleted', { boardId });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast board:deleted Socket event: ${wsError.message}`);
+    }
   }
 
   /**

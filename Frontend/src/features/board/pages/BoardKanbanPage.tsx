@@ -15,6 +15,7 @@ import boardService from '../../../services/board.service';
 import listService from '../../../services/list.service';
 import taskService from '../../../services/task.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
+import useSocketBoard from '../../../hooks/useSocketBoard';
 import type { Board, BoardList, Task, CreateTaskPayload, PriorityLevel } from '../types';
 
 export const BoardKanbanPage: React.FC = () => {
@@ -101,6 +102,9 @@ export const BoardKanbanPage: React.FC = () => {
       if (!silent) setLoading(false);
     }
   }, [boardId, navigate]);
+
+  // Live socket updates & watchers list
+  const { watchers } = useSocketBoard(boardId, setBoard, setColumns, setTasks, loadBoardData);
 
   useEffect(() => {
     loadBoardData(false);
@@ -447,6 +451,35 @@ export const BoardKanbanPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Watchers presence list */}
+              {watchers.length > 0 && (
+                <div className="flex items-center gap-2 border-r border-neutral-200 dark:border-neutral-800 pr-3 mr-1">
+                  <div className="flex -space-x-2 overflow-hidden">
+                    {watchers.slice(0, 5).map((watcher) => (
+                      <div
+                        key={watcher.userId}
+                        className="inline-block rounded-full ring-2 ring-white dark:ring-neutral-900 shrink-0"
+                        title={`${watcher.name} is online`}
+                      >
+                        <Avatar
+                          name={watcher.name}
+                          size={24}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {watchers.length > 5 && (
+                    <span className="text-xs font-semibold text-neutral-400">
+                      +{watchers.length - 5}
+                    </span>
+                  )}
+                  <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    {watchers.length} live
+                  </span>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => {

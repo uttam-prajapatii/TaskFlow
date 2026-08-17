@@ -3,6 +3,9 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import IORedis from 'ioredis';
 import tokenService from '../modules/auth/token.service.js';
 import authRepository from '../modules/auth/auth.repository.js';
+import boardRepository from '../modules/board/board.repository.js';
+import workspaceRepository from '../modules/workspace/workspace.repository.js';
+import { getWorkspaceRole, isWorkspaceViewer, canViewBoard } from '../modules/board/board.utils.js';
 import logger from '../utils/logger.js';
 
 let io;
@@ -67,7 +70,7 @@ export function initSocket(server) {
       socket.user = {
         _id: user._id.toString(),
         email: user.email,
-        name: user.name,
+        name: user.fullName || user.name || 'Unknown User',
         avatarUrl: user.avatarUrl,
       };
 
@@ -84,43 +87,93 @@ export function initSocket(server) {
     // Join private room for user-specific pushes
     socket.join(`user:${socket.user._id}`);
 
+    // Listen for client joining a workspace
+    socket.on('workspace:join', async (workspaceId) => {
+      try {
+        const workspace = await workspaceRepository.findWorkspaceById(workspaceId);
+        if (!workspace) {
+          socket.emit('error', { message: 'Workspace not found' });
+          return;
+        }
+
+        const role = getWorkspaceRole(workspace, socket.user._id);
+        if (!isWorkspaceViewer(role)) {
+          socket.emit('error', { message: 'Unauthorized to join workspace room' });
+          return;
+        }
+
+        socket.join(`workspace:${workspaceId}`);
+        logger.info(`User ${socket.user.name} joined workspace room: workspace:${workspaceId}`);
+      } catch (err) {
+        logger.error(`Error joining workspace room: ${err.message}`);
+        socket.emit('error', { message: 'Internal server error joining workspace room' });
+      }
+    });
+
+    // Listen for client leaving a workspace
+    socket.on('workspace:leave', async (workspaceId) => {
+      socket.leave(`workspace:${workspaceId}`);
+      logger.info(`User ${socket.user.name} left workspace room: workspace:${workspaceId}`);
+    });
+
     // Listen for client joining a board
     socket.on('board:join', async (boardId) => {
-      socket.join(`board:${boardId}`);
-      logger.info(`User ${socket.user.name} joined board room: board:${boardId}`);
+      try {
+        const board = await boardRepository.findBoardById(boardId);
+        if (!board) {
+          socket.emit('error', { message: 'Board not found' });
+          return;
+        }
 
-      const presenceKey = `presence:board:${boardId}`;
-      const userPresence = JSON.stringify({
-        userId: socket.user._id,
-        name: socket.user.name,
-        avatarUrl: socket.user.avatarUrl,
-      });
+        const workspace = await workspaceRepository.findWorkspaceById(board.workspaceId);
+        if (!workspace) {
+          socket.emit('error', { message: 'Workspace not found for this board' });
+          return;
+        }
 
-      // Add user to the Redis presence set
-      await pubClient.sadd(presenceKey, userPresence);
-      await pubClient.expire(presenceKey, 3600); // 1-hour heartbeat fallback TTL
+        const role = getWorkspaceRole(workspace, socket.user._id);
+        if (!isWorkspaceViewer(role) || !canViewBoard({ board, userRole: role, userId: socket.user._id })) {
+          socket.emit('error', { message: 'Unauthorized to join board room' });
+          return;
+        }
 
-      // Emit updated board presence
-      const members = await getBoardPresence(boardId, pubClient);
-      io.to(`board:${boardId}`).emit('board:presence', { boardId, members });
+        socket.join(`board:${boardId}`);
+        logger.info(`User ${socket.user.name} joined board room: board:${boardId}`);
+
+        const presenceKey = `presence:board:${boardId}`;
+        const userPresence = JSON.stringify({
+          userId: socket.user._id,
+          name: socket.user.name,
+          avatarUrl: socket.user.avatarUrl,
+        });
+
+        // Add user to the Redis presence hash
+        await pubClient.hset(presenceKey, socket.id, userPresence);
+        await pubClient.expire(presenceKey, 3600); // 1-hour heartbeat fallback TTL
+
+        // Emit updated board presence
+        const members = await getBoardPresence(boardId, pubClient);
+        io.to(`board:${boardId}`).emit('board:presence', { boardId, members });
+      } catch (err) {
+        logger.error(`Error joining board room: ${err.message}`);
+        socket.emit('error', { message: 'Internal server error joining board room' });
+      }
     });
 
     // Listen for client leaving a board
     socket.on('board:leave', async (boardId) => {
-      socket.leave(`board:${boardId}`);
-      logger.info(`User ${socket.user.name} left board room: board:${boardId}`);
+      try {
+        socket.leave(`board:${boardId}`);
+        logger.info(`User ${socket.user.name} left board room: board:${boardId}`);
 
-      const presenceKey = `presence:board:${boardId}`;
-      const userPresence = JSON.stringify({
-        userId: socket.user._id,
-        name: socket.user.name,
-        avatarUrl: socket.user.avatarUrl,
-      });
+        const presenceKey = `presence:board:${boardId}`;
+        await pubClient.hdel(presenceKey, socket.id);
 
-      await pubClient.srem(presenceKey, userPresence);
-
-      const members = await getBoardPresence(boardId, pubClient);
-      io.to(`board:${boardId}`).emit('board:presence', { boardId, members });
+        const members = await getBoardPresence(boardId, pubClient);
+        io.to(`board:${boardId}`).emit('board:presence', { boardId, members });
+      } catch (err) {
+        logger.error(`Error leaving board room: ${err.message}`);
+      }
     });
 
     // Handle WebSocket disconnection
@@ -133,20 +186,19 @@ export function initSocket(server) {
         if (room.startsWith('board:')) {
           const boardId = room.split(':')[1];
           const presenceKey = `presence:board:${boardId}`;
-          const userPresence = JSON.stringify({
-            userId: socket.user._id,
-            name: socket.user.name,
-            avatarUrl: socket.user.avatarUrl,
-          });
-          await pubClient.srem(presenceKey, userPresence);
-          const members = await getBoardPresence(boardId, pubClient);
-          io.to(`board:${boardId}`).emit('board:presence', { boardId, members });
+          try {
+            await pubClient.hdel(presenceKey, socket.id);
+            const members = await getBoardPresence(boardId, pubClient);
+            io.to(`board:${boardId}`).emit('board:presence', { boardId, members });
+          } catch (err) {
+            logger.error(`Error cleaning up presence on disconnect: ${err.message}`);
+          }
         }
       }
     });
 
     socket.on('disconnect', () => {
-      logger.info(`WebSocket client disconnected: ${socket.user.id || socket.id}`);
+      logger.info(`WebSocket client disconnected: ${socket.user.email || socket.id}`);
     });
   });
 
@@ -154,13 +206,22 @@ export function initSocket(server) {
 }
 
 /**
- * Helper to fetch all users currently active on a board from Redis.
+ * Helper to fetch all users currently active on a board from Redis (deduplicated by userId).
  */
 async function getBoardPresence(boardId, redisClient) {
   try {
     const presenceKey = `presence:board:${boardId}`;
-    const membersRaw = await redisClient.smembers(presenceKey);
-    return membersRaw.map((m) => JSON.parse(m));
+    const membersRaw = await redisClient.hvals(presenceKey);
+    const uniqueMembers = {};
+    for (const raw of membersRaw) {
+      try {
+        const parsed = JSON.parse(raw);
+        uniqueMembers[parsed.userId] = parsed;
+      } catch (err) {
+        // ignore malformed JSON
+      }
+    }
+    return Object.values(uniqueMembers);
   } catch (err) {
     logger.error(`Failed to retrieve board presence for ${boardId}`, err);
     return [];
