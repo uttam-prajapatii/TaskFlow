@@ -10,6 +10,7 @@ import type {
   ResendOtpDTO,
   ResetPasswordDTO,
   UpdatePasswordDTO,
+  User,
   VerifyOtpDTO,
 } from '../features/auth/types';
 
@@ -97,8 +98,8 @@ export const authService = {
   /**
    * Update authenticated user profile full name
    */
-  async updateMe(data: { fullName: string }): Promise<ApiResponse<MeSuccessData>> {
-    const response = await api.patch<ApiResponse<MeSuccessData>>('/api/v1/auth/me', data);
+  async updateMe(data: { fullName: string }): Promise<ApiResponse<User | MeSuccessData>> {
+    const response = await api.patch<ApiResponse<User | MeSuccessData>>('/api/v1/auth/me', data);
     return response.data;
   },
 };
