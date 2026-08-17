@@ -182,11 +182,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         const mappedLabels = (initial.labels || []).map((l) =>
           typeof l === 'object' && l !== null ? l._id : (l as string)
         );
+        const listIdStr = typeof initial.listId === 'object' && initial.listId !== null ? initial.listId._id : (initial.listId as string);
         setForm({
           title: initial.title || '',
           description: initial.description || '',
           priority: initial.priority || 'medium',
-          status: initial.status || initial.listId || defaultColumnId || columns[0]?._id || 'todo',
+          status: initial.status || listIdStr || defaultColumnId || columns[0]?._id || 'todo',
           dueDate: initial.dueDate ? String(initial.dueDate).slice(0, 10) : '',
           labels: mappedLabels,
           assignees: mappedAssignees,

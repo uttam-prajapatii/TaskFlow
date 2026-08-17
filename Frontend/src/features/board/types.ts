@@ -45,6 +45,24 @@ export interface TaskAssigneeUser {
   name?: string;
 }
 
+export interface TaskPopulatedBoard {
+  _id: string;
+  name: string;
+  workspaceId?: string | {
+    _id: string;
+    name: string;
+    color?: string;
+    logoUrl?: string;
+    slug?: string;
+  };
+}
+
+export interface TaskPopulatedList {
+  _id: string;
+  name?: string;
+  title?: string;
+}
+
 export interface Task {
   _id: string;
   id?: string;
@@ -52,8 +70,8 @@ export interface Task {
   description?: string;
   priority: PriorityLevel;
   status: string;
-  listId?: string;
-  boardId?: string;
+  listId?: string | TaskPopulatedList;
+  boardId?: string | TaskPopulatedBoard;
   dueDate?: string | null;
   assignees?: Array<string | TaskAssigneeUser>;
   labels?: Array<string | Label>;
@@ -64,6 +82,10 @@ export interface Task {
   createdBy?: string | TaskAssigneeUser;
   createdAt?: string | number;
   updatedAt?: string | number;
+  workspaceId?: string | {
+    _id: string;
+    name: string;
+  };
 }
 
 export interface BoardList {

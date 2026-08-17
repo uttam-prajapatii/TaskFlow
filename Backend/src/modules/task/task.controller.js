@@ -105,6 +105,11 @@ class TaskController {
     return ApiResponse.success(res, 'Assigned tasks retrieved successfully', tasks);
   });
 
+  getCreatedTasks = asyncHandler(async (req, res) => {
+    const tasks = await taskService.getCreatedTasks(req.user._id, req.query);
+    return ApiResponse.success(res, 'Created tasks retrieved successfully', tasks);
+  });
+
   getTaskActivityLogs = asyncHandler(async (req, res) => {
     const { taskId } = req.params;
     const logs = await taskService.getTaskActivityLogs(taskId, req.user._id, req.query);

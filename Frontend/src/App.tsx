@@ -17,6 +17,8 @@ import WorkspaceDetailPage from './features/workspace/pages/WorkspaceDetailPage'
 import AcceptInvitePage from './features/workspace/pages/AcceptInvitePage';
 import BoardsPage from './features/board/pages/BoardsPage';
 import BoardKanbanPage from './features/board/pages/BoardKanbanPage';
+import AssignedTasksPage from './features/board/pages/AssignedTasksPage';
+import CreatedTasksPage from './features/board/pages/CreatedTasksPage';
 
 import NotificationsPage from './features/workspace/pages/NotificationsPage';
 import AnalyticsPage from './features/workspace/pages/AnalyticsPage';
@@ -115,6 +117,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BoardKanbanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks/assigned"
+              element={
+                <ProtectedRoute>
+                  <AssignedTasksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks/me"
+              element={
+                <ProtectedRoute>
+                  <AssignedTasksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks/created"
+              element={
+                <ProtectedRoute>
+                  <CreatedTasksPage />
                 </ProtectedRoute>
               }
             />

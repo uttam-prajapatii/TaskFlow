@@ -153,9 +153,38 @@ class TaskRepository {
     return Task.find(query)
       .populate('assignees', 'fullName email avatarUrl')
       .populate('createdBy', 'fullName email avatarUrl')
-      .populate('boardId', 'name')
+      .populate({
+        path: 'boardId',
+        select: 'name workspaceId',
+        populate: { path: 'workspaceId', select: 'name color logoUrl slug' }
+      })
       .populate('listId', 'name')
+      .populate('labels')
       .sort({ dueDate: 1, createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Find tasks created by a specific user on allowed boards.
+   */
+  async findCreatedTasks(userId, allowedBoardIds, filters = {}) {
+    const query = {
+      createdBy: userId,
+      boardId: { $in: allowedBoardIds },
+      isDeleted: { $ne: true },
+      ...filters
+    };
+    return Task.find(query)
+      .populate('assignees', 'fullName email avatarUrl')
+      .populate('createdBy', 'fullName email avatarUrl')
+      .populate({
+        path: 'boardId',
+        select: 'name workspaceId',
+        populate: { path: 'workspaceId', select: 'name' }
+      })
+      .populate('listId', 'name')
+      .populate('labels')
+      .sort({ createdAt: -1 })
       .exec();
   }
 }
