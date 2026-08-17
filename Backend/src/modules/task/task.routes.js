@@ -24,8 +24,9 @@ router.post('/lists/:listId/tasks', protect, validateListIdParam, validateCreate
 router.get('/boards/:boardId/tasks/search', protect, validateBoardIdParam, taskController.searchTasks);
 router.get('/boards/:boardId/tasks', protect, validateBoardIdParam, taskController.getTasks);
 
-// My assigned tasks route
+// My assigned tasks and created tasks routes
 router.get('/tasks/me', protect, taskController.getAssignedTasks);
+router.get('/tasks/created', protect, taskController.getCreatedTasks);
 
 // Individual task routes
 router.get('/tasks/:taskId', protect, validateTaskId, taskController.getTaskDetails);

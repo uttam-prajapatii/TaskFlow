@@ -228,7 +228,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   }, [previewAttachment]);
 
   const taskId = task ? (task._id || task.id || '') : '';
-  const resolvedBoardId = propBoardId || task?.boardId || (columns[0]?.boardId ?? '');
+  const taskBoardIdStr = typeof task?.boardId === 'object' && task?.boardId !== null ? task.boardId._id : (task?.boardId as string);
+  const resolvedBoardId = propBoardId || taskBoardIdStr || (columns[0]?.boardId ?? '');
 
   // Enable real-time WebSocket comment updates for this task
   useSocketComments(resolvedBoardId, taskId);

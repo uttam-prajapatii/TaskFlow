@@ -97,6 +97,24 @@ export const taskService = {
     const response = await api.get(`/api/v1/tasks/${taskId}/activity-logs`);
     return response.data?.data?.logs || [];
   },
+
+  // Get tasks assigned to the current user
+  async getAssignedTasks(params?: { isArchived?: boolean; priority?: string; search?: string }): Promise<Task[]> {
+    const response = await api.get('/api/v1/tasks/me', { params });
+    const resData = response.data?.data;
+    if (Array.isArray(resData)) return resData;
+    if (resData?.tasks && Array.isArray(resData.tasks)) return resData.tasks;
+    return [];
+  },
+
+  // Get tasks created by the current user
+  async getCreatedTasks(params?: { isArchived?: boolean; priority?: string; search?: string }): Promise<Task[]> {
+    const response = await api.get('/api/v1/tasks/created', { params });
+    const resData = response.data?.data;
+    if (Array.isArray(resData)) return resData;
+    if (resData?.tasks && Array.isArray(resData.tasks)) return resData.tasks;
+    return [];
+  },
 };
 
 export default taskService;
