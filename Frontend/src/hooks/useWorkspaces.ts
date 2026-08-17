@@ -77,8 +77,15 @@ export const useWorkspaceMutations = () => {
         queryClient.setQueryData(['workspaces'], context.previousWorkspaces);
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, workspaceId) => {
+      queryClient.removeQueries({ queryKey: ['workspace', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-boards', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-members', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-invites', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-activities', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
     },
   });
 

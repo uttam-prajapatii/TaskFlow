@@ -38,6 +38,11 @@ export const BoardsPage: React.FC = () => {
       const wsList = contextWorkspaces.length > 0 ? contextWorkspaces : await workspaceService.listWorkspaces();
       setWorkspaces(wsList);
 
+      if (wsList.length === 0) {
+        navigate('/onboarding', { replace: true });
+        return;
+      }
+
       let allBoards: Board[] = [];
       for (const ws of wsList) {
         try {
@@ -55,7 +60,7 @@ export const BoardsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [contextWorkspaces]);
+  }, [contextWorkspaces, navigate]);
 
   useEffect(() => {
     loadData();

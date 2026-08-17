@@ -91,12 +91,38 @@ export const WorkspaceDetailPage: React.FC = () => {
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to load workspace details');
-      navigate('/workspaces');
+      toast.error(error.response?.data?.message || 'Workspace not found or unavailable');
+
+      // Purge invalid workspace from state, localStorage, and query cache
+      const lastStored = localStorage.getItem('taskflow_last_workspace_id');
+      if (lastStored === workspaceId) {
+        localStorage.removeItem('taskflow_last_workspace_id');
+      }
+      queryClient.removeQueries({ queryKey: ['workspace', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-boards', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-members', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-invites', workspaceId] });
+      queryClient.removeQueries({ queryKey: ['workspace-activities', workspaceId] });
+
+      // Check remaining workspaces and navigate safely
+      const res = await workspaceService.listWorkspaces().catch(() => []);
+      const remaining = Array.isArray(res) ? res : [];
+      if (remaining.length > 0) {
+        setCurrentWorkspace(remaining[0]);
+        const remId = remaining[0]._id || remaining[0].id;
+        if (remId) {
+          localStorage.setItem('taskflow_last_workspace_id', remId);
+        }
+        navigate('/workspace-select', { replace: true });
+      } else {
+        setCurrentWorkspace(null);
+        localStorage.removeItem('taskflow_last_workspace_id');
+        navigate('/onboarding', { replace: true });
+      }
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, navigate, setCurrentWorkspace]);
+  }, [workspaceId, navigate, setCurrentWorkspace, queryClient]);
 
   useEffect(() => {
     loadWorkspaceData();
@@ -271,14 +297,9 @@ export const WorkspaceDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-neutral-50 dark:bg-neutral-950">
-        <Sidebar />
-        <main className="flex-1 p-6 md:p-10 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-medium text-neutral-400">Loading workspace…</span>
-          </div>
-        </main>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-medium text-neutral-400">Loading workspace…</span>
       </div>
     );
   }

@@ -284,6 +284,20 @@ class WorkspaceRepository {
       { new: true }
     ).exec();
   }
+
+  /**
+   * Soft delete all invitations belonging to a workspace.
+   */
+  async softDeleteInvitesByWorkspace(workspaceId) {
+    return WorkspaceInvite.updateMany(
+      { workspaceId, isDeleted: { $ne: true } },
+      {
+        status: 'cancelled',
+        isDeleted: true,
+        deletedAt: new Date()
+      }
+    ).exec();
+  }
 }
 
 export default new WorkspaceRepository();

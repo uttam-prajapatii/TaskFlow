@@ -96,6 +96,16 @@ class BoardRepository {
   }
 
   /**
+   * Soft delete all boards in a workspace.
+   */
+  async softDeleteBoardsByWorkspace(workspaceId) {
+    return Board.updateMany(
+      { workspaceId, isDeleted: { $ne: true } },
+      { isDeleted: true }
+    ).exec();
+  }
+
+  /**
    * Find active boards in multiple workspaces.
    */
   async findActiveBoardsByWorkspaces(workspaceIds) {

@@ -192,6 +192,8 @@ class WorkspaceService {
     }
 
     await workspaceRepository.softDeleteWorkspace(workspace._id);
+    await boardRepository.softDeleteBoardsByWorkspace(workspace._id);
+    await workspaceRepository.softDeleteInvitesByWorkspace(workspace._id);
     logger.info(`Workspace soft deleted`, { workspaceId: workspace._id, deletedBy: userId });
     return { message: 'Workspace deleted successfully' };
   }
