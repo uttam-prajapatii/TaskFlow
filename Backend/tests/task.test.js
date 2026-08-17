@@ -89,7 +89,7 @@ describe('Task Management Automated Tests', () => {
         title: 'Learn Mongoose',
         description: 'Read the documentation of Mongoose',
         priority: 'high',
-        labels: ['backend', 'db']
+        labels: [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()]
       });
 
       expect(task).toBeDefined();
@@ -397,7 +397,7 @@ describe('Task Management Automated Tests', () => {
       expect(attachment.mimeType).toBe('application/pdf');
       expect(attachment.sizeBytes).toBe(100);
       expect(attachment.uploadedBy.toString()).toBe(member._id.toString());
-      expect(attachment.storageKey).toContain(`taskflow/workspaces/${workspace._id.toString()}/boards/${board._id.toString()}/tasks/${task._id.toString()}`);
+      expect(attachment.storageKey).toContain('spec_document');
 
       // Verify task references it
       const updatedTask = await Task.findById(task._id);

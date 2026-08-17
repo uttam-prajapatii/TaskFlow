@@ -59,6 +59,11 @@ export const emailQueue = new Queue('emailQueue', {
  * @returns {Promise<Object>} The enqueued BullMQ Job object
  */
 export async function enqueueEmail(jobName, payload) {
+  if (process.env.NODE_ENV === 'test') {
+    logger.info(`[MOCK EMAIL QUEUE] Bypassed queuing email job in test mode. name=${jobName}`, { payload });
+    return { id: `mock-job-${Date.now()}` };
+  }
+
   try {
     const job = await emailQueue.add(jobName, payload);
     logger.info(`Successfully enqueued email job. name=${jobName} jobId=${job.id}`);

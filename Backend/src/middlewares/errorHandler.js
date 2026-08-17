@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import fs from 'fs';
 
 /**
  * Global centralized Express error handling middleware
@@ -6,6 +7,17 @@ import logger from '../utils/logger.js';
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
+
+  // Clean up uploaded file if request fails before service handles deletion
+  if (req.file && req.file.path) {
+    fs.unlink(req.file.path, (unlinkErr) => {
+      if (unlinkErr) {
+        logger.warn(`Failed to clean up uploaded file ${req.file.path}: ${unlinkErr.message}`);
+      } else {
+        logger.info(`Cleaned up local file in error handler: ${req.file.path}`);
+      }
+    });
+  }
 
   // Log error using Winston (this automatically records to console and error.log)
   logger.error(`${err.message} - ${req.method} ${req.originalUrl} - IP: ${req.ip}`, {

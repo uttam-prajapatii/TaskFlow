@@ -156,8 +156,8 @@ class WorkspaceService {
     }
 
     const { uploadStream } = await import('../../config/cloudinary.js');
-    const uploadResult = await uploadStream(file.buffer, {
-      folder: 'taskflow/workspaces',
+    const uploadResult = await uploadStream(file, {
+      asset_folder: 'taskflow/workspaces',
       public_id: `workspace_${workspace._id}_logo`
     });
 
