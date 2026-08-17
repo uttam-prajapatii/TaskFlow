@@ -33,6 +33,7 @@ export const protect = asyncHandler(async (req, res, next) => {
   req.user = {
     _id: user._id,
     email: user.email,
+    fullName:user.fullName,
     isActive: user.isActive,
   };
 

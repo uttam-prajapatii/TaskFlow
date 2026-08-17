@@ -29,16 +29,29 @@ const customLevels = {
 
 winston.addColors(customLevels.colors);
 
+const istTimestampFormat = () => {
+  const date = new Date();
+  const kolkataTime = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const year = kolkataTime.getFullYear();
+  const month = String(kolkataTime.getMonth() + 1).padStart(2, '0');
+  const day = String(kolkataTime.getDate()).padStart(2, '0');
+  const hours = String(kolkataTime.getHours()).padStart(2, '0');
+  const minutes = String(kolkataTime.getMinutes()).padStart(2, '0');
+  const seconds = String(kolkataTime.getSeconds()).padStart(2, '0');
+  const ms = String(date.getMilliseconds()).padStart(3, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms} IST`;
+};
+
 // JSON formatting for file logs (combined & error)
 const formatFile = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.timestamp({ format: istTimestampFormat }),
   winston.format.errors({ stack: true }),
   winston.format.json()
 );
 
 // Clear, colorized format for the console (local / Docker output)
 const formatConsole = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.timestamp({ format: istTimestampFormat }),
   winston.format.colorize({ all: true }),
   winston.format.printf(
     (info) => `[${info.timestamp}] [${info.level}]: ${info.message}${info.stack ? `\nStack: ${info.stack}` : ''}`

@@ -131,7 +131,7 @@ describe('Workspace Validation Middleware', () => {
       const { nextCalled, errorPassed } = runMiddleware(validateUpdateWorkspace, {});
       expect(nextCalled).toBe(true);
       expect(errorPassed).toBeInstanceOf(BadRequestError);
-      expect(errorPassed.message).toBe('At least one field (name, description, settings) must be provided for update');
+      expect(errorPassed.message).toBe('At least one field (name, description, settings, accentColor) must be provided for update');
     });
 
     test('should pass and trim name if provided', () => {

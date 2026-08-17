@@ -661,15 +661,15 @@ class TaskService {
     const boardId = getStrId(board._id);
     const taskIdStr = getStrId(task._id);
 
-    const folder = `taskflow/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskIdStr}`;
+    const assetFolder = `taskflow/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskIdStr}`;
     const parsed = path.parse(file.originalname);
     const cleanName = parsed.name.replace(/[^a-zA-Z0-9]/g, '_');
     const publicId = `${cleanName}_${Date.now()}`;
 
     let uploadResult;
     try {
-      uploadResult = await uploadStream(file.buffer, {
-        folder,
+      uploadResult = await uploadStream(file, {
+        asset_folder: assetFolder,
         public_id: publicId
       });
     } catch (err) {
