@@ -81,6 +81,14 @@ const TaskSchema = new Schema({
     type: Date,
     default: null
   },
+  isCompleted: {
+    type: Boolean,
+    default: false
+  },
+  dueDateReminderSent: {
+    type: Boolean,
+    default: false
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -91,9 +99,59 @@ TaskSchema.index({ boardId: 1, isArchived: 1 });
 TaskSchema.index({ assignees: 1 });
 TaskSchema.index({ title: 'text', description: 'text' }); // full-text search
 TaskSchema.index({ deletedAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+TaskSchema.index({ isCompleted: 1 });
+TaskSchema.index({ dueDateReminderSent: 1, dueDate: 1 });
 
 TaskSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
+
+  // Dynamic isCompleted calculation
+  if (!this.checklist || this.checklist.length === 0) {
+    this.isCompleted = false;
+  } else {
+    this.isCompleted = this.checklist.every((item) => item.isDone);
+  }
+
+  // Reset dueDateReminderSent if dueDate was modified
+  if (this.isModified('dueDate')) {
+    this.dueDateReminderSent = false;
+  }
+
+  next();
+});
+
+TaskSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate();
+  if (!update) return next();
+
+  // Handle checklist update
+  if (update.checklist !== undefined) {
+    const cl = update.checklist;
+    if (!cl || cl.length === 0) {
+      update.isCompleted = false;
+    } else {
+      update.isCompleted = cl.every((item) => item.isDone);
+    }
+  } else if (update.$set && update.$set.checklist !== undefined) {
+    const cl = update.$set.checklist;
+    if (!cl || cl.length === 0) {
+      update.$set.isCompleted = false;
+    } else {
+      update.$set.isCompleted = cl.every((item) => item.isDone);
+    }
+  }
+
+  // Handle dueDate update to reset reminder sent status
+  if (update.dueDate !== undefined) {
+    if (update.$set) {
+      update.$set.dueDateReminderSent = false;
+    } else {
+      update.dueDateReminderSent = false;
+    }
+  } else if (update.$set && update.$set.dueDate !== undefined) {
+    update.$set.dueDateReminderSent = false;
+  }
+
   next();
 });
 

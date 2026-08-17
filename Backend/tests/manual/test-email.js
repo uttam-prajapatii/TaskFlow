@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { enqueueEmail } from '../../src/modules/email/email.queue.js';
 import connectDB from '../../src/config/db.js';
-import { Task } from '../../src/modules/workspace/task.model.js';
+import { Task } from '../../src/modules/task/task.model.js';
 import User from '../../src/modules/auth/user.model.js';
 import { Workspace } from '../../src/modules/workspace/workspace.model.js';
 
@@ -94,10 +94,12 @@ async function run() {
   const mockTask = await Task.create({
     title: 'Cron Test Task',
     dueDate: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 hours from now
-    assignedTo: user._id,
+    assignees: [user._id],
     isCompleted: false,
     dueDateReminderSent: false,
-    workspaceId: workspace._id,
+    boardId: new mongoose.Types.ObjectId(),
+    listId: new mongoose.Types.ObjectId(),
+    createdBy: user._id,
   });
 
   console.log(`Created mock Task: ID=${mockTask._id}, title="${mockTask.title}", dueDate=${mockTask.dueDate}`);

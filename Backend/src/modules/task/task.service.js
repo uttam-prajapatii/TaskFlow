@@ -191,6 +191,15 @@ class TaskService {
 
     const tasks = await taskRepository.findTasksByBoard(boardId, filters);
 
+    // Dynamic verification and correction of isCompleted for legacy tasks
+    for (const t of tasks) {
+      const actualCompleted = !!(t.checklist && t.checklist.length > 0 && t.checklist.every((item) => item.isDone));
+      if (t.isCompleted === undefined || t.isCompleted !== actualCompleted) {
+        t.isCompleted = actualCompleted;
+        await t.save();
+      }
+    }
+
     if (query.groupBy === 'list') {
       const lists = await listRepository.findListsByBoard(boardId);
       return formatGroupedTasks(lists, tasks);
@@ -210,7 +219,15 @@ class TaskService {
       throw new ForbiddenError('You do not have permission to view this task');
     }
 
-    return taskRepository.findTaskByIdPopulated(task._id);
+    const populatedTask = await taskRepository.findTaskByIdPopulated(task._id);
+    if (populatedTask) {
+      const actualCompleted = !!(populatedTask.checklist && populatedTask.checklist.length > 0 && populatedTask.checklist.every((item) => item.isDone));
+      if (populatedTask.isCompleted === undefined || populatedTask.isCompleted !== actualCompleted) {
+        populatedTask.isCompleted = actualCompleted;
+        await populatedTask.save();
+      }
+    }
+    return populatedTask;
   }
 
   /**
@@ -246,6 +263,13 @@ class TaskService {
     }
 
     const updatedTask = await taskRepository.updateTask(taskId, sanitizedUpdate);
+    if (updatedTask) {
+      const actualCompleted = !!(updatedTask.checklist && updatedTask.checklist.length > 0 && updatedTask.checklist.every((item) => item.isDone));
+      if (updatedTask.isCompleted === undefined || updatedTask.isCompleted !== actualCompleted) {
+        updatedTask.isCompleted = actualCompleted;
+        await updatedTask.save();
+      }
+    }
 
     logger.info(`Task updated successfully: ${updatedTask.title}`, {
       taskId,

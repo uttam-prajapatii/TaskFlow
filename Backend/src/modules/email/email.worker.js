@@ -68,34 +68,39 @@ async function scanDueDateReminders() {
     // 1. Are due between now and the next 24 hours
     // 2. Are not completed
     // 3. Haven't had a due date reminder sent yet
-    // 4. Have an assignee assigned to them
+    // 4. Are not deleted
+    // 5. Have at least one assignee
     const tasks = await Task.find({
       dueDate: { $gt: now, $lte: twentyFourHoursLater },
       isCompleted: { $ne: true },
       dueDateReminderSent: { $ne: true },
-      assignedTo: { $ne: null },
-    }).populate('assignedTo');
+      isDeleted: { $ne: true },
+      assignees: { $exists: true, $not: { $size: 0 } },
+    }).populate('assignees');
 
     logger.info(`Due date scanner: Found ${tasks.length} task(s) requiring reminders.`);
 
     for (const task of tasks) {
-      if (task.assignedTo && task.assignedTo.email) {
-        const toEmail = task.assignedTo.email;
-        const taskUrl = `${process.env.APP_BASE_URL || 'https://taskflow.app'}/workspaces/${task.workspaceId}/tasks/${task._id}`;
+      if (task.assignees && task.assignees.length > 0) {
+        const appBaseUrl = process.env.APP_BASE_URL;
+        const taskUrl = `${appBaseUrl}/boards/${task.boardId}/tasks/${task._id}`;
 
-        // Enqueue individual email sending job
-        await enqueueEmail('sendDueDateReminder', {
-          toEmail,
-          taskTitle: task.title,
-          dueDate: task.dueDate,
-          taskUrl,
-        });
+        for (const assignee of task.assignees) {
+          if (assignee.email) {
+            // Enqueue individual email sending job
+            await enqueueEmail('sendDueDateReminder', {
+              toEmail: assignee.email,
+              taskTitle: task.title,
+              dueDate: task.dueDate,
+              taskUrl,
+            });
+            logger.info(`Queued due date reminder for task "${task.title}" to ${assignee.email}`);
+          }
+        }
 
         // Set dueDateReminderSent to true on the Task to deduplicate
         task.dueDateReminderSent = true;
         await task.save();
-
-        logger.info(`Queued due date reminder for task "${task.title}" to ${toEmail}`);
       }
     }
   } catch (error) {
