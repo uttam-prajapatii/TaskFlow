@@ -84,8 +84,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success(res.message || 'Verification OTP sent to your email', { id: 'login-otp-toast' });
         return { requiresOtp: true, email };
       }
-    } catch (err: unknown) {
-      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success(res.message || 'Verification OTP sent to your email', { id: 'register-otp-toast' });
         return { requiresOtp: true, email };
       }
-    } catch (err: unknown) {
-      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -124,20 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(res.data.user);
         toast.success(res.message || 'Email verified successfully', { id: 'verify-otp-success-toast' });
       }
-    } catch (err: unknown) {
-      throw err;
     } finally {
       setIsLoading(false);
     }
   }, [setPendingEmail]);
 
   const resendOtp = useCallback(async (email: string) => {
-    try {
-      const res = await authService.resendOtp({ email });
-      toast.success(res.message || 'Verification OTP sent successfully', { id: 'resend-otp-toast' });
-    } catch (err: unknown) {
-      throw err;
-    }
+    const res = await authService.resendOtp({ email });
+    toast.success(res.message || 'Verification OTP sent successfully', { id: 'resend-otp-toast' });
   }, []);
 
   const logout = useCallback(async () => {

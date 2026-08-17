@@ -24,7 +24,7 @@ interface TaskDrawerProps {
 
 const renderCommentBody = (text: string) => {
   // Regex to match @mentions: @word or @Word Word
-  const mentionRegex = /(@[a-zA-Z0-9_\.\-]+(?:\s[a-zA-Z0-9_\.\-]+)?)/g;
+  const mentionRegex = /(@[a-zA-Z0-9_.-]+(?:\s[a-zA-Z0-9_.-]+)?)/g;
   const parts = text.split(mentionRegex);
   return parts.map((part, idx) => {
     if (part.startsWith('@') && part.trim().length > 1) {

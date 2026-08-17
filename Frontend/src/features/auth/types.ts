@@ -39,7 +39,7 @@ export interface MeSuccessData {
   user: User;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   status: string;
   message: string;
   data: T;
