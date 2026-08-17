@@ -14,6 +14,7 @@ if (!fs.existsSync(uploadDir)) {
  * Returns a middleware that validates mimeType, file size, and catches Multer exceptions.
  */
 export const configureUpload = ({
+  fieldName = 'file',
   allowedMimeTypes = [],
   maxSizeInBytes = 10 * 1024 * 1024, // 10MB default
 } = {}) => {
@@ -40,7 +41,7 @@ export const configureUpload = ({
     storage,
     limits: { fileSize: maxSizeInBytes },
     fileFilter,
-  }).single('file'); // We expect the file field name in form-data to be 'file'
+  }).single(fieldName);
 
   return (req, res, next) => {
     upload(req, res, (err) => {

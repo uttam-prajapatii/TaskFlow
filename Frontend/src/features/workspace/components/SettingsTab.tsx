@@ -13,6 +13,7 @@ interface SettingsTabProps {
   onDelete: () => void;
   onLeave: () => void;
   onRefresh?: () => void;
+  onUpdateWorkspace?: (updated: Partial<Workspace>) => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -23,6 +24,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onDelete,
   onLeave,
   onRefresh,
+  onUpdateWorkspace,
 }) => {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(ws.name);
@@ -42,9 +44,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       setUploadingLogo(true);
       const formData = new FormData();
       formData.append('logo', file);
-      await workspaceService.uploadLogo(wsId, formData);
+      const res = await workspaceService.uploadLogo(wsId, formData);
       toast.success('Workspace logo updated!');
-      if (onRefresh) onRefresh();
+      if (onUpdateWorkspace) {
+        onUpdateWorkspace({ logoUrl: res.logoUrl });
+      } else if (onRefresh) {
+        onRefresh();
+      }
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
       toast.error(errorObj.response?.data?.message || 'Failed to upload logo');

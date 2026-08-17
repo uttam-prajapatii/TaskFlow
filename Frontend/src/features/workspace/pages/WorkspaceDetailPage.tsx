@@ -102,6 +102,16 @@ export const WorkspaceDetailPage: React.FC = () => {
     loadWorkspaceData();
   }, [loadWorkspaceData]);
 
+  // Update workspace details dynamically in state
+  const updateWorkspaceState = useCallback((updated: Partial<Workspace>) => {
+    setWorkspace((prev: Workspace | null) => {
+      if (!prev) return null;
+      const nextWs = { ...prev, ...updated } as Workspace;
+      setCurrentWorkspace(nextWs);
+      return nextWs;
+    });
+  }, [setCurrentWorkspace]);
+
   // Determine current user's role in this workspace
   const myMemberObj = members.find((m) => {
     const uId = typeof m.userId === 'object' && m.userId !== null ? m.userId._id : m.userId;
@@ -136,7 +146,7 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await boardService.deleteBoard(bId);
       toast.success('Board deleted');
-      loadWorkspaceData();
+      setBoards((prev) => prev.filter((board) => (board._id || board.id) !== bId));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to delete board');
@@ -149,7 +159,7 @@ export const WorkspaceDetailPage: React.FC = () => {
       await boardService.updateBoard(boardId, { name: newName });
       toast.success('Board renamed successfully');
       setRenameBoardTarget(null);
-      loadWorkspaceData();
+      setBoards((prev) => prev.map((b) => (b._id || b.id) === boardId ? { ...b, name: newName } : b));
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to rename board');
@@ -163,9 +173,12 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.changeMemberRole(workspaceId, userId, role);
       toast.success('Member role updated');
+      setMembers((prev) => prev.map((m) => {
+        const uId = typeof m.userId === 'object' && m.userId !== null ? m.userId._id : m.userId;
+        return String(uId) === String(userId) ? { ...m, role } : m;
+      }));
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
-      loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to update member role');
@@ -177,9 +190,12 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.removeMember(workspaceId, userId);
       toast.success('Member removed');
+      setMembers((prev) => prev.filter((m) => {
+        const uId = typeof m.userId === 'object' && m.userId !== null ? m.userId._id : m.userId;
+        return String(uId) !== String(userId);
+      }));
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
-      loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to remove member');
@@ -190,12 +206,12 @@ export const WorkspaceDetailPage: React.FC = () => {
     if (!workspaceId || sendingInvite) return;
     try {
       setSendingInvite(true);
-      await workspaceService.inviteMember(workspaceId, { email, role });
+      const invite = await workspaceService.inviteMember(workspaceId, { email, role });
       toast.success(`Invite sent to ${email}`, { id: 'invite-toast' });
       setInviteModalOpen(false);
+      setInvites((prev) => [invite, ...prev]);
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
-      loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       const msg = error.response?.data?.message || 'Failed to send invite';
@@ -210,9 +226,9 @@ export const WorkspaceDetailPage: React.FC = () => {
     try {
       await workspaceService.revokeInvite(workspaceId, inviteId);
       toast.success('Invitation revoked');
+      setInvites((prev) => prev.filter((i) => (i._id || i.id) !== inviteId));
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
-      loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to revoke invite');
@@ -222,10 +238,10 @@ export const WorkspaceDetailPage: React.FC = () => {
   const handleRenameWorkspace = async (newName: string) => {
     if (!workspaceId) return;
     try {
-      await workspaceService.updateWorkspace(workspaceId, { name: newName });
+      const updated = await workspaceService.updateWorkspace(workspaceId, { name: newName });
       toast.success('Workspace renamed');
+      updateWorkspaceState(updated);
       await refreshWorkspaces();
-      loadWorkspaceData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to rename workspace');
@@ -494,6 +510,7 @@ export const WorkspaceDetailPage: React.FC = () => {
               onDelete={handleDeleteWorkspace}
               onLeave={handleLeaveWorkspace}
               onRefresh={loadWorkspaceData}
+              onUpdateWorkspace={updateWorkspaceState}
             />
           )}
         </div>

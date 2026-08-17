@@ -9,6 +9,8 @@ import boardRepository from '../board/board.repository.js';
 import listRepository from '../list/list.repository.js';
 import taskRepository from '../task/task.repository.js';
 import { ActivityLog } from '../activityLog/activityLog.model.js';
+import notificationService from '../notification/notification.service.js';
+import { emitToWorkspace } from '../../config/socket.js';
 
 class WorkspaceService {
   /**
@@ -162,10 +164,13 @@ class WorkspaceService {
     });
 
     const logoUrl = uploadResult.secure_url;
-    const updatedWorkspace = await workspaceRepository.updateWorkspace(workspace._id, { logoUrl });
+    await workspaceRepository.updateWorkspace(workspace._id, { logoUrl });
     logger.info(`Workspace logo updated`, { workspaceId: workspace._id, updatedBy: userId, logoUrl });
 
-    return updatedWorkspace;
+    return {
+      _id: workspace._id.toString(),
+      logoUrl
+    };
   }
 
   /**
@@ -478,6 +483,40 @@ class WorkspaceService {
     }
 
     logger.info(`Invitation accepted`, { workspaceId: workspace._id, role: invite.role, userId: authenticatedUser._id, inviteId: invite._id });
+
+    // Send in-app and socket notification to the inviter only
+    if (invite.invitedBy) {
+      try {
+        const inviterId = invite.invitedBy.toString();
+        const userName = authenticatedUser.fullName || authenticatedUser.name || 'A teammate';
+        await notificationService.createAndSendNotification(inviterId, 'invite', {
+          workspaceId: workspace._id.toString(),
+          actorName: userName,
+          message: `${userName} accepted your invitation to join workspace "${workspace.name}"`
+        });
+      } catch (notifErr) {
+        logger.error(`Failed to send invitation acceptance notification: ${notifErr.message}`);
+      }
+    }
+
+    // Broadcast member:joined event to workspace room
+    try {
+      emitToWorkspace(workspace._id.toString(), 'member:joined', {
+        workspaceId: workspace._id.toString(),
+        member: {
+          userId: {
+            _id: authenticatedUser._id.toString(),
+            fullName: authenticatedUser.fullName,
+            email: authenticatedUser.email,
+            avatarUrl: authenticatedUser.avatarUrl || null
+          },
+          role: invite.role,
+          joinedAt: new Date()
+        }
+      });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast member:joined Socket event: ${wsError.message}`);
+    }
 
     return {
       message: 'Invitation accepted successfully',

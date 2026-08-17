@@ -136,7 +136,7 @@ export const workspaceService = {
   },
 
   // Upload workspace logo image
-  async uploadLogo(workspaceId: string, formData: FormData): Promise<Workspace> {
+  async uploadLogo(workspaceId: string, formData: FormData): Promise<{ _id: string; logoUrl: string }> {
     const response = await api.post(`/api/v1/workspaces/${workspaceId}/logo`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

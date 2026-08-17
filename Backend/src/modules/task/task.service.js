@@ -116,9 +116,9 @@ class TaskService {
 
     // Broadcast creation to board room
     try {
-      emitToBoard(list.boardId.toString(), 'task:updated', { boardId: list.boardId.toString() });
+      emitToBoard(list.boardId.toString(), 'task:created', task);
     } catch (wsError) {
-      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+      logger.warn(`Failed to broadcast task:created Socket event: ${wsError.message}`);
     }
 
     // Log Activity audit trail
@@ -237,6 +237,14 @@ class TaskService {
     delete sanitizedUpdate.createdBy;
     delete sanitizedUpdate.createdAt;
 
+    // Detect newly added assignees
+    let newlyAddedAssignees = [];
+    if (sanitizedUpdate.assignees && Array.isArray(sanitizedUpdate.assignees)) {
+      const oldAssignees = task.assignees.map(a => a.toString());
+      const newAssignees = sanitizedUpdate.assignees.map(a => a.toString());
+      newlyAddedAssignees = newAssignees.filter(a => !oldAssignees.includes(a));
+    }
+
     const updatedTask = await taskRepository.updateTask(taskId, sanitizedUpdate);
 
     logger.info(`Task updated successfully: ${updatedTask.title}`, {
@@ -249,6 +257,28 @@ class TaskService {
       emitToBoard(board._id.toString(), 'task:updated', updatedTask);
     } catch (wsError) {
       logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+    }
+
+    // Send notifications to newly added assignees
+    if (newlyAddedAssignees.length > 0) {
+      try {
+        const callerUser = await authRepository.findUserById(userId);
+        const callerName = callerUser?.fullName || callerUser?.name || 'A teammate';
+        for (const assigneeId of newlyAddedAssignees) {
+          if (assigneeId === userId.toString()) continue;
+
+          await notificationService.createAndSendNotification(assigneeId, 'task', {
+            taskId: task._id.toString(),
+            taskTitle: updatedTask.title,
+            boardId: board._id.toString(),
+            workspaceId: workspace._id.toString(),
+            actorName: callerName,
+            message: `${callerName} assigned you a task: "${updatedTask.title}"`
+          });
+        }
+      } catch (err) {
+        logger.error(`Failed to dispatch assignee notifications in updateTask: ${err.message}`);
+      }
     }
 
     // Log Activity audit log
@@ -329,9 +359,10 @@ class TaskService {
 
     // Broadcast movement to board room
     try {
-      emitToBoard(board._id.toString(), 'task:updated', updated);
+      const allTasks = await taskRepository.findTasksByBoard(board._id.toString(), { isArchived: false });
+      emitToBoard(board._id.toString(), 'task:moved', { boardId: board._id.toString(), tasks: allTasks });
     } catch (wsError) {
-      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+      logger.warn(`Failed to broadcast task:moved Socket event: ${wsError.message}`);
     }
 
     // Log Activity audit log (moving or completed)
@@ -391,9 +422,9 @@ class TaskService {
 
     // Broadcast deletion to board room
     try {
-      emitToBoard(board._id.toString(), 'task:updated', { taskId, listId: task.listId, isDeleted: true });
+      emitToBoard(board._id.toString(), 'task:deleted', { taskId: taskId.toString() });
     } catch (wsError) {
-      logger.warn(`Failed to broadcast task:updated Socket event: ${wsError.message}`);
+      logger.warn(`Failed to broadcast task:deleted Socket event: ${wsError.message}`);
     }
 
     // Log Activity audit log
@@ -441,6 +472,12 @@ class TaskService {
       archivedBy: userId
     });
 
+    try {
+      emitToBoard(board._id.toString(), 'task:deleted', { taskId: taskId.toString() });
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast task:deleted Socket event: ${wsError.message}`);
+    }
+
     return archivedTask;
   }
 
@@ -465,6 +502,12 @@ class TaskService {
       taskId,
       restoredBy: userId
     });
+
+    try {
+      emitToBoard(board._id.toString(), 'task:created', restoredTask);
+    } catch (wsError) {
+      logger.warn(`Failed to broadcast task:created Socket event: ${wsError.message}`);
+    }
 
     return restoredTask;
   }
