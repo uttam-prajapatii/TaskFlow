@@ -15,11 +15,18 @@ export interface TaskChecklist {
 export interface TaskAttachmentItem {
   _id: string;
   id?: string;
-  originalName: string;
-  fileUrl: string;
+  taskId?: string;
+  fileName?: string;
+  originalName?: string;
+  fileUrl?: string;
+  url?: string;
   mimeType?: string;
+  sizeBytes?: number;
   size?: number;
+  storageKey?: string;
+  uploadedBy?: string | { _id: string; fullName?: string; email?: string };
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Label {

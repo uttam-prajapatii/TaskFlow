@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
 import Icon from '../../../components/UI/Icon';
 import { toast } from 'sonner';
@@ -102,7 +102,6 @@ export const OtpVerificationForm: React.FC = () => {
   }, []);
 
   const [searchParams] = useSearchParams();
-  const location = useLocation();
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {

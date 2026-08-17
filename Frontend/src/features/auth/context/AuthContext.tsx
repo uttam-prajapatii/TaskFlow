@@ -84,8 +84,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success(res.message || 'Verification OTP sent to your email', { id: 'login-otp-toast' });
         return { requiresOtp: true, email };
       }
-    } catch (err: unknown) {
-      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success(res.message || 'Verification OTP sent to your email', { id: 'register-otp-toast' });
         return { requiresOtp: true, email };
       }
-    } catch (err: unknown) {
-      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -124,20 +120,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(res.data.user);
         toast.success(res.message || 'Email verified successfully', { id: 'verify-otp-success-toast' });
       }
-    } catch (err: unknown) {
-      throw err;
     } finally {
       setIsLoading(false);
     }
   }, [setPendingEmail]);
 
   const resendOtp = useCallback(async (email: string) => {
-    try {
-      const res = await authService.resendOtp({ email });
-      toast.success(res.message || 'Verification OTP sent successfully', { id: 'resend-otp-toast' });
-    } catch (err: unknown) {
-      throw err;
-    }
+    const res = await authService.resendOtp({ email });
+    toast.success(res.message || 'Verification OTP sent successfully', { id: 'resend-otp-toast' });
   }, []);
 
   const logout = useCallback(async () => {
@@ -155,6 +145,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [setPendingEmail]);
 
+  const updateUser = useCallback((updatedUser: Partial<User> | User) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedUser } : (updatedUser as User)));
+  }, []);
+
+  const updateProfile = useCallback(async (fullName: string): Promise<User> => {
+    const res = await authService.updateMe({ fullName });
+    const resData = res.data as (User & { user?: User });
+    const updatedUser = resData?.user || resData;
+    if (updatedUser && (updatedUser._id || updatedUser.email)) {
+      setUser((prev) => (prev ? { ...prev, ...updatedUser } : updatedUser));
+      return updatedUser;
+    }
+    throw new Error(res.message || 'Failed to update profile');
+  }, []);
+
   // S6481: Memoize context value using useMemo to prevent unnecessary consumer re-renders
   const contextValue = useMemo<AuthContextType>(
     () => ({
@@ -169,8 +174,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resendOtp,
       logout,
       checkAuth,
+      updateUser,
+      updateProfile,
     }),
-    [user, isLoading, pendingEmail, setPendingEmail, login, register, verifyOtp, resendOtp, logout, checkAuth]
+    [user, isLoading, pendingEmail, setPendingEmail, login, register, verifyOtp, resendOtp, logout, checkAuth, updateUser, updateProfile]
   );
 
   return (

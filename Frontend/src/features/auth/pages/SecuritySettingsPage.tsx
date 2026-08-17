@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from '../../../components/layout/Sidebar';
 import FormInput from '../components/FormInput';
 import Icon from '../../../components/UI/Icon';
@@ -31,22 +32,71 @@ type UpdatePasswordFormData = z.infer<typeof updatePasswordSchema>;
 
 export const SecuritySettingsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { user, updateProfile } = useAuth();
   const [apiError, setApiError] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState(user?.fullName || '');
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Synchronize local input state when user object loads or updates
+  React.useEffect(() => {
+    if (user?.fullName !== undefined) {
+      setFullName(user.fullName);
+    }
+  }, [user?.fullName]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) return;
+    if (savingProfile) return;
+
+    setProfileError(null);
+    const trimmedName = fullName.trim();
+
+    // Frontend validation matching backend requirements
+    if (!trimmedName) {
+      const err = 'Full name is required';
+      setProfileError(err);
+      toast.error(err);
+      return;
+    }
+
+    if (trimmedName.length < 2 || trimmedName.length > 50) {
+      const err = 'Full name must be between 2 and 50 characters long';
+      setProfileError(err);
+      toast.error(err);
+      return;
+    }
+
+    const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+    if (!nameRegex.test(trimmedName)) {
+      const err = 'Full name can only contain letters, spaces, hyphens, and apostrophes';
+      setProfileError(err);
+      toast.error(err);
+      return;
+    }
+
+    // Avoid unnecessary API call if name is unchanged
+    if (trimmedName === user?.fullName) {
+      toast.info('No changes to save.');
+      return;
+    }
+
     try {
       setSavingProfile(true);
-      await authService.updateMe({ fullName: fullName.trim() });
+      await updateProfile(trimmedName);
+      setFullName(trimmedName);
+      setProfileError(null);
+      // Invalidate relevant react-query caches so members / workspaces refresh
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       toast.success('Profile full name updated!');
     } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } } };
-      toast.error(errorObj.response?.data?.message || 'Failed to update profile name');
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage =
+        errorObj.response?.data?.message || errorObj.message || 'Failed to update profile name';
+      setProfileError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSavingProfile(false);
     }
@@ -133,6 +183,13 @@ export const SecuritySettingsPage: React.FC = () => {
               </div>
             </div>
 
+            {profileError && (
+              <div className="mb-4 p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
+                <Icon name="alert-circle" size={16} className="shrink-0 text-rose-500" />
+                <span>{profileError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5 select-none">
@@ -141,9 +198,13 @@ export const SecuritySettingsPage: React.FC = () => {
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    if (profileError) setProfileError(null);
+                  }}
                   placeholder="Enter your full name"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/80 focus:bg-white dark:focus:bg-neutral-800 text-xs sm:text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                  disabled={savingProfile}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/80 focus:bg-white dark:focus:bg-neutral-800 text-xs sm:text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 disabled:opacity-60"
                 />
               </div>
 

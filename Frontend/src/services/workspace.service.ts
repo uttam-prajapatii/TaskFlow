@@ -3,6 +3,7 @@ import type {
   Workspace,
   WorkspaceMember,
   WorkspaceInvite,
+  WorkspaceInviteDetails,
   CreateWorkspacePayload,
   UpdateWorkspacePayload,
   InviteMemberPayload,

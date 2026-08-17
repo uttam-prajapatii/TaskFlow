@@ -24,7 +24,7 @@ interface TaskDrawerProps {
 
 const renderCommentBody = (text: string) => {
   // Regex to match @mentions: @word or @Word Word
-  const mentionRegex = /(@[a-zA-Z0-9_\.\-]+(?:\s[a-zA-Z0-9_\.\-]+)?)/g;
+  const mentionRegex = /(@[a-zA-Z0-9_.-]+(?:\s[a-zA-Z0-9_.-]+)?)/g;
   const parts = text.split(mentionRegex);
   return parts.map((part, idx) => {
     if (part.startsWith('@') && part.trim().length > 1) {
@@ -90,6 +90,112 @@ const formatLogAction = (log: ActivityLog): string => {
   }
 };
 
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const isImageAttachment = (att: TaskAttachmentItem): boolean => {
+  const mime = (att.mimeType || '').toLowerCase();
+  if (mime.startsWith('image/')) return true;
+  const name = (att.fileName || att.originalName || '').toLowerCase();
+  return /\.(jpe?g|png|gif|webp|svg|bmp|avif)$/i.test(name);
+};
+
+const getFileExtension = (filename?: string): string => {
+  if (!filename) return 'FILE';
+  const parts = filename.split('.');
+  if (parts.length > 1) {
+    const ext = parts[parts.length - 1].toUpperCase();
+    return ext.length <= 6 ? ext : 'FILE';
+  }
+  return 'FILE';
+};
+
+const getAttachmentIconName = (att: TaskAttachmentItem): string => {
+  const mime = (att.mimeType || '').toLowerCase();
+  const name = (att.fileName || att.originalName || '').toLowerCase();
+
+  if (mime.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(name)) {
+    return 'file-image';
+  }
+  if (mime === 'application/pdf' || name.endsWith('.pdf')) {
+    return 'file-text';
+  }
+  if (
+    mime.includes('zip') ||
+    mime.includes('tar') ||
+    mime.includes('compressed') ||
+    /\.(zip|rar|7z|tar|gz)$/i.test(name)
+  ) {
+    return 'file-archive';
+  }
+  if (
+    mime.includes('json') ||
+    mime.includes('javascript') ||
+    mime.includes('typescript') ||
+    mime.includes('html') ||
+    /\.(js|ts|tsx|jsx|json|html|css|py|java|cpp|c|md|yml|yaml)$/i.test(name)
+  ) {
+    return 'file-code';
+  }
+  if (
+    mime.includes('word') ||
+    mime.includes('document') ||
+    mime.includes('excel') ||
+    mime.includes('sheet') ||
+    /\.(docx?|xlsx?|pptx?|csv|txt|rtf)$/i.test(name)
+  ) {
+    return 'file-text';
+  }
+  return 'file';
+};
+
+const getFileTypeStyle = (att: TaskAttachmentItem) => {
+  const name = (att.fileName || att.originalName || '').toLowerCase();
+  const mime = (att.mimeType || '').toLowerCase();
+  if (mime.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(name)) {
+    return {
+      bg: 'bg-orange-500/10 dark:bg-orange-500/20',
+      text: 'text-orange-500 dark:text-orange-400',
+      badge: 'bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300',
+    };
+  }
+  if (mime === 'application/pdf' || name.endsWith('.pdf')) {
+    return {
+      bg: 'bg-rose-500/10 dark:bg-rose-500/20',
+      text: 'text-rose-500 dark:text-rose-400',
+      badge: 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300',
+    };
+  }
+  if (mime.includes('zip') || /\.(zip|rar|7z|tar|gz)$/i.test(name)) {
+    return {
+      bg: 'bg-amber-500/10 dark:bg-amber-500/20',
+      text: 'text-amber-500 dark:text-amber-400',
+      badge: 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
+    };
+  }
+  if (
+    mime.includes('json') ||
+    mime.includes('javascript') ||
+    mime.includes('typescript') ||
+    /\.(js|ts|tsx|jsx|json|html|css|py|md)$/i.test(name)
+  ) {
+    return {
+      bg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+      text: 'text-indigo-500 dark:text-indigo-400',
+      badge: 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300',
+    };
+  }
+  return {
+    bg: 'bg-blue-500/10 dark:bg-blue-500/20',
+    text: 'text-blue-500 dark:text-blue-400',
+    badge: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300',
+  };
+};
+
 export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   task,
   onClose,
@@ -107,6 +213,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   const [teamMembers, setTeamMembers] = useState<{ id: string; name: string; email?: string }[]>([]);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<TaskAttachmentItem | null>(null);
+  const [deletingAttId, setDeletingAttId] = useState<string | null>(null);
+
+  // Close preview lightbox on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && previewAttachment) {
+        setPreviewAttachment(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewAttachment]);
 
   const taskId = task ? (task._id || task.id || '') : '';
   const resolvedBoardId = propBoardId || task?.boardId || (columns[0]?.boardId ?? '');
@@ -211,11 +330,15 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Attachment upload failed');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     },
   });
 
   const deleteAttachmentMutation = useMutation({
-    mutationFn: (attachmentId: string) => taskService.deleteAttachment(taskId, attachmentId),
+    mutationFn: (attachmentId: string) => {
+      setDeletingAttId(attachmentId);
+      return taskService.deleteAttachment(taskId, attachmentId);
+    },
     onSuccess: () => {
       toast.success('Attachment removed');
       queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
@@ -224,6 +347,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to remove attachment');
+    },
+    onSettled: () => {
+      setDeletingAttId(null);
     },
   });
 
@@ -306,9 +432,55 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Max 10MB limit check
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File size exceeds the 10MB limit');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    if (file.size === 0) {
+      toast.error('Selected file is empty');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     uploadAttachmentMutation.mutate(formData);
+  };
+
+  const handleDownloadAttachment = async (fileUrl?: string, fileName?: string) => {
+    if (!fileUrl) {
+      toast.error('File URL is not available');
+      return;
+    }
+    const safeName = fileName || 'attachment';
+    try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = safeName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback for CORS-restricted downloads
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = safeName;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleStartEdit = (c: Comment) => {
@@ -562,7 +734,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
 
           {/* File Attachments Section */}
           <div className="border-t border-neutral-100 dark:border-neutral-800 pt-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
                 <Icon name="paperclip" size={14} className="text-orange-500" />
                 Attachments ({attachmentsList.length})
@@ -571,10 +743,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadAttachmentMutation.isPending}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100 transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
               >
-                <Icon name="plus" size={12} />
-                {uploadAttachmentMutation.isPending ? 'Uploading…' : 'Attach File'}
+                {uploadAttachmentMutation.isPending ? (
+                  <>
+                    <Icon name="loader-2" size={13} className="animate-spin" />
+                    <span>Uploading…</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="plus" size={13} />
+                    <span>Attach File</span>
+                  </>
+                )}
               </button>
               <input
                 type="file"
@@ -585,52 +766,123 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
             </div>
 
             {attachmentsList.length === 0 ? (
-              <p className="text-[12px] text-neutral-400 dark:text-neutral-500 italic py-1">
-                No file attachments yet.
-              </p>
+              <div className="p-4 rounded-xl border border-dashed border-neutral-200 dark:border-neutral-800 text-center bg-neutral-50/50 dark:bg-neutral-900/30">
+                <p className="text-xs text-neutral-400 dark:text-neutral-500">
+                  No file attachments yet. Click <span className="font-semibold text-neutral-600 dark:text-neutral-300">Attach File</span> to upload screenshots, PDFs, or documents (up to 10MB).
+                </p>
+              </div>
             ) : (
-              <div className="space-y-2 mt-2">
+              <div className="space-y-2.5 mt-2">
                 {attachmentsList.map((att) => {
                   const attId = att._id || att.id || '';
+                  const fileName = att.fileName || att.originalName || 'Attachment';
+                  const fileUrl = att.fileUrl || att.url || '';
+                  const fileSizeStr = formatFileSize(att.sizeBytes ?? att.size);
+                  const isImg = isImageAttachment(att);
+                  const fileExt = getFileExtension(fileName);
+                  const styleInfo = getFileTypeStyle(att);
+                  const isDeleting = deletingAttId === attId;
+
                   return (
                     <div
-                      key={attId}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-800/40"
+                      key={attId || fileName}
+                      className={`flex items-center justify-between p-3 rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/80 dark:bg-neutral-800/40 hover:bg-neutral-100/70 dark:hover:bg-neutral-800/70 transition-all ${
+                        isDeleting ? 'opacity-40 pointer-events-none' : ''
+                      }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="w-8 h-8 rounded-lg bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-neutral-600 dark:text-neutral-300 shrink-0">
-                          <Icon name="file" size={15} />
-                        </div>
+                      {/* Left: Thumbnail or File Icon + Details */}
+                      <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                        {isImg && fileUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment(att)}
+                            className="w-11 h-11 rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-700 shrink-0 border border-neutral-200 dark:border-neutral-700 group relative cursor-pointer"
+                            title="Click to preview image"
+                          >
+                            <img
+                              src={fileUrl}
+                              alt={fileName}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Icon name="eye" size={14} />
+                            </div>
+                          </button>
+                        ) : (
+                          <div
+                            className={`w-11 h-11 rounded-xl ${styleInfo.bg} ${styleInfo.text} flex flex-col items-center justify-center shrink-0 border border-neutral-200/40 dark:border-neutral-700/40`}
+                          >
+                            <Icon name={getAttachmentIconName(att)} size={18} />
+                            <span className="text-[9px] font-bold uppercase tracking-tight leading-none mt-0.5 opacity-80">
+                              {fileExt}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="min-w-0 flex-1">
-                          <p className="text-[12px] font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-                            {att.originalName}
+                          <p
+                            className="text-xs font-bold text-neutral-800 dark:text-neutral-100 truncate leading-snug"
+                            title={fileName}
+                          >
+                            {fileName}
                           </p>
-                          <p className="text-[10px] text-neutral-400">
-                            {att.size ? `${(att.size / 1024).toFixed(1)} KB` : 'Attachment'}
-                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-neutral-400 dark:text-neutral-500">
+                            <span className={`px-1.5 py-0.2 rounded font-semibold text-[9.5px] uppercase ${styleInfo.badge}`}>
+                              {fileExt}
+                            </span>
+                            <span>•</span>
+                            <span>{fileSizeStr}</span>
+                            {att.createdAt && (
+                              <>
+                                <span>•</span>
+                                <span>{new Date(att.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
+                      {/* Right: Actions (View, Download, Delete) */}
                       <div className="flex items-center gap-1 shrink-0">
-                        {att.fileUrl && (
-                          <a
-                            href={att.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-neutral-400 hover:text-orange-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition"
-                            title="Download file"
+                        {isImg && fileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment(att)}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 transition cursor-pointer flex items-center gap-1"
+                            title="View full image"
                           >
-                            <Icon name="download" size={14} />
-                          </a>
+                            <Icon name="eye" size={13} />
+                            <span className="hidden sm:inline">View</span>
+                          </button>
                         )}
+
+                        {fileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAttachment(fileUrl, fileName)}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/80 dark:hover:bg-neutral-700/80 transition cursor-pointer flex items-center gap-1"
+                            title="Download attachment"
+                          >
+                            <Icon name="download" size={13} />
+                            <span className="hidden sm:inline">Download</span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => deleteAttachmentMutation.mutate(attId)}
-                          disabled={deleteAttachmentMutation.isPending}
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                          disabled={isDeleting || deleteAttachmentMutation.isPending}
+                          className="p-1.5 rounded-xl text-neutral-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer disabled:opacity-40"
                           title="Delete attachment"
                         >
-                          <Icon name="trash-2" size={14} />
+                          {isDeleting ? (
+                            <Icon name="loader-2" size={14} className="animate-spin text-rose-500" />
+                          ) : (
+                            <Icon name="trash-2" size={14} />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -887,6 +1139,72 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
           />
         </div>
       </div>
+
+      {/* Image Lightbox Preview Modal */}
+      {previewAttachment && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]"
+          onClick={() => setPreviewAttachment(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Lightbox Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-800 bg-neutral-900/95 shrink-0">
+              <div className="min-w-0 flex-1 pr-4">
+                <p className="text-sm font-bold text-neutral-100 truncate">
+                  {previewAttachment.fileName || previewAttachment.originalName || 'Image Preview'}
+                </p>
+                <p className="text-xs text-neutral-400 mt-0.5">
+                  {formatFileSize(previewAttachment.sizeBytes ?? previewAttachment.size)}
+                  {previewAttachment.createdAt &&
+                    ` • ${new Date(previewAttachment.createdAt).toLocaleDateString(undefined, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDownloadAttachment(
+                      previewAttachment.fileUrl || previewAttachment.url,
+                      previewAttachment.fileName || previewAttachment.originalName
+                    )
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xs font-semibold text-neutral-200 transition cursor-pointer"
+                  title="Download image"
+                >
+                  <Icon name="download" size={14} />
+                  <span>Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewAttachment(null)}
+                  className="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                  title="Close preview (Esc)"
+                >
+                  <Icon name="x" size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Lightbox Image Container */}
+            <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-black/50 min-h-[250px]">
+              <img
+                src={previewAttachment.fileUrl || previewAttachment.url}
+                alt={previewAttachment.fileName || previewAttachment.originalName || 'Preview'}
+                className="max-h-[72vh] max-w-full object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

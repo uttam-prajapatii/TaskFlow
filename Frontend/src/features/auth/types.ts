@@ -39,7 +39,7 @@ export interface MeSuccessData {
   user: User;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   status: string;
   message: string;
   data: T;
@@ -86,4 +86,6 @@ export interface AuthContextType {
   resendOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  updateUser: (user: Partial<User> | User) => void;
+  updateProfile: (fullName: string) => Promise<User>;
 }

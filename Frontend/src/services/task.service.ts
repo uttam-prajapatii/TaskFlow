@@ -1,5 +1,5 @@
 import api from './api';
-import type { Task, CreateTaskPayload, UpdateTaskPayload, MoveTaskPayload, ActivityLog } from '../features/board/types';
+import type { Task, CreateTaskPayload, UpdateTaskPayload, MoveTaskPayload, ActivityLog, TaskAttachmentItem } from '../features/board/types';
 
 export const taskService = {
   // Get tasks for a board
@@ -74,7 +74,7 @@ export const taskService = {
   },
 
   // Upload attachment
-  async uploadAttachment(taskId: string, formData: FormData): Promise<Task> {
+  async uploadAttachment(taskId: string, formData: FormData): Promise<TaskAttachmentItem> {
     const response = await api.post(`/api/v1/tasks/${taskId}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -82,7 +82,7 @@ export const taskService = {
   },
 
   // Delete attachment
-  async deleteAttachment(taskId: string, attachmentId: string): Promise<Task> {
+  async deleteAttachment(taskId: string, attachmentId: string): Promise<null> {
     const response = await api.delete(`/api/v1/tasks/${taskId}/attachments/${attachmentId}`);
     return response.data?.data;
   },
