@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import boardService from '../services/board.service';
+import workspaceService from '../services/workspace.service';
 import type { Workspace } from '../features/workspace/types';
 import type { Board } from '../features/board/types';
 import useAuth from '../hooks/useAuth';
@@ -78,18 +79,24 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
           return matched;
         });
-      } else if (lastId) {
-        // Workspace was previously selected but no longer exists (deleted)
-        localStorage.removeItem('taskflow_last_workspace_id');
-        setCurrentWorkspaceState((prev) => (prev !== null ? null : prev));
-        toast.error('Selected workspace is no longer available');
-        if (!location.pathname.startsWith('/workspace-select')) {
-          navigate('/workspace-select', { replace: true });
+      } else {
+        // Workspace was previously selected but no longer exists (deleted/unavailable)
+        const fallback = fetchedWorkspaces[0];
+        setCurrentWorkspaceState(fallback);
+        const fbId = fallback._id || fallback.id;
+        if (fbId) {
+          localStorage.setItem('taskflow_last_workspace_id', fbId);
         }
       }
     } else {
-      setCurrentWorkspaceState((prev) => (prev !== null ? null : prev));
+      setCurrentWorkspaceState(null);
       localStorage.removeItem('taskflow_last_workspace_id');
+      // If user is on a workspace-specific or board page but has 0 workspaces, safely redirect to onboarding
+      const pathname = location.pathname;
+      const isWorkspaceOrBoardPage = pathname.startsWith('/workspaces/') || pathname.startsWith('/boards');
+      if (isWorkspaceOrBoardPage && !pathname.startsWith('/workspaces/manage') && !pathname.startsWith('/workspaces/invite/')) {
+        navigate('/onboarding', { replace: true });
+      }
     }
   }, [isAuthenticated, fetchedWorkspaces, wsLoading, navigate, location.pathname]);
 
@@ -135,10 +142,31 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         await deleteWorkspaceMutation.mutateAsync(workspaceId);
         toast.success('Workspace deleted successfully.');
-        if (isCurrent) {
-          setCurrentWorkspace(null);
+
+        // Remove from localStorage if matching deleted workspace
+        const storedId = localStorage.getItem('taskflow_last_workspace_id');
+        if (storedId === targetId) {
           localStorage.removeItem('taskflow_last_workspace_id');
+        }
+
+        // Fetch fresh workspaces to determine fallback & safe redirect
+        const res = await workspaceService.listWorkspaces().catch(() => []);
+        const remainingWorkspaces = Array.isArray(res) ? res : [];
+
+        if (remainingWorkspaces.length > 0) {
+          const fallback = remainingWorkspaces[0];
+          if (isCurrent || storedId === targetId) {
+            setCurrentWorkspaceState(fallback);
+            const fbId = fallback._id || fallback.id;
+            if (fbId) {
+              localStorage.setItem('taskflow_last_workspace_id', fbId);
+            }
+          }
           navigate('/workspace-select', { replace: true });
+        } else {
+          setCurrentWorkspaceState(null);
+          localStorage.removeItem('taskflow_last_workspace_id');
+          navigate('/onboarding', { replace: true });
         }
       } catch (err: unknown) {
         const error = err as { response?: { data?: { message?: string } } };
@@ -146,7 +174,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         throw err;
       }
     },
-    [currentWorkspace, deleteWorkspaceMutation, setCurrentWorkspace, navigate]
+    [currentWorkspace, deleteWorkspaceMutation, navigate]
   );
 
   return (

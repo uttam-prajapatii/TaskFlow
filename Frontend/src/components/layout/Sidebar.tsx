@@ -40,8 +40,13 @@ export const Sidebar: React.FC = () => {
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [leavingWs, setLeavingWs] = useState(false);
 
-  const currentWorkspaceId = currentWorkspace?._id || currentWorkspace?.id || '';
-  const currentWsName = currentWorkspace?.name || 'Workspace';
+  const effectiveWorkspace =
+    currentWorkspace && workspaces.some((w) => (w._id || w.id) === (currentWorkspace._id || currentWorkspace.id))
+      ? currentWorkspace
+      : workspaces[0] || null;
+
+  const currentWorkspaceId = effectiveWorkspace?._id || effectiveWorkspace?.id || '';
+  const currentWsName = effectiveWorkspace?.name || 'Workspace';
 
   const pathname = location.pathname;
   const searchParams = new URLSearchParams(location.search);

@@ -14,6 +14,7 @@ import ConfirmModal from '../../../components/UI/ConfirmModal';
 import boardService from '../../../services/board.service';
 import listService from '../../../services/list.service';
 import taskService from '../../../services/task.service';
+import workspaceService from '../../../services/workspace.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import useSocketBoard from '../../../hooks/useSocketBoard';
 import type { Board, BoardList, Task, CreateTaskPayload, PriorityLevel } from '../types';
@@ -96,8 +97,15 @@ export const BoardKanbanPage: React.FC = () => {
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to load board details');
-      if (!silent) navigate('/boards');
+      toast.error(error.response?.data?.message || 'Board not found or unavailable');
+      if (!silent) {
+        const remainingWs = await workspaceService.listWorkspaces().catch(() => []);
+        if (remainingWs.length > 0) {
+          navigate('/boards', { replace: true });
+        } else {
+          navigate('/onboarding', { replace: true });
+        }
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -428,6 +436,8 @@ export const BoardKanbanPage: React.FC = () => {
       </div>
     );
   }
+
+  if (!board) return null;
 
   const boardName = board?.name || board?.title || 'Kanban Board';
 
