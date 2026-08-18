@@ -29,7 +29,6 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 }) => {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   const isCreator =
     ws.ownerId === user?._id ||
@@ -80,18 +79,12 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
   }
 
   const rawColor = ws.accentColor || ws.settings?.color || ws.color;
-  const colorTokens = getWorkspaceColorTokens(rawColor);
 
   return (
     <div
       onClick={() => onOpen(ws)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{
-        animationDelay: `${index * 35}ms`,
-        borderColor: isHovered ? colorTokens.borderHover : undefined,
-      }}
-      className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between"
+      style={{ animationDelay: `${index * 35}ms` }}
+      className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 hover:border-orange-400 dark:hover:border-orange-500/50 shadow-2xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -164,10 +157,10 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
           }}
           aria-label={`Open ${ws.name} workspace`}
           style={{
-            background: colorTokens.gradient,
-            boxShadow: colorTokens.glow,
+            background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
+            boxShadow: '0 3px 10px rgba(255, 122, 61, 0.25)',
           }}
-          className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+          className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
         >
           <span className="font-semibold text-xs leading-none">Open Workspace</span>
           <Icon
