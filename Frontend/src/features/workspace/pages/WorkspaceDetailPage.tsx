@@ -337,7 +337,7 @@ export const WorkspaceDetailPage: React.FC = () => {
               <WorkspaceAvatar
                 name={workspace.name}
                 logoUrl={workspace.logoUrl}
-                color={workspace.settings?.color || workspace.color}
+                color={workspace.accentColor || workspace.settings?.color || workspace.color}
                 size={56}
                 roundedClassName="rounded-2xl"
               />

@@ -102,7 +102,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <WorkspaceAvatar
             name={ws.name}
             logoUrl={ws.logoUrl}
-            color={ws.settings?.color || ws.color}
+            color={ws.accentColor || ws.settings?.color || ws.color}
             size={56}
             roundedClassName="rounded-2xl"
           />

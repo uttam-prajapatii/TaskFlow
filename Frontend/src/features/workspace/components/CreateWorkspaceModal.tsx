@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import Modal from '../../../components/UI/Modal';
 import Icon from '../../../components/UI/Icon';
-import { WORKSPACE_COLORS } from './WorkspaceCard';
+import { WORKSPACE_COLOR_OPTIONS, getWorkspaceColorTokens } from '../../../utils/workspaceColor';
 import type { CreateWorkspacePayload } from '../types';
 
 interface CreateWorkspaceModalProps {
@@ -11,15 +11,6 @@ interface CreateWorkspaceModalProps {
   onCreate: (payload: CreateWorkspacePayload) => void;
   creating?: boolean;
 }
-
-const colorList = [
-  { id: 'coral', label: 'Coral', hex: WORKSPACE_COLORS.coral },
-  { id: 'blue', label: 'Blue', hex: WORKSPACE_COLORS.blue },
-  { id: 'green', label: 'Green', hex: WORKSPACE_COLORS.green },
-  { id: 'violet', label: 'Violet', hex: WORKSPACE_COLORS.violet },
-  { id: 'amber', label: 'Amber', hex: WORKSPACE_COLORS.amber },
-  { id: 'pink', label: 'Pink', hex: WORKSPACE_COLORS.pink },
-];
 
 export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
   open,
@@ -76,9 +67,13 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
       return;
     }
 
+    const selectedTokens = getWorkspaceColorTokens(form.color);
+
     onCreate({
       name: form.name.trim(),
       description: form.description.trim(),
+      accentColor: selectedTokens.hex,
+      color: form.color,
       settings: {
         color: form.color,
       },
@@ -164,10 +159,10 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
           {/* Color Selector */}
           <div>
             <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-              Color
+              Accent Color
             </label>
             <div className="flex items-center gap-2.5">
-              {colorList.map((c) => {
+              {WORKSPACE_COLOR_OPTIONS.map((c) => {
                 const isSelected = form.color === c.id;
                 return (
                   <button
@@ -175,13 +170,16 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                     key={c.id}
                     onClick={() => setForm({ ...form, color: c.id })}
                     aria-label={c.label}
+                    title={c.label}
                     style={{ backgroundColor: c.hex }}
-                    className={`w-7 h-7 rounded-full cursor-pointer transition-all ${
+                    className={`w-7 h-7 rounded-full cursor-pointer transition-all flex items-center justify-center ${
                       isSelected
-                        ? 'ring-2 ring-orange-500 ring-offset-2 dark:ring-offset-neutral-900 scale-110'
-                        : 'hover:scale-105 opacity-90'
+                        ? 'ring-2 ring-neutral-900 dark:ring-white ring-offset-2 dark:ring-offset-neutral-900 scale-110 shadow-sm'
+                        : 'hover:scale-105 opacity-85 hover:opacity-100'
                     }`}
-                  />
+                  >
+                    {isSelected && <Icon name="check" size={13} className="text-white drop-shadow" />}
+                  </button>
                 );
               })}
             </div>

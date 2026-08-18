@@ -27,6 +27,7 @@ export interface Workspace {
   slug?: string;
   description?: string;
   logoUrl?: string | null;
+  accentColor?: string;
   ownerId: string | { _id: string; fullName?: string; email?: string };
   members?: WorkspaceMember[];
   settings?: WorkspaceSettings;
@@ -61,6 +62,8 @@ export interface WorkspaceInviteDetails {
     name: string;
     description?: string;
     logo?: string | null;
+    accentColor?: string;
+    color?: string;
   } | null;
   invitedBy?: {
     _id: string;
@@ -74,6 +77,8 @@ export interface WorkspaceInviteDetails {
 export interface CreateWorkspacePayload {
   name: string;
   description?: string;
+  accentColor?: string;
+  color?: string;
   settings?: {
     color?: string;
   };
@@ -82,6 +87,8 @@ export interface CreateWorkspacePayload {
 export interface UpdateWorkspacePayload {
   name?: string;
   description?: string;
+  accentColor?: string;
+  color?: string;
   settings?: {
     color?: string;
   };

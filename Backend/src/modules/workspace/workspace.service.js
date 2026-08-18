@@ -17,18 +17,19 @@ class WorkspaceService {
    * Create a new workspace.
    * Creator user is assigned as the owner, and also added to the members list with the 'admin' role.
    */
-  async createWorkspace(userId, { name, description, settings, accentColor }) {
+  async createWorkspace(userId, { name, description, settings, accentColor, color }) {
     const existingByName = await workspaceRepository.findWorkspaceByNameAndOwner(name, userId);
     if (existingByName) {
       throw new BadRequestError('A workspace with this name already exists');
     }
     const slug = await generateUniqueSlug(name);
+    const resolvedColor = accentColor || color || settings?.color || '#FF7A3D';
     const workspaceData = {
       name,
       slug,
       description: description || '',
       ownerId: userId,
-      accentColor: accentColor,
+      accentColor: resolvedColor,
       members: [
         {
           userId,
@@ -36,7 +37,10 @@ class WorkspaceService {
           joinedAt: new Date()
         }
       ],
-      settings: settings || {}
+      settings: {
+        ...(settings || {}),
+        color: resolvedColor,
+      }
     };
 
     const workspace = await workspaceRepository.createWorkspace(workspaceData);
@@ -116,14 +120,19 @@ class WorkspaceService {
     if (updateData.description !== undefined) {
       allowedUpdates.description = updateData.description;
     }
-    if (updateData.settings !== undefined) {
+    if (updateData.settings) {
       allowedUpdates.settings = {
         ...workspace.settings,
         ...updateData.settings
       };
     }
-    if (updateData.accentColor !== undefined) {
-      allowedUpdates.accentColor = updateData.accentColor;
+    const resolvedUpdateColor = updateData.accentColor || updateData.color || updateData.settings?.color;
+    if (resolvedUpdateColor !== undefined) {
+      allowedUpdates.accentColor = resolvedUpdateColor;
+      if (!allowedUpdates.settings) {
+        allowedUpdates.settings = { ...(workspace.settings || {}) };
+      }
+      allowedUpdates.settings.color = resolvedUpdateColor;
     }
 
     const updatedWorkspace = await workspaceRepository.updateWorkspace(workspace._id, allowedUpdates);

@@ -123,7 +123,7 @@ export const MembersPage: React.FC = () => {
               <WorkspaceAvatar
                 name={wsName}
                 logoUrl={currentWorkspace?.logoUrl}
-                color={currentWorkspace?.settings?.color || currentWorkspace?.color}
+                color={currentWorkspace?.accentColor || currentWorkspace?.settings?.color || currentWorkspace?.color}
                 size={40}
                 roundedClassName="rounded-2xl"
               />

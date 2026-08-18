@@ -1,15 +1,18 @@
 import { BadRequestError } from '../../utils/errors.js';
 
+const VALID_COLOR_NAMES = ['coral', 'orange', 'blue', 'green', 'violet', 'purple', 'amber', 'yellow', 'pink'];
+
 /**
  * Middleware to validate and sanitize workspace creation inputs.
  */
 export const validateCreateWorkspace = (req, res, next) => {
-  const { name, description, settings, accentColor } = req.body;
+  const { name, description, settings, accentColor, color } = req.body;
+  const rawColor = accentColor || color || settings?.color;
 
   const error = validateName(name)
     || validateDescription(description)
     || validateSettings(settings)
-    || validateAccentColor(accentColor);
+    || (rawColor !== undefined ? validateAccentColor(rawColor) : null);
 
   if (error) return next(error);
 
@@ -18,8 +21,8 @@ export const validateCreateWorkspace = (req, res, next) => {
   if (description !== undefined) {
     req.body.description = description.trim();
   }
-  if (accentColor !== undefined) {
-    req.body.accentColor = accentColor.trim();
+  if (rawColor !== undefined) {
+    req.body.accentColor = rawColor.trim();
   }
 
   next();
@@ -98,9 +101,10 @@ function validateAccentColor(accentColor) {
     return new BadRequestError('Accent color must be a string');
   }
 
+  const trimmed = accentColor.trim().toLowerCase();
   const hexRegex = /^#([0-9a-fA-F]{3}){1,2}$/;
-  if (!hexRegex.test(accentColor.trim())) {
-    return new BadRequestError('Accent color must be a valid hex color code (e.g. #4F46E5)');
+  if (!hexRegex.test(trimmed) && !VALID_COLOR_NAMES.includes(trimmed)) {
+    return new BadRequestError('Accent color must be a valid hex color code (e.g. #4F46E5) or valid color name');
   }
 
   return null;
@@ -111,17 +115,18 @@ function validateAccentColor(accentColor) {
  * Middleware to validate and sanitize workspace update inputs.
  */
 export const validateUpdateWorkspace = (req, res, next) => {
-  const { name, description, settings, accentColor } = req.body;
+  const { name, description, settings, accentColor, color } = req.body;
+  const rawColor = accentColor || color || settings?.color;
 
   // If body is empty
-  if (name === undefined && description === undefined && settings === undefined && accentColor === undefined) {
+  if (name === undefined && description === undefined && settings === undefined && accentColor === undefined && color === undefined) {
     return next(new BadRequestError('At least one field (name, description, settings, accentColor) must be provided for update'));
   }
 
   const error = (name !== undefined ? validateName(name, false) : null)
     || (description !== undefined ? validateDescription(description) : null)
     || (settings !== undefined ? validateSettings(settings) : null)
-    || (accentColor !== undefined ? validateAccentColor(accentColor) : null);
+    || (rawColor !== undefined ? validateAccentColor(rawColor) : null);
 
   if (error) return next(error);
 
@@ -132,8 +137,8 @@ export const validateUpdateWorkspace = (req, res, next) => {
   if (description !== undefined) {
     req.body.description = description.trim();
   }
-  if (accentColor !== undefined) {
-    req.body.accentColor = accentColor.trim();
+  if (rawColor !== undefined) {
+    req.body.accentColor = rawColor.trim();
   }
 
   next();

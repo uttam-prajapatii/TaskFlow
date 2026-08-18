@@ -468,7 +468,7 @@ export const BoardKanbanPage: React.FC = () => {
               <WorkspaceAvatar
                 name={currentWorkspace?.name || 'Workspace'}
                 logoUrl={currentWorkspace?.logoUrl}
-                color={currentWorkspace?.settings?.color || currentWorkspace?.color}
+                color={currentWorkspace?.accentColor || currentWorkspace?.settings?.color || currentWorkspace?.color}
                 size={20}
                 roundedClassName="rounded-md"
               />

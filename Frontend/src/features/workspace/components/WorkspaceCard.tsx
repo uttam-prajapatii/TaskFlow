@@ -5,20 +5,10 @@ import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
 import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import useAuth from '../../../hooks/useAuth';
+import { getWorkspaceColorTokens, WORKSPACE_COLOR_MAP } from '../../../utils/workspaceColor';
 
-export const WORKSPACE_COLORS: Record<string, string> = {
-  coral: '#FF7A3D',
-  blue: '#3D8BFF',
-  green: '#3DDC97',
-  violet: '#B97DFF',
-  amber: '#FFB13D',
-  pink: '#FF5FA0',
-};
-
-export const getColorHex = (colorId?: string) => {
-  if (!colorId) return WORKSPACE_COLORS.coral;
-  return WORKSPACE_COLORS[colorId] || colorId;
-};
+export const WORKSPACE_COLORS = WORKSPACE_COLOR_MAP;
+export const getColorHex = (colorId?: string) => getWorkspaceColorTokens(colorId).hex;
 
 interface WorkspaceCardProps {
   ws: Workspace;
@@ -39,6 +29,7 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 }) => {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const isCreator =
     ws.ownerId === user?._id ||
@@ -88,20 +79,26 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     menuItems.push({ label: 'Delete workspace', icon: 'trash', danger: true, onClick: () => onDelete(ws) });
   }
 
-  const hex = getColorHex(ws.settings?.color || ws.color);
+  const rawColor = ws.accentColor || ws.settings?.color || ws.color;
+  const colorTokens = getWorkspaceColorTokens(rawColor);
 
   return (
     <div
       onClick={() => onOpen(ws)}
-      style={{ animationDelay: `${index * 35}ms` }}
-      className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 hover:border-orange-400 dark:hover:border-orange-500/50 shadow-2xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        animationDelay: `${index * 35}ms`,
+        borderColor: isHovered ? colorTokens.borderHover : undefined,
+      }}
+      className="group bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 shadow-2xs hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col justify-between"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <WorkspaceAvatar
             name={ws.name}
             logoUrl={ws.logoUrl}
-            color={ws.settings?.color || ws.color}
+            color={rawColor}
             size={44}
             roundedClassName="rounded-xl"
             className="group-hover:scale-105 transition-transform"
@@ -167,8 +164,8 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
           }}
           aria-label={`Open ${ws.name} workspace`}
           style={{
-            background: `linear-gradient(135deg, ${hex}, ${hex}E6)`,
-            boxShadow: `0 3px 10px ${hex}30`,
+            background: colorTokens.gradient,
+            boxShadow: colorTokens.glow,
           }}
           className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
         >
