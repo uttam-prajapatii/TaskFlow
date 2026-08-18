@@ -10,6 +10,7 @@ interface FormErrors {
   email?: string;
   password?: string;
   terms?: string;
+  form?: string;
 }
 
 interface FormTouched {
@@ -150,7 +151,14 @@ const SignUpForm: React.FC = () => {
       setName(val);
       setTouched((prev) => {
         const nextTouched = { ...prev, name: true };
-        setErrors(validate({ name: val, email, password, agreeTerms }, nextTouched));
+        setErrors((prevErrors) => {
+          const fieldValidation = validate({ name: val, email, password, agreeTerms }, nextTouched);
+          return {
+            ...prevErrors,
+            name: fieldValidation.name,
+            form: undefined,
+          };
+        });
         return nextTouched;
       });
     },
@@ -163,7 +171,14 @@ const SignUpForm: React.FC = () => {
       setEmail(val);
       setTouched((prev) => {
         const nextTouched = { ...prev, email: true };
-        setErrors(validate({ name, email: val, password, agreeTerms }, nextTouched));
+        setErrors((prevErrors) => {
+          const fieldValidation = validate({ name, email: val, password, agreeTerms }, nextTouched);
+          return {
+            ...prevErrors,
+            email: fieldValidation.email,
+            form: undefined,
+          };
+        });
         return nextTouched;
       });
     },
@@ -176,7 +191,14 @@ const SignUpForm: React.FC = () => {
       setPassword(val);
       setTouched((prev) => {
         const nextTouched = { ...prev, password: true };
-        setErrors(validate({ name, email, password: val, agreeTerms }, nextTouched));
+        setErrors((prevErrors) => {
+          const fieldValidation = validate({ name, email, password: val, agreeTerms }, nextTouched);
+          return {
+            ...prevErrors,
+            password: fieldValidation.password,
+            form: undefined,
+          };
+        });
         return nextTouched;
       });
     },
@@ -189,7 +211,14 @@ const SignUpForm: React.FC = () => {
       setAgreeTerms(checked);
       setTouched((prev) => {
         const nextTouched = { ...prev, terms: true };
-        setErrors(validate({ name, email, password, agreeTerms: checked }, nextTouched));
+        setErrors((prevErrors) => {
+          const fieldValidation = validate({ name, email, password, agreeTerms: checked }, nextTouched);
+          return {
+            ...prevErrors,
+            terms: fieldValidation.terms,
+            form: undefined,
+          };
+        });
         return nextTouched;
       });
     },
@@ -203,7 +232,10 @@ const SignUpForm: React.FC = () => {
       }
       setTouched((prev) => {
         const nextTouched = { ...prev, [field]: true };
-        setErrors(validate({ name, email, password, agreeTerms }, nextTouched));
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          ...validate({ name, email, password, agreeTerms }, nextTouched),
+        }));
         return nextTouched;
       });
     },
@@ -300,8 +332,59 @@ const SignUpForm: React.FC = () => {
         } else {
           navigate(redirectUrl, { replace: true });
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.debug('Registration submission failed:', error);
+
+        let backendMessage = '';
+        const axiosErr = error as {
+          response?: {
+            data?: {
+              message?: string;
+              error?: string;
+              errors?: Record<string, string>;
+            };
+          };
+          message?: string;
+        };
+
+        if (axiosErr.response?.data?.message && typeof axiosErr.response.data.message === 'string') {
+          backendMessage = axiosErr.response.data.message;
+        } else if (axiosErr.response?.data?.error && typeof axiosErr.response.data.error === 'string') {
+          backendMessage = axiosErr.response.data.error;
+        } else if (axiosErr.message && !axiosErr.message.includes('status code')) {
+          backendMessage = axiosErr.message;
+        }
+
+        const lowerMsg = backendMessage.toLowerCase();
+        const fieldErrors: FormErrors = {};
+
+        // Support nested validation errors object if returned by backend
+        if (axiosErr.response?.data?.errors && typeof axiosErr.response.data.errors === 'object') {
+          const nested = axiosErr.response.data.errors;
+          if (nested.email) fieldErrors.email = nested.email;
+          if (nested.fullName || nested.name) fieldErrors.name = nested.fullName || nested.name;
+          if (nested.password) fieldErrors.password = nested.password;
+          if (nested.terms) fieldErrors.terms = nested.terms;
+        }
+
+        // Map backend validation messages dynamically to the appropriate form field
+        if (lowerMsg.includes('email')) {
+          fieldErrors.email = backendMessage;
+          emailInputRef.current?.focus();
+        } else if (lowerMsg.includes('name') || lowerMsg.includes('full name')) {
+          fieldErrors.name = backendMessage;
+          nameInputRef.current?.focus();
+        } else if (lowerMsg.includes('password')) {
+          fieldErrors.password = backendMessage;
+          passwordInputRef.current?.focus();
+        } else if (lowerMsg.includes('term') || lowerMsg.includes('privacy')) {
+          fieldErrors.terms = backendMessage;
+          termsInputRef.current?.focus();
+        } else if (!Object.keys(fieldErrors).length) {
+          fieldErrors.form = backendMessage || 'Registration failed. Please check your details and try again.';
+        }
+
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
       } finally {
         setIsSubmitting(false);
       }
@@ -332,6 +415,20 @@ const SignUpForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
+        {errors.form && (
+          <div
+            role="alert"
+            className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-2 animate-[fadeUp_0.15s_ease]"
+          >
+            <svg className="w-4 h-4 shrink-0 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{errors.form}</span>
+          </div>
+        )}
+
         <FormInput
           ref={nameInputRef}
           label="Full name"
