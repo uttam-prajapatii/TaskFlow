@@ -21,6 +21,9 @@ export const useTaskMutations = (boardId?: string) => {
       if (boardId) {
         queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       }
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
       toast.success('Task created successfully');
     },
   });
@@ -32,6 +35,9 @@ export const useTaskMutations = (boardId?: string) => {
       if (boardId) {
         queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       }
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
     },
   });
 
@@ -66,6 +72,9 @@ export const useTaskMutations = (boardId?: string) => {
       if (boardId) {
         queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       }
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
     },
   });
 
@@ -75,6 +84,9 @@ export const useTaskMutations = (boardId?: string) => {
       if (boardId) {
         queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       }
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
       toast.success('Task deleted');
     },
   });

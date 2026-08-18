@@ -311,6 +311,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
       queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', resolvedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
       setNewChecklistText('');
     },
     onError: (err: unknown) => {
@@ -326,6 +330,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       toast.success('File attached successfully');
       queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
       queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', resolvedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
     onError: (err: unknown) => {
@@ -344,6 +352,10 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
       toast.success('Attachment removed');
       queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
       queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', resolvedBoardId] });
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { message?: string } } };

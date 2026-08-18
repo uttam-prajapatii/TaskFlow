@@ -19,10 +19,10 @@ export const AnalyticsPage: React.FC = () => {
     enabled: !!wsId,
   });
 
-  const completionRate = analytics?.completionRate ?? 0;
   const totalTasks = analytics?.totalTasks ?? 0;
-  const completedTasks = analytics?.completedTasks ?? 0;
-  const activeTasks = analytics?.activeTasks ?? 0;
+  const completedTasks = analytics?.completedTasks ?? (analytics as unknown as { completedTasksCount?: number })?.completedTasksCount ?? 0;
+  const activeTasks = analytics?.activeTasks ?? (analytics as unknown as { activeTasksCount?: number })?.activeTasksCount ?? Math.max(0, totalTasks - completedTasks);
+  const completionRate = analytics?.completionRate ?? (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
   const totalBoards = analytics?.totalBoards ?? currentWorkspace?.boardCount ?? 0;
   const totalMembers = analytics?.totalMembers ?? currentWorkspace?.members?.length ?? 1;
   const cycleTime = analytics?.averageCycleTimeDays ?? 0;
@@ -159,7 +159,9 @@ export const AnalyticsPage: React.FC = () => {
                     </div>
                     <div className="p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl border border-neutral-100 dark:border-neutral-800">
                       <span className="text-[11px] font-medium text-neutral-400 uppercase">Avg. Cycle Time</span>
-                      <p className="text-xl font-bold text-emerald-500 mt-0.5">{cycleTime} days</p>
+                      <p className="text-xl font-bold text-emerald-500 mt-0.5">
+                        {completedTasks > 0 && cycleTime > 0 ? `${cycleTime} days` : '—'}
+                      </p>
                     </div>
                   </div>
 
@@ -199,8 +201,10 @@ export const AnalyticsPage: React.FC = () => {
                   </p>
 
                   <div className="space-y-4">
-                    {velocity.length === 0 ? (
-                      <p className="text-xs text-neutral-400 text-center py-6">No velocity data recorded yet.</p>
+                    {velocity.length === 0 || velocity.every((v) => v.completedCount === 0) ? (
+                      <div className="py-8 text-center">
+                        <p className="text-xs text-neutral-400">No completed tasks yet</p>
+                      </div>
                     ) : (
                       velocity.map((v, i) => {
                         const maxVal = Math.max(...velocity.map((w) => w.completedCount), 1);
@@ -214,7 +218,7 @@ export const AnalyticsPage: React.FC = () => {
                             <div className="w-full h-2.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-orange-500 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.max(pct, 5)}%` }}
+                                style={{ width: `${v.completedCount > 0 ? Math.max(pct, 8) : 0}%` }}
                               />
                             </div>
                           </div>

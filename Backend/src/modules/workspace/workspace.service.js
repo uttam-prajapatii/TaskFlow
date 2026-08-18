@@ -744,13 +744,20 @@ class WorkspaceService {
     // 4. Fetch all tasks for the boards
     const tasks = [];
     for (const boardId of boardIds) {
-      const boardTasks = await taskRepository.findTasksByBoard(boardId, { isDeleted: false });
+      const boardTasks = await taskRepository.findTasksByBoard(boardId, { isDeleted: { $ne: true } });
       tasks.push(...boardTasks);
     }
 
+    const isTaskDone = (t) => {
+      if (t.isCompleted === true || t.status === 'done') return true;
+      if (completedListIds.includes(t.listId?.toString())) return true;
+      return false;
+    };
+
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => completedListIds.includes(t.listId.toString()));
+    const completedTasks = tasks.filter(isTaskDone);
     const activeTasks = totalTasks - completedTasks.length;
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
     // Priority breakdown
     const priorityBreakdown = {
@@ -811,6 +818,16 @@ class WorkspaceService {
             (totalCycleTimeMs / (countedCompletions * 24 * 60 * 60 * 1000)).toFixed(2)
           );
         }
+      } else if (completedTasks.length > 0) {
+        let totalCycleTimeMs = 0;
+        for (const t of completedTasks) {
+          const created = new Date(t.createdAt).getTime();
+          const updated = new Date(t.updatedAt || t.createdAt).getTime();
+          totalCycleTimeMs += Math.max(0, updated - created);
+        }
+        averageCycleTimeDays = parseFloat(
+          (totalCycleTimeMs / (completedTasks.length * 24 * 60 * 60 * 1000)).toFixed(2)
+        );
       }
     } catch (err) {
       logger.warn(`Failed to compute average cycle time: ${err.message}`);
@@ -821,9 +838,13 @@ class WorkspaceService {
       totalBoards: boards.length,
       totalMembers: workspace.members.length,
       totalTasks,
+      activeTasks,
       activeTasksCount: activeTasks,
+      completedTasks: completedTasks.length,
       completedTasksCount: completedTasks.length,
+      completionRate,
       priorityBreakdown,
+      velocity,
       averageCycleTimeDays
     };
   }

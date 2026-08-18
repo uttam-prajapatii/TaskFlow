@@ -79,6 +79,7 @@ export interface Task {
   comments?: number;
   checklist?: ChecklistItem[] | TaskChecklist;
   position?: number;
+  isCompleted?: boolean;
   createdBy?: string | TaskAssigneeUser;
   createdAt?: string | number;
   updatedAt?: string | number;
@@ -87,6 +88,16 @@ export interface Task {
     name: string;
   };
 }
+
+export const isTaskDone = (task?: Task | null): boolean => {
+  if (!task) return false;
+  if (task.isCompleted === true || task.status === 'done') return true;
+  if (typeof task.listId === 'object' && task.listId !== null) {
+    const listName = (task.listId.name || task.listId.title || '').toLowerCase();
+    return listName.includes('done') || listName.includes('completed');
+  }
+  return false;
+};
 
 export interface BoardList {
   _id: string;
