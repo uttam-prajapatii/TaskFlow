@@ -2,7 +2,9 @@ import React, { useState, useRef } from 'react';
 import type { Workspace } from '../types';
 import Icon from '../../../components/UI/Icon';
 import ConfirmModal from '../../../components/UI/ConfirmModal';
-import workspaceService from '../../../services/workspace.service';
+import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
+import { useWorkspaceMutations } from '../../../hooks/useWorkspaces';
+import { useWorkspace } from '../../../context/WorkspaceContext';
 import { toast } from 'sonner';
 
 interface SettingsTabProps {
@@ -26,6 +28,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onRefresh,
   onUpdateWorkspace,
 }) => {
+  const { updateWorkspaceInState } = useWorkspace();
+  const { uploadLogoMutation } = useWorkspaceMutations();
+
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(ws.name);
   const [renameError, setRenameError] = useState('');
@@ -40,15 +45,26 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     const wsId = ws._id || ws.id;
     if (!wsId) return;
 
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo image size must be less than 2MB');
+      if (logoInputRef.current) logoInputRef.current.value = '';
+      return;
+    }
+
     try {
       setUploadingLogo(true);
       const formData = new FormData();
       formData.append('logo', file);
-      const res = await workspaceService.uploadLogo(wsId, formData);
-      toast.success('Workspace logo updated!');
+      
+      const res = await uploadLogoMutation.mutateAsync({ workspaceId: wsId, formData });
+      toast.success('Workspace logo updated successfully!');
+      
+      // Immediately propagate to local and global contexts
+      updateWorkspaceInState(wsId, { logoUrl: res.logoUrl });
       if (onUpdateWorkspace) {
         onUpdateWorkspace({ logoUrl: res.logoUrl });
-      } else if (onRefresh) {
+      }
+      if (onRefresh) {
         onRefresh();
       }
     } catch (err: unknown) {
@@ -56,6 +72,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       toast.error(errorObj.response?.data?.message || 'Failed to upload logo');
     } finally {
       setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
     }
   };
 
@@ -78,28 +95,47 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
           Workspace Avatar / Logo
         </h3>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-          Upload an image icon (PNG, JPG max 2MB) for your workspace.
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
+          Upload an image icon (PNG, JPG max 2MB) for your workspace. This updates the logo in real-time across all headers, cards, and sidebars.
         </p>
         <div className="flex items-center gap-4">
-          {ws.logoUrl ? (
-            <img src={ws.logoUrl} alt="Logo" className="w-12 h-12 rounded-xl object-cover border border-neutral-200" />
-          ) : (
-            <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center font-bold text-lg border border-orange-500/20">
-              {ws.name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <WorkspaceAvatar
+            name={ws.name}
+            logoUrl={ws.logoUrl}
+            color={ws.settings?.color || ws.color}
+            size={56}
+            roundedClassName="rounded-2xl"
+          />
           {canManage && (
-            <div>
+            <div className="flex flex-col gap-1.5">
               <button
                 type="button"
                 onClick={() => logoInputRef.current?.click()}
                 disabled={uploadingLogo}
-                className="px-3.5 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-2xs"
               >
-                {uploadingLogo ? 'Uploading…' : 'Upload Logo'}
+                {uploadingLogo ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <span>Uploading…</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="upload" size={14} />
+                    <span>{ws.logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
+                  </>
+                )}
               </button>
-              <input type="file" ref={logoInputRef} onChange={handleLogoChange} accept="image/png,image/jpeg,image/jpg" className="hidden" />
+              <input
+                type="file"
+                ref={logoInputRef}
+                onChange={handleLogoChange}
+                accept="image/png,image/jpeg,image/jpg"
+                className="hidden"
+              />
+              <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                Recommended 1:1 square PNG or JPG
+              </span>
             </div>
           )}
         </div>

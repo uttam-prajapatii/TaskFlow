@@ -6,7 +6,8 @@ import useAuth from '../../hooks/useAuth';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from '../UI/Icon';
-import Avatar, { initials } from '../UI/Avatar';
+import Avatar from '../UI/Avatar';
+import WorkspaceAvatar from '../UI/WorkspaceAvatar';
 import DropdownMenu, { type MenuItem } from '../UI/DropdownMenu';
 import CreateWorkspaceModal from '../../features/workspace/components/CreateWorkspaceModal';
 import workspaceService from '../../services/workspace.service';
@@ -173,14 +174,26 @@ export const Sidebar: React.FC = () => {
       onClick: () => setConfirmLeaveOpen(true),
     },
     { divider: true },
-    ...workspaces.map((ws) => ({
-      label: ws.name,
-      icon: (ws._id || ws.id) === currentWorkspaceId ? 'check' : undefined,
-      onClick: () => {
-        setCurrentWorkspace(ws);
-        navigate(`/workspaces/${ws._id || ws.id}`);
-      },
-    })),
+    ...workspaces.map((ws) => {
+      const isSelected = (ws._id || ws.id) === currentWorkspaceId;
+      return {
+        label: ws.name,
+        avatarNode: (
+          <WorkspaceAvatar
+            name={ws.name}
+            logoUrl={ws.logoUrl}
+            color={ws.settings?.color || ws.color}
+            size={22}
+            roundedClassName="rounded-md"
+          />
+        ),
+        endIcon: isSelected ? 'check' : undefined,
+        onClick: () => {
+          setCurrentWorkspace(ws);
+          navigate(`/workspaces/${ws._id || ws.id}`);
+        },
+      };
+    }),
     { divider: true },
     {
       label: 'Sign Out',
@@ -216,9 +229,13 @@ export const Sidebar: React.FC = () => {
               onClick={() => setWsMenuOpen((v) => !v)}
               className="w-full flex items-center gap-2.5 p-2.5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/80 dark:bg-neutral-900/80 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-all text-left cursor-pointer shadow-2xs"
             >
-              <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center text-xs shrink-0">
-                {initials(currentWsName)}
-              </div>
+              <WorkspaceAvatar
+                name={currentWsName}
+                logoUrl={effectiveWorkspace?.logoUrl}
+                color={effectiveWorkspace?.settings?.color || effectiveWorkspace?.color}
+                size={32}
+                roundedClassName="rounded-xl"
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-bold text-neutral-900 dark:text-neutral-100 truncate leading-tight">
                   {currentWsName}

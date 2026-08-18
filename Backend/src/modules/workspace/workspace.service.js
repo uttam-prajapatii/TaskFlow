@@ -355,7 +355,8 @@ class WorkspaceService {
         _id: invite.workspaceId._id,
         name: invite.workspaceId.name,
         description: invite.workspaceId.description,
-        logo: invite.workspaceId.logo || null,
+        logoUrl: invite.workspaceId.logoUrl || invite.workspaceId.logo || null,
+        logo: invite.workspaceId.logoUrl || invite.workspaceId.logo || null,
       } : null,
       invitedBy: invite.invitedBy ? {
         _id: invite.invitedBy._id,

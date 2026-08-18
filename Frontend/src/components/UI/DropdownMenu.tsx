@@ -4,6 +4,8 @@ import Icon from './Icon';
 export interface MenuItem {
   label?: string;
   icon?: string;
+  avatarNode?: React.ReactNode;
+  endIcon?: string;
   onClick?: () => void;
   danger?: boolean;
   disabled?: boolean;
@@ -73,8 +75,10 @@ export const DropdownMenu: React.FC<MenuProps> = ({
                     : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                 }`}
               >
-                {it.icon && <Icon name={it.icon} size={15} className="shrink-0 text-neutral-400 dark:text-neutral-500" />}
+                {it.avatarNode && <div className="shrink-0">{it.avatarNode}</div>}
+                {it.icon && !it.avatarNode && <Icon name={it.icon} size={15} className="shrink-0 text-neutral-400 dark:text-neutral-500" />}
                 <span className="truncate flex-1 min-w-0">{it.label}</span>
+                {it.endIcon && <Icon name={it.endIcon} size={14} className="shrink-0 text-orange-500" />}
               </button>
             )
           )}

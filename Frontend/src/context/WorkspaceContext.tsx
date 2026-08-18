@@ -20,6 +20,7 @@ interface WorkspaceContextType {
   refreshWorkspaces: () => Promise<void>;
   refreshBoards: () => Promise<void>;
   deleteWorkspaceAndSync: (workspaceId: string) => Promise<void>;
+  updateWorkspaceInState: (workspaceId: string, updates: Partial<Workspace>) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -177,6 +178,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [currentWorkspace, deleteWorkspaceMutation, navigate]
   );
 
+  const updateWorkspaceInState = useCallback((workspaceId: string, updates: Partial<Workspace>) => {
+    setCurrentWorkspaceState((prev) => {
+      if (!prev) return null;
+      const prevId = String(prev._id || prev.id);
+      if (prevId === String(workspaceId)) {
+        return { ...prev, ...updates };
+      }
+      return prev;
+    });
+  }, []);
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -189,6 +201,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         refreshWorkspaces,
         refreshBoards,
         deleteWorkspaceAndSync,
+        updateWorkspaceInState,
       }}
     >
       {children}

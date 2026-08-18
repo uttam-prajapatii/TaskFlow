@@ -3,7 +3,7 @@ import type { Workspace, WorkspaceRole } from '../types';
 import AvatarStack from '../../../components/UI/AvatarStack';
 import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
-import { initials } from '../../../components/UI/Avatar';
+import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import useAuth from '../../../hooks/useAuth';
 
 export const WORKSPACE_COLORS: Record<string, string> = {
@@ -39,8 +39,6 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 }) => {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const hex = getColorHex(ws.settings?.color || ws.color);
 
   const isCreator =
     ws.ownerId === user?._id ||
@@ -98,14 +96,14 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            style={{
-              background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-            }}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
-          >
-            {initials(ws.name)}
-          </div>
+          <WorkspaceAvatar
+            name={ws.name}
+            logoUrl={ws.logoUrl}
+            color={ws.settings?.color || ws.color}
+            size={44}
+            roundedClassName="rounded-xl"
+            className="group-hover:scale-105 transition-transform"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
