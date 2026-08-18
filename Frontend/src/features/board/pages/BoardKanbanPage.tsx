@@ -512,8 +512,6 @@ export const BoardKanbanPage: React.FC = () => {
               >
                 <Icon name="plus" size={14} /> Add task
               </button>
-
-              <Avatar name="User" size={26} />
             </div>
           </div>
 
