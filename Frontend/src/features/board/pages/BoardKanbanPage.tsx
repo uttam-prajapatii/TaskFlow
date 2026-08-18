@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
@@ -23,6 +24,7 @@ import type { Board, BoardList, Task, CreateTaskPayload, PriorityLevel } from '.
 export const BoardKanbanPage: React.FC = () => {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { currentWorkspace } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
@@ -302,6 +304,10 @@ export const BoardKanbanPage: React.FC = () => {
         position: safePosition,
         targetPosition: safePosition,
       });
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       toast.success('Task position updated');
     } catch {
       // Revert on error
@@ -366,6 +372,10 @@ export const BoardKanbanPage: React.FC = () => {
       setTaskModalOpen(false);
       setEditingTask(null);
       setTargetPositionForTask(undefined);
+      queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       loadBoardData();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -385,6 +395,10 @@ export const BoardKanbanPage: React.FC = () => {
     } else if (action === 'delete') {
       try {
         await taskService.deleteTask(tId);
+        queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
+        queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
         toast.success('Task deleted');
         loadBoardData();
       } catch (err: unknown) {
@@ -454,7 +468,7 @@ export const BoardKanbanPage: React.FC = () => {
               <WorkspaceAvatar
                 name={currentWorkspace?.name || 'Workspace'}
                 logoUrl={currentWorkspace?.logoUrl}
-                color={currentWorkspace?.settings?.color || currentWorkspace?.color}
+                color={currentWorkspace?.accentColor || currentWorkspace?.settings?.color || currentWorkspace?.color}
                 size={20}
                 roundedClassName="rounded-md"
               />
@@ -739,6 +753,16 @@ export const BoardKanbanPage: React.FC = () => {
           setDrawerTask(null);
           setEditingTask(task);
           setTaskModalOpen(true);
+        }}
+        onTaskUpdate={(updatedTask) => {
+          setTasks((prev) =>
+            prev.map((t) =>
+              (t._id === updatedTask._id || t.id === updatedTask._id)
+                ? { ...t, ...updatedTask }
+                : t
+            )
+          );
+          setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
         }}
         columns={columns}
         workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}

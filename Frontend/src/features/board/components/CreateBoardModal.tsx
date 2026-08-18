@@ -148,7 +148,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
               <WorkspaceAvatar
                 name={selectedWorkspace?.name || 'WS'}
                 logoUrl={selectedWorkspace?.logoUrl}
-                color={selectedWorkspace?.settings?.color || selectedWorkspace?.color}
+                color={selectedWorkspace?.accentColor || selectedWorkspace?.settings?.color || selectedWorkspace?.color}
                 size={28}
                 roundedClassName="rounded-lg"
               />

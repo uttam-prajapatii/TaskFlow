@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
       return pathname === '/analytics';
     }
     if (id === 'members') {
-      return pathname.startsWith('/workspaces/') && activeTab === 'members';
+      return (pathname.startsWith('/workspaces/') && activeTab === 'members') || pathname === '/members';
     }
     if (id === 'invitations') {
       return pathname.startsWith('/workspaces/') && activeTab === 'invitations';
@@ -134,7 +134,7 @@ export const Sidebar: React.FC = () => {
       id: 'members',
       icon: 'users',
       label: 'Members',
-      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=members` : '/workspace-select',
+      to: '/members',
     },
     {
       id: 'invitations',
@@ -182,7 +182,7 @@ export const Sidebar: React.FC = () => {
           <WorkspaceAvatar
             name={ws.name}
             logoUrl={ws.logoUrl}
-            color={ws.settings?.color || ws.color}
+            color={ws.accentColor || ws.settings?.color || ws.color}
             size={22}
             roundedClassName="rounded-md"
           />
@@ -232,7 +232,7 @@ export const Sidebar: React.FC = () => {
               <WorkspaceAvatar
                 name={currentWsName}
                 logoUrl={effectiveWorkspace?.logoUrl}
-                color={effectiveWorkspace?.settings?.color || effectiveWorkspace?.color}
+                color={effectiveWorkspace?.accentColor || effectiveWorkspace?.settings?.color || effectiveWorkspace?.color}
                 size={32}
                 roundedClassName="rounded-xl"
               />

@@ -5,16 +5,7 @@ import useAuth from '../../../hooks/useAuth';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import workspaceService from '../../../services/workspace.service';
 import Icon from '../../../components/UI/Icon';
-import { WORKSPACE_COLORS } from '../components/WorkspaceCard';
-
-const COLOR_OPTIONS = [
-  { id: 'coral', label: 'Coral', hex: WORKSPACE_COLORS.coral || '#FF7A3D' },
-  { id: 'blue', label: 'Blue', hex: WORKSPACE_COLORS.blue || '#3D8BFF' },
-  { id: 'green', label: 'Green', hex: WORKSPACE_COLORS.green || '#3DDC97' },
-  { id: 'violet', label: 'Violet', hex: WORKSPACE_COLORS.violet || '#B97DFF' },
-  { id: 'amber', label: 'Amber', hex: WORKSPACE_COLORS.amber || '#FFB13D' },
-  { id: 'pink', label: 'Pink', hex: WORKSPACE_COLORS.pink || '#FF5FA0' },
-];
+import { WORKSPACE_COLOR_OPTIONS, getWorkspaceColorTokens } from '../../../utils/workspaceColor';
 
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -72,10 +63,14 @@ export const OnboardingPage: React.FC = () => {
     try {
       setCreating(true);
 
-      // Create Workspace (do NOT create default board as requested)
+      const colorTokens = getWorkspaceColorTokens(selectedColor);
+
+      // Create Workspace
       const createdWs = await workspaceService.createWorkspace({
         name: workspaceName.trim(),
         description: `Primary workspace for ${workspaceName.trim()}`,
+        accentColor: colorTokens.hex,
+        color: selectedColor,
         settings: { color: selectedColor },
       });
 
@@ -93,7 +88,7 @@ export const OnboardingPage: React.FC = () => {
     }
   };
 
-  const activeColorHex = COLOR_OPTIONS.find((c) => c.id === selectedColor)?.hex || '#FF7A3D';
+  const activeColorHex = getWorkspaceColorTokens(selectedColor).hex;
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col justify-between p-6 relative overflow-hidden font-sans">
@@ -176,7 +171,7 @@ export const OnboardingPage: React.FC = () => {
                 Accent Color
               </label>
               <div className="flex items-center justify-between gap-3">
-                {COLOR_OPTIONS.map((c) => {
+                {WORKSPACE_COLOR_OPTIONS.map((c) => {
                   const isSelected = selectedColor === c.id;
                   return (
                     <button

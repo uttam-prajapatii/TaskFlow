@@ -10,6 +10,7 @@ import listService from '../../../services/list.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import { PRIORITY_CONFIG, getLabelMeta, isOverdue, formatDate } from '../components/KanbanTaskCard';
 import type { Task, BoardList, PriorityLevel, Label, TaskAssigneeUser } from '../types';
+import { isTaskDone } from '../types';
 
 export const CreatedTasksPage: React.FC = () => {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ export const CreatedTasksPage: React.FC = () => {
     if (typeof task.listId === 'object' && task.listId !== null) {
       return task.listId.name || task.listId.title || 'In Board';
     }
-    if (task.status === 'done') return 'Done';
+    if (isTaskDone(task)) return 'Done';
     return task.status || 'Active';
   };
 
@@ -111,8 +112,9 @@ export const CreatedTasksPage: React.FC = () => {
       }
 
       // Status filter
-      if (selectedStatus === 'done' && task.status !== 'done') return false;
-      if (selectedStatus === 'active' && task.status === 'done') return false;
+      const done = isTaskDone(task);
+      if (selectedStatus === 'done' && !done) return false;
+      if (selectedStatus === 'active' && done) return false;
 
       return true;
     }).sort((a, b) => {
@@ -146,7 +148,7 @@ export const CreatedTasksPage: React.FC = () => {
   const stats = useMemo(() => {
     const total = tasks.length;
     const highOrUrgent = tasks.filter((t) => t.priority === 'urgent' || t.priority === 'high').length;
-    const completed = tasks.filter((t) => t.status === 'done').length;
+    const completed = tasks.filter((t) => isTaskDone(t)).length;
     const active = total - completed;
     return { total, highOrUrgent, completed, active };
   }, [tasks]);
@@ -461,7 +463,7 @@ export const CreatedTasksPage: React.FC = () => {
                           <h4 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-orange-500 dark:group-hover:text-orange-400 transition-colors truncate">
                             {task.title}
                           </h4>
-                          {task.status === 'done' && (
+                          {isTaskDone(task) && (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0">
                               Completed
                             </span>
@@ -585,6 +587,9 @@ export const CreatedTasksPage: React.FC = () => {
           task={drawerTask}
           onClose={() => setDrawerTask(null)}
           onEdit={() => {}}
+          onTaskUpdate={(updatedTask) => {
+            setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
+          }}
           columns={drawerColumns}
           workspaceId={
             drawerTask

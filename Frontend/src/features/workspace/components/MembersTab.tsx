@@ -52,7 +52,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs text-white shadow-md cursor-pointer transition hover:opacity-95"
             style={{ background: 'linear-gradient(135deg, #FF7A3D, #E8432E)' }}
           >
-            <Icon name="plus" size={15} /> Invite member
+            <Icon name="user-plus" size={15} /> Invite member
           </button>
         )}
       </div>

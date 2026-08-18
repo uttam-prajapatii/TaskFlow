@@ -26,7 +26,7 @@ const WorkspaceSchema = new Schema({
   },
   accentColor: {
     type: String,
-    default: '#4F46E5'
+    default: '#FF7A3D'
   },
   ownerId: {
     type: Schema.Types.ObjectId,
@@ -39,6 +39,7 @@ const WorkspaceSchema = new Schema({
     default: []
   },
   settings: {
+    color: { type: String, default: '#FF7A3D' },
     allowViewerComments: { type: Boolean, default: true },
     inviteExpiryDays: {
       type: Number,

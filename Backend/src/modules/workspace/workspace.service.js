@@ -17,18 +17,19 @@ class WorkspaceService {
    * Create a new workspace.
    * Creator user is assigned as the owner, and also added to the members list with the 'admin' role.
    */
-  async createWorkspace(userId, { name, description, settings, accentColor }) {
+  async createWorkspace(userId, { name, description, settings, accentColor, color }) {
     const existingByName = await workspaceRepository.findWorkspaceByNameAndOwner(name, userId);
     if (existingByName) {
       throw new BadRequestError('A workspace with this name already exists');
     }
     const slug = await generateUniqueSlug(name);
+    const resolvedColor = accentColor || color || settings?.color || '#FF7A3D';
     const workspaceData = {
       name,
       slug,
       description: description || '',
       ownerId: userId,
-      accentColor: accentColor,
+      accentColor: resolvedColor,
       members: [
         {
           userId,
@@ -36,7 +37,10 @@ class WorkspaceService {
           joinedAt: new Date()
         }
       ],
-      settings: settings || {}
+      settings: {
+        ...(settings || {}),
+        color: resolvedColor,
+      }
     };
 
     const workspace = await workspaceRepository.createWorkspace(workspaceData);
@@ -116,14 +120,19 @@ class WorkspaceService {
     if (updateData.description !== undefined) {
       allowedUpdates.description = updateData.description;
     }
-    if (updateData.settings !== undefined) {
+    if (updateData.settings) {
       allowedUpdates.settings = {
         ...workspace.settings,
         ...updateData.settings
       };
     }
-    if (updateData.accentColor !== undefined) {
-      allowedUpdates.accentColor = updateData.accentColor;
+    const resolvedUpdateColor = updateData.accentColor || updateData.color || updateData.settings?.color;
+    if (resolvedUpdateColor !== undefined) {
+      allowedUpdates.accentColor = resolvedUpdateColor;
+      if (!allowedUpdates.settings) {
+        allowedUpdates.settings = { ...(workspace.settings || {}) };
+      }
+      allowedUpdates.settings.color = resolvedUpdateColor;
     }
 
     const updatedWorkspace = await workspaceRepository.updateWorkspace(workspace._id, allowedUpdates);
@@ -744,13 +753,20 @@ class WorkspaceService {
     // 4. Fetch all tasks for the boards
     const tasks = [];
     for (const boardId of boardIds) {
-      const boardTasks = await taskRepository.findTasksByBoard(boardId, { isDeleted: false });
+      const boardTasks = await taskRepository.findTasksByBoard(boardId, { isDeleted: { $ne: true } });
       tasks.push(...boardTasks);
     }
 
+    const isTaskDone = (t) => {
+      if (t.isCompleted === true || t.status === 'done') return true;
+      if (completedListIds.includes(t.listId?.toString())) return true;
+      return false;
+    };
+
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => completedListIds.includes(t.listId.toString()));
+    const completedTasks = tasks.filter(isTaskDone);
     const activeTasks = totalTasks - completedTasks.length;
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
     // Priority breakdown
     const priorityBreakdown = {
@@ -811,6 +827,16 @@ class WorkspaceService {
             (totalCycleTimeMs / (countedCompletions * 24 * 60 * 60 * 1000)).toFixed(2)
           );
         }
+      } else if (completedTasks.length > 0) {
+        let totalCycleTimeMs = 0;
+        for (const t of completedTasks) {
+          const created = new Date(t.createdAt).getTime();
+          const updated = new Date(t.updatedAt || t.createdAt).getTime();
+          totalCycleTimeMs += Math.max(0, updated - created);
+        }
+        averageCycleTimeDays = parseFloat(
+          (totalCycleTimeMs / (completedTasks.length * 24 * 60 * 60 * 1000)).toFixed(2)
+        );
       }
     } catch (err) {
       logger.warn(`Failed to compute average cycle time: ${err.message}`);
@@ -821,9 +847,13 @@ class WorkspaceService {
       totalBoards: boards.length,
       totalMembers: workspace.members.length,
       totalTasks,
+      activeTasks,
       activeTasksCount: activeTasks,
+      completedTasks: completedTasks.length,
       completedTasksCount: completedTasks.length,
+      completionRate,
       priorityBreakdown,
+      velocity,
       averageCycleTimeDays
     };
   }

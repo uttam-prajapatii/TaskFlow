@@ -1,19 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initials } from './Avatar';
-
-export const WORKSPACE_COLORS: Record<string, string> = {
-  coral: '#FF7A3D',
-  blue: '#3D8BFF',
-  green: '#3DDC97',
-  violet: '#B97DFF',
-  amber: '#FFB13D',
-  pink: '#FF5FA0',
-};
-
-export const getWorkspaceColorHex = (colorId?: string) => {
-  if (!colorId) return WORKSPACE_COLORS.coral;
-  return WORKSPACE_COLORS[colorId] || colorId;
-};
+import { getWorkspaceColorTokens } from '../../utils/workspaceColor';
 
 export interface WorkspaceAvatarProps {
   name?: string;
@@ -41,7 +28,7 @@ export const WorkspaceAvatar: React.FC<WorkspaceAvatarProps> = ({
     setImageError(false);
   }, [logoUrl]);
 
-  const hex = getWorkspaceColorHex(color);
+  const tokens = getWorkspaceColorTokens(color);
   const fontSize = Math.max(10, Math.round(size * 0.38));
 
   if (logoUrl && !imageError) {
@@ -65,7 +52,7 @@ export const WorkspaceAvatar: React.FC<WorkspaceAvatarProps> = ({
         height: size,
         minWidth: size,
         minHeight: size,
-        background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
+        background: tokens.avatarGradient,
         fontSize: `${fontSize}px`,
       }}
     >

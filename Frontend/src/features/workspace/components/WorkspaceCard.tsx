@@ -5,20 +5,10 @@ import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
 import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import useAuth from '../../../hooks/useAuth';
+import { getWorkspaceColorTokens, WORKSPACE_COLOR_MAP } from '../../../utils/workspaceColor';
 
-export const WORKSPACE_COLORS: Record<string, string> = {
-  coral: '#FF7A3D',
-  blue: '#3D8BFF',
-  green: '#3DDC97',
-  violet: '#B97DFF',
-  amber: '#FFB13D',
-  pink: '#FF5FA0',
-};
-
-export const getColorHex = (colorId?: string) => {
-  if (!colorId) return WORKSPACE_COLORS.coral;
-  return WORKSPACE_COLORS[colorId] || colorId;
-};
+export const WORKSPACE_COLORS = WORKSPACE_COLOR_MAP;
+export const getColorHex = (colorId?: string) => getWorkspaceColorTokens(colorId).hex;
 
 interface WorkspaceCardProps {
   ws: Workspace;
@@ -88,7 +78,7 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     menuItems.push({ label: 'Delete workspace', icon: 'trash', danger: true, onClick: () => onDelete(ws) });
   }
 
-  const hex = getColorHex(ws.settings?.color || ws.color);
+  const rawColor = ws.accentColor || ws.settings?.color || ws.color;
 
   return (
     <div
@@ -101,7 +91,7 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
           <WorkspaceAvatar
             name={ws.name}
             logoUrl={ws.logoUrl}
-            color={ws.settings?.color || ws.color}
+            color={rawColor}
             size={44}
             roundedClassName="rounded-xl"
             className="group-hover:scale-105 transition-transform"
@@ -167,10 +157,10 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
           }}
           aria-label={`Open ${ws.name} workspace`}
           style={{
-            background: `linear-gradient(135deg, ${hex}, ${hex}E6)`,
-            boxShadow: `0 3px 10px ${hex}30`,
+            background: 'linear-gradient(135deg, #FF7A3D, #E8432E)',
+            boxShadow: '0 3px 10px rgba(255, 122, 61, 0.25)',
           }}
-          className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+          className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
         >
           <span className="font-semibold text-xs leading-none">Open Workspace</span>
           <Icon

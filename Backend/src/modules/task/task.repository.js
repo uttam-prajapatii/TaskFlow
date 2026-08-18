@@ -156,7 +156,7 @@ class TaskRepository {
       .populate({
         path: 'boardId',
         select: 'name workspaceId',
-        populate: { path: 'workspaceId', select: 'name color logoUrl slug' }
+        populate: { path: 'workspaceId', select: 'name accentColor color settings logoUrl slug' }
       })
       .populate('listId', 'name')
       .populate('labels')
@@ -180,7 +180,7 @@ class TaskRepository {
       .populate({
         path: 'boardId',
         select: 'name workspaceId',
-        populate: { path: 'workspaceId', select: 'name color logoUrl slug' }
+        populate: { path: 'workspaceId', select: 'name accentColor color settings logoUrl slug' }
       })
       .populate('listId', 'name')
       .populate('labels')
