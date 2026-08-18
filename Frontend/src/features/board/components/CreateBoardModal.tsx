@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../../../components/UI/Modal';
 import Icon from '../../../components/UI/Icon';
-import { initials } from '../../../components/UI/Avatar';
+import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import type { Workspace } from '../../workspace/types';
 import type { CreateBoardPayload } from '../types';
 import { toast } from 'sonner';
@@ -145,9 +145,13 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
             </select>
           ) : (
             <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-              <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center text-xs shrink-0">
-                {initials(selectedWorkspace?.name || 'WS')}
-              </div>
+              <WorkspaceAvatar
+                name={selectedWorkspace?.name || 'WS'}
+                logoUrl={selectedWorkspace?.logoUrl}
+                color={selectedWorkspace?.settings?.color || selectedWorkspace?.color}
+                size={28}
+                roundedClassName="rounded-lg"
+              />
               <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100 truncate flex-1 min-w-0">
                 {selectedWorkspace?.name || 'Current Workspace'}
               </span>

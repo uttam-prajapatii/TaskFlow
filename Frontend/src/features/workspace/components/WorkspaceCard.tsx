@@ -3,7 +3,7 @@ import type { Workspace, WorkspaceRole } from '../types';
 import AvatarStack from '../../../components/UI/AvatarStack';
 import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
-import { initials } from '../../../components/UI/Avatar';
+import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import useAuth from '../../../hooks/useAuth';
 
 export const WORKSPACE_COLORS: Record<string, string> = {
@@ -39,8 +39,6 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 }) => {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const hex = getColorHex(ws.settings?.color || ws.color);
 
   const isCreator =
     ws.ownerId === user?._id ||
@@ -90,6 +88,8 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     menuItems.push({ label: 'Delete workspace', icon: 'trash', danger: true, onClick: () => onDelete(ws) });
   }
 
+  const hex = getColorHex(ws.settings?.color || ws.color);
+
   return (
     <div
       onClick={() => onOpen(ws)}
@@ -98,14 +98,14 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            style={{
-              background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-            }}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
-          >
-            {initials(ws.name)}
-          </div>
+          <WorkspaceAvatar
+            name={ws.name}
+            logoUrl={ws.logoUrl}
+            color={ws.settings?.color || ws.color}
+            size={44}
+            roundedClassName="rounded-xl"
+            className="group-hover:scale-105 transition-transform"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
@@ -165,9 +165,19 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
             e.stopPropagation();
             onOpen(ws);
           }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/25 transition-all cursor-pointer shrink-0"
+          aria-label={`Open ${ws.name} workspace`}
+          style={{
+            background: `linear-gradient(135deg, ${hex}, ${hex}E6)`,
+            boxShadow: `0 3px 10px ${hex}30`,
+          }}
+          className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
         >
-          Open Workspace <Icon name="arrow-right" size={13} />
+          <span className="font-semibold text-xs leading-none">Open Workspace</span>
+          <Icon
+            name="arrow-right"
+            size={13}
+            className="shrink-0 transition-transform duration-200 group-hover/btn:translate-x-0.5"
+          />
         </button>
       </div>
     </div>

@@ -89,9 +89,33 @@ export const useWorkspaceMutations = () => {
     },
   });
 
+  const uploadLogoMutation = useMutation({
+    mutationFn: ({ workspaceId, formData }: { workspaceId: string; formData: FormData }) =>
+      workspaceService.uploadLogo(workspaceId, formData),
+    onSuccess: (data, { workspaceId }) => {
+      // Immediately update 'workspaces' query data with the new logoUrl
+      queryClient.setQueryData<Workspace[]>(['workspaces'], (old) => {
+        if (!old) return old;
+        return old.map((w) =>
+          (w._id || w.id) === workspaceId ? { ...w, logoUrl: data.logoUrl } : w
+        );
+      });
+
+      // Immediately update 'workspace' detail query data if present
+      queryClient.setQueryData<Workspace>(['workspace', workspaceId], (old) => {
+        if (!old) return old;
+        return { ...old, logoUrl: data.logoUrl };
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
+    },
+  });
+
   return {
     createWorkspaceMutation,
     updateWorkspaceMutation,
     deleteWorkspaceMutation,
+    uploadLogoMutation,
   };
 };

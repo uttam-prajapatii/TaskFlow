@@ -260,7 +260,7 @@ class WorkspaceRepository {
    */
   async findInviteByToken(token) {
     return WorkspaceInvite.findOne({ token })
-      .populate('workspaceId', 'name description logo settings')
+      .populate('workspaceId', 'name description logoUrl logo settings')
       .populate('invitedBy', 'fullName email avatarUrl')
       .exec();
   }

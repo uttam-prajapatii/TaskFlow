@@ -180,7 +180,7 @@ class TaskRepository {
       .populate({
         path: 'boardId',
         select: 'name workspaceId',
-        populate: { path: 'workspaceId', select: 'name' }
+        populate: { path: 'workspaceId', select: 'name color logoUrl slug' }
       })
       .populate('listId', 'name')
       .populate('labels')

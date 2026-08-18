@@ -6,8 +6,7 @@ import useAuth from '../../../hooks/useAuth';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
-import { initials } from '../../../components/UI/Avatar';
-import { getColorHex } from '../components/WorkspaceCard';
+import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import MembersTab from '../components/MembersTab';
 import InvitationsTab from '../components/InvitationsTab';
 import SettingsTab from '../components/SettingsTab';
@@ -306,8 +305,6 @@ export const WorkspaceDetailPage: React.FC = () => {
 
   if (!workspace) return null;
 
-  const hex = getColorHex(workspace.settings?.color || workspace.color);
-
   const tabs = [
     { id: 'boards', label: 'Boards', icon: 'layoutGrid' },
     { id: 'members', label: 'Members', icon: 'users' },
@@ -334,14 +331,13 @@ export const WorkspaceDetailPage: React.FC = () => {
           {/* Workspace Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-neutral-200 dark:border-neutral-800">
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
-              <div
-                style={{
-                  background: `linear-gradient(135deg, ${hex}, ${hex}CC)`,
-                }}
-                className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl shrink-0 shadow-sm"
-              >
-                {initials(workspace.name)}
-              </div>
+              <WorkspaceAvatar
+                name={workspace.name}
+                logoUrl={workspace.logoUrl}
+                color={workspace.settings?.color || workspace.color}
+                size={56}
+                roundedClassName="rounded-2xl"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100 truncate max-w-full break-all">
