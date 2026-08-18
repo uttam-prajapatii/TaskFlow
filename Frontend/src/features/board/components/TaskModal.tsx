@@ -77,7 +77,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     assignees: [],
   });
 
-  const [errors, setErrors] = useState<{ title?: string; dueDate?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string; dueDate?: string; status?: string }>({});
 
   // Fetch real board labels dynamically from backend API
   const {
@@ -183,21 +183,36 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           typeof l === 'object' && l !== null ? l._id : (l as string)
         );
         const listIdStr = typeof initial.listId === 'object' && initial.listId !== null ? initial.listId._id : (initial.listId as string);
+
+        const existingCol = columns.find(
+          (c) => (c._id || c.id) === listIdStr || (c._id || c.id) === initial.status
+        );
+        const initialStatus = existingCol
+          ? (existingCol._id || existingCol.id || '')
+          : (defaultColumnId && columns.some((c) => (c._id || c.id) === defaultColumnId)
+            ? defaultColumnId
+            : '');
+
         setForm({
           title: initial.title || '',
           description: initial.description || '',
           priority: initial.priority || 'medium',
-          status: initial.status || listIdStr || defaultColumnId || columns[0]?._id || 'todo',
+          status: initialStatus,
           dueDate: initial.dueDate ? String(initial.dueDate).slice(0, 10) : '',
           labels: mappedLabels,
           assignees: mappedAssignees,
         });
       } else {
+        const defaultStatus =
+          defaultColumnId && columns.some((c) => (c._id || c.id) === defaultColumnId)
+            ? defaultColumnId
+            : columns[0]?._id || columns[0]?.id || '';
+
         setForm({
           title: '',
           description: '',
           priority: 'medium',
-          status: defaultColumnId || columns[0]?._id || columns[0]?.id || 'todo',
+          status: defaultStatus,
           dueDate: '',
           labels: [],
           assignees: [],
@@ -215,11 +230,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   });
 
   const validate = () => {
-    const e: { title?: string; dueDate?: string } = {};
+    const e: { title?: string; dueDate?: string; status?: string } = {};
     if (!form.title.trim()) {
       e.title = 'Title is required';
     } else if (form.title.length > 120) {
       e.title = 'Title must be under 120 characters';
+    }
+
+    if (columns.length === 0) {
+      e.status = 'Create a list/column before adding a task.';
+      toast.error('Create a list/column before adding a task.');
+    } else if (!form.status || !columns.some((c) => (c._id || c.id) === form.status)) {
+      e.status = 'Please select a valid list/column';
+      toast.error('Please select an available list/column.');
     }
 
     if (form.dueDate) {
@@ -349,19 +372,47 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
             <div>
               <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                Status / Column
+                Status / Column <span className="text-orange-500">*</span>
               </label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400"
-              >
-                {columns.map((c) => (
-                  <option key={c._id || c.id} value={c._id || c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
+              {columns.length === 0 ? (
+                <div>
+                  <select
+                    disabled
+                    value=""
+                    className="w-full px-3 py-2 text-[13px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800 text-neutral-400 cursor-not-allowed"
+                  >
+                    <option value="">No lists available</option>
+                  </select>
+                  <p className="text-[11px] text-amber-500 font-medium mt-1 flex items-center gap-1">
+                    <Icon name="alert-circle" size={12} /> Create a list/column before adding a task.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <select
+                    value={form.status}
+                    onChange={(e) => {
+                      setForm({ ...form, status: e.target.value });
+                      if (errors.status) setErrors((prev) => ({ ...prev, status: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 text-[13px] rounded-lg border bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 ${
+                      errors.status ? 'border-rose-400' : 'border-neutral-200 dark:border-neutral-700'
+                    }`}
+                  >
+                    {!columns.some((c) => (c._id || c.id) === form.status) && (
+                      <option value="" disabled>
+                        -- Select an available column --
+                      </option>
+                    )}
+                    {columns.map((c) => (
+                      <option key={c._id || c.id} value={c._id || c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.status && <p className="text-[11px] text-rose-500 mt-1">{errors.status}</p>}
+                </div>
+              )}
             </div>
           </div>
 
@@ -673,8 +724,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </button>
           <button
             type="submit"
-            disabled={saving}
-            className="px-4 py-2 text-[13px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/30 transition disabled:opacity-50"
+            disabled={saving || columns.length === 0}
+            className="px-4 py-2 text-[13px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving…' : initial ? 'Save changes' : 'Create task'}
           </button>

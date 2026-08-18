@@ -353,8 +353,8 @@ export const BoardKanbanPage: React.FC = () => {
         toast.success('Task updated');
       } else {
         const targetListId = payload.status || defaultColForTask || columns[0]?._id;
-        if (!targetListId) {
-          toast.error('Please add a list to the board before adding tasks.');
+        if (!targetListId || columns.length === 0) {
+          toast.error('Create a list/column before adding a task.');
           return;
         }
         await taskService.createTask(targetListId, {
@@ -499,13 +499,16 @@ export const BoardKanbanPage: React.FC = () => {
 
               <button
                 type="button"
+                disabled={columns.length === 0}
+                title={columns.length === 0 ? 'Create a list/column before adding a task.' : 'Add task'}
                 onClick={() => {
+                  if (columns.length === 0) return;
                   setEditingTask(null);
                   setDefaultColForTask(columns[0]?._id || columns[0]?.id || '');
                   setTargetPositionForTask(0);
                   setTaskModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-xs shadow-orange-500/25 transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-xs shadow-orange-500/25 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-orange-600 disabled:shadow-none"
               >
                 <Icon name="plus" size={14} /> Add task
               </button>
