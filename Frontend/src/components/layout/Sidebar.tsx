@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
       return pathname === '/analytics';
     }
     if (id === 'members') {
-      return pathname.startsWith('/workspaces/') && activeTab === 'members';
+      return (pathname.startsWith('/workspaces/') && activeTab === 'members') || pathname === '/members';
     }
     if (id === 'invitations') {
       return pathname.startsWith('/workspaces/') && activeTab === 'invitations';
@@ -134,7 +134,7 @@ export const Sidebar: React.FC = () => {
       id: 'members',
       icon: 'users',
       label: 'Members',
-      to: currentWorkspaceId ? `/workspaces/${currentWorkspaceId}?tab=members` : '/workspace-select',
+      to: '/members',
     },
     {
       id: 'invitations',

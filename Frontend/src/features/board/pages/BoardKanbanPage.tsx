@@ -754,6 +754,16 @@ export const BoardKanbanPage: React.FC = () => {
           setEditingTask(task);
           setTaskModalOpen(true);
         }}
+        onTaskUpdate={(updatedTask) => {
+          setTasks((prev) =>
+            prev.map((t) =>
+              (t._id === updatedTask._id || t.id === updatedTask._id)
+                ? { ...t, ...updatedTask }
+                : t
+            )
+          );
+          setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
+        }}
         columns={columns}
         workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
         boardId={boardId}

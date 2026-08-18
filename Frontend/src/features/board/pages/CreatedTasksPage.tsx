@@ -587,6 +587,9 @@ export const CreatedTasksPage: React.FC = () => {
           task={drawerTask}
           onClose={() => setDrawerTask(null)}
           onEdit={() => {}}
+          onTaskUpdate={(updatedTask) => {
+            setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
+          }}
           columns={drawerColumns}
           workspaceId={
             drawerTask

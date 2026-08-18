@@ -22,6 +22,7 @@ import CreatedTasksPage from './features/board/pages/CreatedTasksPage';
 
 import NotificationsPage from './features/workspace/pages/NotificationsPage';
 import AnalyticsPage from './features/workspace/pages/AnalyticsPage';
+import MembersPage from './features/workspace/pages/MembersPage';
 
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -157,6 +158,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/members"
+              element={
+                <ProtectedRoute>
+                  <MembersPage />
                 </ProtectedRoute>
               }
             />

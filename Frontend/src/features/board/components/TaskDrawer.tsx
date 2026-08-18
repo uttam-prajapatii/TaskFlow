@@ -17,6 +17,7 @@ interface TaskDrawerProps {
   task: Task | null;
   onClose: () => void;
   onEdit: (task: Task) => void;
+  onTaskUpdate?: (updatedTask: Task) => void;
   columns: BoardList[];
   workspaceId?: string;
   boardId?: string;
@@ -150,7 +151,7 @@ const getAttachmentIconName = (att: TaskAttachmentItem): string => {
   ) {
     return 'file-text';
   }
-  return 'file';
+  return 'paperclip';
 };
 
 const getFileTypeStyle = (att: TaskAttachmentItem) => {
@@ -200,6 +201,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
   task,
   onClose,
   onEdit,
+  onTaskUpdate,
   columns,
   workspaceId,
   boardId: propBoardId,
@@ -304,20 +306,90 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({
     enabled: !!taskId && showHistory,
   });
 
-  // Checklist Mutations
+  // Checklist Mutations with immediate optimistic UI update
   const checklistMutation = useMutation({
     mutationFn: ({ action, payload }: { action: string; payload: Record<string, unknown> }) =>
       taskService.checklistOperation(taskId, action, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['task-details', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', resolvedBoardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardTasks', resolvedBoardId] });
+    onMutate: async ({ action, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ['task-details', taskId] });
+      const previousTask = queryClient.getQueryData<Task>(['task-details', taskId]) || activeTask;
+
+      if (previousTask && Array.isArray(previousTask.checklist)) {
+        let newChecklist = [...previousTask.checklist];
+        if (action === 'add' && payload.text) {
+          const tempId = `temp-${Date.now()}`;
+          newChecklist.push({
+            _id: tempId,
+            id: tempId,
+            text: String(payload.text),
+            isDone: false,
+          });
+        } else if (action === 'update' && payload.itemId) {
+          newChecklist = newChecklist.map((item) =>
+            item._id === payload.itemId || item.id === payload.itemId
+              ? {
+                  ...item,
+                  ...(payload.text !== undefined ? { text: String(payload.text) } : {}),
+                  ...(payload.isDone !== undefined ? { isDone: Boolean(payload.isDone) } : {}),
+                }
+              : item
+          );
+        } else if (action === 'remove' && payload.itemId) {
+          newChecklist = newChecklist.filter(
+            (item) => item._id !== payload.itemId && item.id !== payload.itemId
+          );
+        }
+
+        const isAllDone = newChecklist.length > 0 && newChecklist.every((i) => i.isDone);
+        const optimisticTask: Task = {
+          ...previousTask,
+          checklist: newChecklist,
+          isCompleted: isAllDone,
+        };
+
+        queryClient.setQueryData(['task-details', taskId], optimisticTask);
+        if (resolvedBoardId) {
+          queryClient.setQueryData<Task[]>(['boardTasks', resolvedBoardId], (old = []) =>
+            old.map((t) => (t._id === taskId || t.id === taskId ? { ...t, ...optimisticTask } : t))
+          );
+          queryClient.setQueryData<Task[]>(['tasks', resolvedBoardId], (old = []) =>
+            old.map((t) => (t._id === taskId || t.id === taskId ? { ...t, ...optimisticTask } : t))
+          );
+        }
+        onTaskUpdate?.(optimisticTask);
+      }
+
+      return { previousTask };
+    },
+    onSuccess: (updatedTask) => {
+      if (updatedTask) {
+        queryClient.setQueryData(['task-details', taskId], updatedTask);
+        if (resolvedBoardId) {
+          queryClient.setQueryData<Task[]>(['boardTasks', resolvedBoardId], (old = []) =>
+            old.map((t) => (t._id === taskId || t.id === taskId ? { ...t, ...updatedTask } : t))
+          );
+          queryClient.setQueryData<Task[]>(['tasks', resolvedBoardId], (old = []) =>
+            old.map((t) => (t._id === taskId || t.id === taskId ? { ...t, ...updatedTask } : t))
+          );
+        }
+        queryClient.setQueryData<Task[]>(['assigned-tasks'], (old = []) =>
+          old.map((t) => (t._id === taskId || t.id === taskId ? { ...t, ...updatedTask } : t))
+        );
+        queryClient.setQueryData<Task[]>(['created-tasks'], (old = []) =>
+          old.map((t) => (t._id === taskId || t.id === taskId ? { ...t, ...updatedTask } : t))
+        );
+        onTaskUpdate?.(updatedTask);
+      }
+      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
       queryClient.invalidateQueries({ queryKey: ['assigned-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['created-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['workspace-analytics'] });
       setNewChecklistText('');
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, _vars, context) => {
+      if (context?.previousTask) {
+        queryClient.setQueryData(['task-details', taskId], context.previousTask);
+        onTaskUpdate?.(context.previousTask);
+      }
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Checklist update failed');
     },

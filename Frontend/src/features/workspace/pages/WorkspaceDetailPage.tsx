@@ -294,11 +294,14 @@ export const WorkspaceDetailPage: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading && !workspace) {
     return (
-      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-medium text-neutral-400">Loading workspace…</span>
+      <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+        <Sidebar />
+        <main className="flex-1 min-w-0 h-screen flex flex-col items-center justify-center gap-3 p-6">
+          <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-neutral-400">Loading workspace…</span>
+        </main>
       </div>
     );
   }
