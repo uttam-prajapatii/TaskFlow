@@ -88,6 +88,8 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
     menuItems.push({ label: 'Delete workspace', icon: 'trash', danger: true, onClick: () => onDelete(ws) });
   }
 
+  const hex = getColorHex(ws.settings?.color || ws.color);
+
   return (
     <div
       onClick={() => onOpen(ws)}
@@ -163,9 +165,19 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
             e.stopPropagation();
             onOpen(ws);
           }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/25 transition-all cursor-pointer shrink-0"
+          aria-label={`Open ${ws.name} workspace`}
+          style={{
+            background: `linear-gradient(135deg, ${hex}, ${hex}E6)`,
+            boxShadow: `0 3px 10px ${hex}30`,
+          }}
+          className="group/btn inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold text-white hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
         >
-          Open Workspace <Icon name="arrow-right" size={13} />
+          <span className="font-semibold text-xs leading-none">Open Workspace</span>
+          <Icon
+            name="arrow-right"
+            size={13}
+            className="shrink-0 transition-transform duration-200 group-hover/btn:translate-x-0.5"
+          />
         </button>
       </div>
     </div>
