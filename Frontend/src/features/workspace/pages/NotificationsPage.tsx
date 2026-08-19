@@ -213,7 +213,7 @@ export const NotificationsPage: React.FC = () => {
             /* Empty State */
             <div className="text-center py-16 px-4 bg-white dark:bg-neutral-900 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl shadow-2xs">
               <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 flex items-center justify-center mx-auto mb-3">
-                <Icon name="bell-off" size={24} />
+                <Icon name="bell-off" size={24} className="w-6 h-6 text-neutral-400 dark:text-neutral-500 shrink-0" />
               </div>
               <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100 mb-1">
                 No notifications found
