@@ -87,7 +87,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   const workspaceNavItems = [
-    { id: 'boards', icon: 'barChart', label: 'Boards', to: '/boards' },
+    { id: 'boards', icon: 'kanban', label: 'Boards', to: '/boards' },
     {
       id: 'notifications',
       icon: 'bell',

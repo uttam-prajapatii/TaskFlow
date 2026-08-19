@@ -69,7 +69,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               <Link
                 key={it.id}
                 to={it.to}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold transition ${
                   active
                     ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/60 dark:border-orange-500/20 shadow-2xs'
                     : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-200'
@@ -78,9 +78,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 <Icon
                   name={it.icon}
                   size={16}
-                  className={active ? 'text-orange-500' : 'text-neutral-400'}
+                  className={`w-4 h-4 shrink-0 transition-colors ${active ? 'text-orange-500 dark:text-orange-400' : 'text-neutral-400 dark:text-neutral-500'}`}
                 />
-                <span className="flex-1">{it.label}</span>
+                <span className="flex-1 truncate">{it.label}</span>
               </Link>
             );
           })}
@@ -99,7 +99,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               <Link
                 key={it.id}
                 to={it.to}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition ${
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold transition ${
                   active
                     ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/60 dark:border-orange-500/20 shadow-2xs'
                     : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 hover:text-neutral-900 dark:hover:text-neutral-200'
@@ -108,9 +108,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 <Icon
                   name={it.icon}
                   size={16}
-                  className={active ? 'text-orange-500' : 'text-neutral-400'}
+                  className={`w-4 h-4 shrink-0 transition-colors ${active ? 'text-orange-500 dark:text-orange-400' : 'text-neutral-400 dark:text-neutral-500'}`}
                 />
-                <span className="flex-1">{it.label}</span>
+                <span className="flex-1 truncate">{it.label}</span>
                 {it.badge && (
                   <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center shadow-2xs">
                     {it.badge}
