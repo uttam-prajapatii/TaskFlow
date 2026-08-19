@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
 import BoardCard from '../components/BoardCard';
-import CreateBoardModal from '../components/CreateBoardModal';
-import RenameBoardModal from '../components/RenameBoardModal';
 import workspaceService from '../../../services/workspace.service';
 import boardService from '../../../services/board.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import useSocketWorkspaces from '../../../hooks/useSocketWorkspaces';
 import type { Workspace } from '../../workspace/types';
 import type { Board, CreateBoardPayload } from '../types';
+
+// Lazy load modals to eliminate them from the critical render path
+const CreateBoardModal = lazy(() => import('../components/CreateBoardModal'));
+const RenameBoardModal = lazy(() => import('../components/RenameBoardModal'));
 
 export const BoardsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +37,10 @@ export const BoardsPage: React.FC = () => {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const wsList = contextWorkspaces.length > 0 ? contextWorkspaces : await workspaceService.listWorkspaces();
+      const wsList =
+        contextWorkspaces.length > 0
+          ? contextWorkspaces
+          : await workspaceService.listWorkspaces();
       setWorkspaces(wsList);
 
       if (wsList.length === 0) {
@@ -43,14 +48,17 @@ export const BoardsPage: React.FC = () => {
         return;
       }
 
-      let allBoards: Board[] = [];
-      for (const ws of wsList) {
-        try {
-          const wsId = ws._id || ws.id!;
-          const bList = await boardService.listWorkspaceBoards(wsId);
-          allBoards = [...allBoards, ...bList];
-        } catch {
-          // ignore individual workspace fetch error
+      // Parallelize workspace board queries to eliminate sequential waterfall
+      const boardPromises = wsList.map((ws) => {
+        const wsId = ws._id || ws.id!;
+        return boardService.listWorkspaceBoards(wsId).catch(() => [] as Board[]);
+      });
+
+      const results = await Promise.allSettled(boardPromises);
+      const allBoards: Board[] = [];
+      for (const res of results) {
+        if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+          allBoards.push(...res.value);
         }
       }
       setBoards(allBoards);
@@ -79,7 +87,10 @@ export const BoardsPage: React.FC = () => {
     // Filter by selected workspace
     if (selectedWsId !== 'all') {
       list = list.filter((b) => {
-        const bWsId = typeof b.workspaceId === 'object' && b.workspaceId !== null ? b.workspaceId._id : b.workspaceId;
+        const bWsId =
+          typeof b.workspaceId === 'object' && b.workspaceId !== null
+            ? b.workspaceId._id
+            : b.workspaceId;
         return bWsId === selectedWsId;
       });
     }
@@ -97,47 +108,68 @@ export const BoardsPage: React.FC = () => {
     return list;
   }, [boards, selectedWsId, search]);
 
-  const handleCreateBoard = async (payload: CreateBoardPayload) => {
-    try {
-      const targetWsId = payload.workspaceId || selectedWsId || '';
-      const created = await boardService.createBoard(targetWsId, payload);
-      toast.success(`Board "${created.name || created.title}" created successfully!`);
-      setCreateOpen(false);
-      navigate(`/boards/${created._id || created.id}`);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to create board.');
-    } finally {
-      setCreating(false);
-    }
-  };
+  const handleCreateBoard = useCallback(
+    async (payload: CreateBoardPayload) => {
+      try {
+        setCreating(true);
+        const targetWsId = payload.workspaceId || selectedWsId || '';
+        const created = await boardService.createBoard(targetWsId, payload);
+        toast.success(`Board "${created.name || created.title}" created successfully!`);
+        setCreateOpen(false);
+        navigate(`/boards/${created._id || created.id}`);
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error.response?.data?.message || 'Failed to create board.');
+      } finally {
+        setCreating(false);
+      }
+    },
+    [navigate, selectedWsId]
+  );
 
-  const handleDeleteBoard = async (b: Board) => {
-    const bId = b._id || b.id!;
-    try {
-      await boardService.deleteBoard(bId);
-      toast.success('Board deleted');
-      loadData();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to delete board');
-    }
-  };
+  const handleDeleteBoard = useCallback(
+    async (b: Board) => {
+      const bId = b._id || b.id!;
+      try {
+        await boardService.deleteBoard(bId);
+        toast.success('Board deleted');
+        loadData();
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error.response?.data?.message || 'Failed to delete board');
+      }
+    },
+    [loadData]
+  );
 
-  const handleRenameBoard = async (boardId: string, newName: string) => {
-    try {
-      setRenaming(true);
-      await boardService.updateBoard(boardId, { name: newName });
-      toast.success('Board renamed successfully');
-      setRenameTarget(null);
-      loadData();
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Failed to rename board');
-    } finally {
-      setRenaming(false);
-    }
-  };
+  const handleRenameBoard = useCallback(
+    async (boardId: string, newName: string) => {
+      try {
+        setRenaming(true);
+        await boardService.updateBoard(boardId, { name: newName });
+        toast.success('Board renamed successfully');
+        setRenameTarget(null);
+        loadData();
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error.response?.data?.message || 'Failed to rename board');
+      } finally {
+        setRenaming(false);
+      }
+    },
+    [loadData]
+  );
+
+  const handleOpenBoard = useCallback(
+    (board: Board) => {
+      navigate(`/boards/${board._id || board.id}`);
+    },
+    [navigate]
+  );
+
+  const handleSetRenameTarget = useCallback((board: Board) => {
+    setRenameTarget(board);
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
@@ -274,8 +306,8 @@ export const BoardsPage: React.FC = () => {
                 <BoardCard
                   key={b._id || b.id}
                   board={b}
-                  onOpen={(board) => navigate(`/boards/${board._id || board.id}`)}
-                  onRename={(board) => setRenameTarget(board)}
+                  onOpen={handleOpenBoard}
+                  onRename={handleSetRenameTarget}
                   onDelete={handleDeleteBoard}
                 />
               ))}
@@ -284,21 +316,29 @@ export const BoardsPage: React.FC = () => {
         </div>
       </main>
 
-      <CreateBoardModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreate={handleCreateBoard}
-        workspaces={workspaces}
-        defaultWorkspaceId={selectedWsId !== 'all' ? selectedWsId : currentWorkspace?._id}
-        creating={creating}
-      />
+      {createOpen && (
+        <Suspense fallback={null}>
+          <CreateBoardModal
+            open={createOpen}
+            onClose={() => setCreateOpen(false)}
+            onCreate={handleCreateBoard}
+            workspaces={workspaces}
+            defaultWorkspaceId={selectedWsId !== 'all' ? selectedWsId : currentWorkspace?._id}
+            creating={creating}
+          />
+        </Suspense>
+      )}
 
-      <RenameBoardModal
-        board={renameTarget}
-        onClose={() => setRenameTarget(null)}
-        onSave={handleRenameBoard}
-        saving={renaming}
-      />
+      {renameTarget && (
+        <Suspense fallback={null}>
+          <RenameBoardModal
+            board={renameTarget}
+            onClose={() => setRenameTarget(null)}
+            onSave={handleRenameBoard}
+            saving={renaming}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

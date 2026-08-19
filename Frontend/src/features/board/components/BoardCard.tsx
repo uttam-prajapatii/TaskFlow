@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import type { Board } from '../types';
 import Icon from '../../../components/UI/Icon';
 import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
@@ -11,7 +11,7 @@ interface BoardCardProps {
   onDelete?: (board: Board) => void;
 }
 
-export const BoardCard: React.FC<BoardCardProps> = ({ board, onOpen, onRename, onDelete }) => {
+export const BoardCard: React.FC<BoardCardProps> = memo(({ board, onOpen, onRename, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const title = board.name || board.title || 'Untitled Board';
 
@@ -87,6 +87,8 @@ export const BoardCard: React.FC<BoardCardProps> = ({ board, onOpen, onRename, o
       </div>
     </div>
   );
-};
+});
+
+BoardCard.displayName = 'BoardCard';
 
 export default BoardCard;

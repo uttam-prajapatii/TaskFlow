@@ -7,12 +7,13 @@ import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
 import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
 import KanbanColumn from '../components/KanbanColumn';
-import TaskModal from '../components/TaskModal';
-import TaskDrawer from '../components/TaskDrawer';
-import RenameListModal from '../components/RenameListModal';
 import BoardSkeleton from '../components/BoardSkeleton';
 import ConfirmModal from '../../../components/UI/ConfirmModal';
 import BoardToolbar from '../components/BoardToolbar';
+
+const TaskModal = React.lazy(() => import('../components/TaskModal'));
+const TaskDrawer = React.lazy(() => import('../components/TaskDrawer'));
+const RenameListModal = React.lazy(() => import('../components/RenameListModal'));
 import boardService from '../../../services/board.service';
 import listService from '../../../services/list.service';
 import taskService from '../../../services/task.service';
@@ -78,14 +79,20 @@ export const BoardKanbanPage: React.FC = () => {
       if (!boardId) return;
       try {
         if (!silent) setLoading(true);
-        const bDetails = await boardService.getBoardDetails(boardId);
-        setBoard(bDetails);
-        setIsStarred(!!(bDetails as { isStarred?: boolean }).isStarred);
 
-        try {
-          const lists = await listService.getBoardLists(boardId);
-          if (Array.isArray(lists) && lists.length > 0) {
-            const mappedLists: BoardList[] = lists.map((l: unknown, i: number) => {
+        const [bDetailsRes, listsRes, tasksRes] = await Promise.allSettled([
+          boardService.getBoardDetails(boardId),
+          listService.getBoardLists(boardId),
+          taskService.getBoardTasks(boardId),
+        ]);
+
+        if (bDetailsRes.status === 'fulfilled') {
+          const bDetails = bDetailsRes.value;
+          setBoard(bDetails);
+          setIsStarred(!!(bDetails as { isStarred?: boolean }).isStarred);
+
+          if (listsRes.status === 'fulfilled' && Array.isArray(listsRes.value) && listsRes.value.length > 0) {
+            const mappedLists: BoardList[] = listsRes.value.map((l: unknown, i: number) => {
               const item = l as {
                 _id?: string;
                 id?: string;
@@ -129,21 +136,14 @@ export const BoardKanbanPage: React.FC = () => {
               });
             if (populated.length > 0) {
               setColumns(populated);
-            } else if (Array.isArray(lists)) {
-              setColumns([]);
             }
-          } else if (Array.isArray(lists)) {
-            setColumns([]);
           }
-        } catch {
-          // preserve columns on minor error
+        } else {
+          throw bDetailsRes.reason;
         }
 
-        try {
-          const taskList = await taskService.getBoardTasks(boardId);
-          setTasks(taskList);
-        } catch {
-          // preserve tasks on minor error
+        if (tasksRes.status === 'fulfilled' && Array.isArray(tasksRes.value)) {
+          setTasks(tasksRes.value);
         }
       } catch (err: unknown) {
         const error = err as { response?: { data?: { message?: string } } };
@@ -864,61 +864,73 @@ export const BoardKanbanPage: React.FC = () => {
       </main>
 
       {/* Task Modal */}
-      <TaskModal
-        open={taskModalOpen}
-        onClose={() => {
-          setTaskModalOpen(false);
-          setEditingTask(null);
-        }}
-        onSave={handleSaveTask}
-        initial={editingTask}
-        columns={columns}
-        defaultColumnId={defaultColForTask}
-        saving={savingTask}
-        workspaceId={
-          typeof board?.workspaceId === 'object' && board?.workspaceId !== null
-            ? board.workspaceId._id
-            : (board?.workspaceId as string)
-        }
-        boardId={boardId}
-      />
+      {taskModalOpen && (
+        <React.Suspense fallback={null}>
+          <TaskModal
+            open={taskModalOpen}
+            onClose={() => {
+              setTaskModalOpen(false);
+              setEditingTask(null);
+            }}
+            onSave={handleSaveTask}
+            initial={editingTask}
+            columns={columns}
+            defaultColumnId={defaultColForTask}
+            saving={savingTask}
+            workspaceId={
+              typeof board?.workspaceId === 'object' && board?.workspaceId !== null
+                ? board.workspaceId._id
+                : (board?.workspaceId as string)
+            }
+            boardId={boardId}
+          />
+        </React.Suspense>
+      )}
 
       {/* Task Detail Drawer */}
-      <TaskDrawer
-        task={drawerTask}
-        onClose={() => setDrawerTask(null)}
-        onEdit={(task) => {
-          setDrawerTask(null);
-          setEditingTask(task);
-          setTaskModalOpen(true);
-        }}
-        onTaskUpdate={(updatedTask) => {
-          setTasks((prev) =>
-            prev.map((t) =>
-              t._id === updatedTask._id || t.id === updatedTask._id
-                ? { ...t, ...updatedTask }
-                : t
-            )
-          );
-          setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
-        }}
-        columns={columns}
-        workspaceId={
-          typeof board?.workspaceId === 'object' && board?.workspaceId !== null
-            ? board.workspaceId._id
-            : (board?.workspaceId as string)
-        }
-        boardId={boardId}
-      />
+      {drawerTask && (
+        <React.Suspense fallback={null}>
+          <TaskDrawer
+            task={drawerTask}
+            onClose={() => setDrawerTask(null)}
+            onEdit={(task) => {
+              setDrawerTask(null);
+              setEditingTask(task);
+              setTaskModalOpen(true);
+            }}
+            onTaskUpdate={(updatedTask) => {
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t._id === updatedTask._id || t.id === updatedTask._id
+                    ? { ...t, ...updatedTask }
+                    : t
+                )
+              );
+              setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
+            }}
+            columns={columns}
+            workspaceId={
+              typeof board?.workspaceId === 'object' && board?.workspaceId !== null
+                ? board.workspaceId._id
+                : (board?.workspaceId as string)
+            }
+            boardId={boardId}
+          />
+        </React.Suspense>
+      )}
 
       {/* Rename List Modal */}
-      <RenameListModal
-        open={!!renameListTarget}
-        currentTitle={renameListTarget?.title || ''}
-        onClose={() => setRenameListTarget(null)}
-        onSave={handleSaveRenameList}
-        saving={renamingList}
-      />
+      {renameListTarget && (
+        <React.Suspense fallback={null}>
+          <RenameListModal
+            open={!!renameListTarget}
+            currentTitle={renameListTarget?.title || ''}
+            onClose={() => setRenameListTarget(null)}
+            onSave={handleSaveRenameList}
+            saving={renamingList}
+          />
+        </React.Suspense>
+      )}
 
       {/* Delete List Confirm Modal */}
       <ConfirmModal

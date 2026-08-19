@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import boardService from '../services/board.service';
@@ -189,21 +189,36 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, []);
 
+  const contextValue = React.useMemo<WorkspaceContextType>(
+    () => ({
+      workspaces: fetchedWorkspaces,
+      currentWorkspace,
+      currentWorkspaceId,
+      setCurrentWorkspace,
+      boards,
+      loading: wsLoading || boardsLoading,
+      refreshWorkspaces,
+      refreshBoards,
+      deleteWorkspaceAndSync,
+      updateWorkspaceInState,
+    }),
+    [
+      fetchedWorkspaces,
+      currentWorkspace,
+      currentWorkspaceId,
+      setCurrentWorkspace,
+      boards,
+      wsLoading,
+      boardsLoading,
+      refreshWorkspaces,
+      refreshBoards,
+      deleteWorkspaceAndSync,
+      updateWorkspaceInState,
+    ]
+  );
+
   return (
-    <WorkspaceContext.Provider
-      value={{
-        workspaces: fetchedWorkspaces,
-        currentWorkspace,
-        currentWorkspaceId,
-        setCurrentWorkspace,
-        boards,
-        loading: wsLoading || boardsLoading,
-        refreshWorkspaces,
-        refreshBoards,
-        deleteWorkspaceAndSync,
-        updateWorkspaceInState,
-      }}
-    >
+    <WorkspaceContext.Provider value={contextValue}>
       {children}
     </WorkspaceContext.Provider>
   );
