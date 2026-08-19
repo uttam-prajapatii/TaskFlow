@@ -76,7 +76,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     isLoading: isLoadingLabels,
   } = useQuery<Label[]>({
     queryKey: ['labels', boardId],
-    queryFn: () => labelService.getBoardLabels(boardId!),
+    queryFn: () => (boardId ? labelService.getBoardLabels(boardId) : Promise.resolve([])),
     enabled: !!boardId && open,
   });
 
@@ -86,6 +86,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       labelService.createLabel(boardId!, payload),
     onSuccess: (createdLabel) => {
       queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
       toast.success(`Label "${createdLabel.name}" created`);
       setForm((f) => ({
         ...f,
@@ -103,8 +105,44 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     },
   });
 
-  const handleCreateLabel = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Update Label mutation
+  const updateLabelMutation = useMutation({
+    mutationFn: ({ labelId, payload }: { labelId: string; payload: { name: string; color: string } }) =>
+      labelService.updateLabel(labelId, payload),
+    onSuccess: (updatedLabel) => {
+      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['task-details'] });
+      toast.success(`Label "${updatedLabel.name}" updated`);
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to update label');
+    },
+  });
+
+  // Delete Label mutation
+  const deleteLabelMutation = useMutation({
+    mutationFn: (labelId: string) => labelService.deleteLabel(labelId),
+    onSuccess: (_, deletedLabelId) => {
+      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['task-details'] });
+      setForm((f) => ({
+        ...f,
+        labels: f.labels.filter((id) => id !== deletedLabelId),
+      }));
+      toast.success('Label deleted');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to delete label');
+    },
+  });
+
+  const handleCreateLabel = () => {
     const trimmed = newLabelName.trim();
     if (!trimmed) {
       setCreateLabelError('Label name is required');
@@ -311,7 +349,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400"
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 cursor-pointer"
           >
             <Icon name="x" size={16} />
           </button>
@@ -469,8 +507,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             newLabelColor={newLabelColor}
             setNewLabelColor={setNewLabelColor}
             createLabelError={createLabelError}
+            setCreateLabelError={setCreateLabelError}
             onCreateLabel={handleCreateLabel}
             isCreatingLabel={createLabelMutation.isPending}
+            onUpdateLabel={(labelId, payload) =>
+              updateLabelMutation.mutate({ labelId, payload })
+            }
+            isUpdatingLabel={updateLabelMutation.isPending}
+            onDeleteLabel={(labelId) => deleteLabelMutation.mutate(labelId)}
+            isDeletingLabel={deleteLabelMutation.isPending}
             isLoadingLabels={isLoadingLabels}
           />
 
