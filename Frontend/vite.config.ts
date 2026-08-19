@@ -6,11 +6,13 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: '0.0.0.0',
     port: 5173,
-    strictPort: true,
-    watch: {
-      usePolling: true,
-    },
+    host: true,
   },
-})
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+    cssMinify: true,
+    chunkSizeWarningLimit: 1000,
+  },
+});

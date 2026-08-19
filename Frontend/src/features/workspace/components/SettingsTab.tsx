@@ -104,24 +104,24 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             logoUrl={ws.logoUrl}
             color={ws.accentColor || ws.settings?.color || ws.color}
             size={56}
-            roundedClassName="rounded-2xl"
+            roundedClassName="rounded-2xl shrink-0"
           />
           {canManage && (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col items-start gap-1.5 justify-center">
               <button
                 type="button"
                 onClick={() => logoInputRef.current?.click()}
                 disabled={uploadingLogo}
-                className="px-4 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-2xs"
+                className="w-fit inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition cursor-pointer disabled:opacity-50 shadow-2xs"
               >
                 {uploadingLogo ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
                     <span>Uploading…</span>
                   </>
                 ) : (
                   <>
-                    <Icon name="upload" size={14} />
+                    <Icon name="upload" size={14} className="shrink-0" />
                     <span>{ws.logoUrl ? 'Change Logo' : 'Upload Logo'}</span>
                   </>
                 )}

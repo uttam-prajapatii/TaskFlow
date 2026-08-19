@@ -17,6 +17,7 @@ interface KanbanColumnProps {
   onAddTask: (columnId: string, position?: number) => void;
   onMenuAction: (action: string, task: Task) => void;
   onRenameColumn?: (columnId: string, currentName: string) => void;
+  onCopyColumn?: (columnId: string, currentName: string) => void;
   onDeleteColumn?: (columnId: string) => void;
 }
 
@@ -40,6 +41,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onAddTask,
   onMenuAction,
   onRenameColumn,
+  onCopyColumn,
   onDeleteColumn,
 }) => {
   const [colMenuOpen, setColMenuOpen] = useState(false);
@@ -58,6 +60,13 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       label: 'Rename list',
       icon: 'edit',
       onClick: () => onRenameColumn(colId, title),
+    });
+  }
+  if (onCopyColumn) {
+    menuItems.push({
+      label: 'Copy list',
+      icon: 'file-plus',
+      onClick: () => onCopyColumn(colId, title),
     });
   }
   if (onDeleteColumn) {

@@ -35,7 +35,6 @@ export const useSocketBoard = (
     // Task event handlers
     const handleTaskCreated = (newTask: Task) => {
       setTasks((prev) => {
-        // Prevent duplicate tasks if created locally already
         if (prev.some((t) => (t._id || t.id) === (newTask._id || newTask.id))) return prev;
         return [...prev, newTask];
       });
@@ -59,12 +58,28 @@ export const useSocketBoard = (
     const handleListCreated = (newList: BoardList) => {
       setColumns((prev) => {
         const id = newList._id || newList.id;
-        if (prev.some((c) => (c._id || c.id) === id)) return prev;
+        const mappedTitle =
+          newList.title ||
+          (newList as unknown as { name?: string }).name ||
+          'Untitled List';
+
+        if (prev.some((c) => (c._id || c.id) === id)) {
+          return prev.map((c) =>
+            (c._id || c.id) === id
+              ? {
+                  ...c,
+                  ...newList,
+                  title: mappedTitle,
+                  boardId: newList.boardId || boardId,
+                }
+              : c
+          );
+        }
 
         const mappedList: BoardList = {
           ...newList,
           _id: id || '',
-          title: newList.title || (newList as any).name || '',
+          title: mappedTitle,
           boardId: newList.boardId || boardId,
         };
         return [...prev, mappedList];
@@ -80,7 +95,10 @@ export const useSocketBoard = (
             return {
               ...c,
               ...updatedList,
-              title: updatedList.title || (updatedList as any).name || c.title,
+              title:
+                updatedList.title ||
+                (updatedList as unknown as { name?: string }).name ||
+                c.title,
             };
           }
           return c;
@@ -93,7 +111,10 @@ export const useSocketBoard = (
       // Remove all tasks that belong to the deleted list
       setTasks((prev) =>
         prev.filter((t) => {
-          const tListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+          const tListId =
+            typeof t.listId === 'object' && t.listId !== null
+              ? (t.listId as { _id?: string })._id
+              : t.listId;
           return String(tListId) !== String(listId);
         })
       );

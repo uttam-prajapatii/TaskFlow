@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -7,14 +7,7 @@ import { useWorkspace } from '../../../context/WorkspaceContext';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
 import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
-import MembersTab from '../components/MembersTab';
-import InvitationsTab from '../components/InvitationsTab';
-import SettingsTab from '../components/SettingsTab';
-import ActivityTab from '../components/ActivityTab';
-import InviteMemberModal from '../components/InviteMemberModal';
 import BoardCard from '../../board/components/BoardCard';
-import CreateBoardModal from '../../board/components/CreateBoardModal';
-import RenameBoardModal from '../../board/components/RenameBoardModal';
 import workspaceService from '../../../services/workspace.service';
 import boardService from '../../../services/board.service';
 import type {
@@ -25,19 +18,48 @@ import type {
 } from '../types';
 import type { Board, CreateBoardPayload } from '../../board/types';
 
+// Lazy load non-critical secondary tabs & modals out of the initial critical render path
+const MembersTab = lazy(() => import('../components/MembersTab'));
+const InvitationsTab = lazy(() => import('../components/InvitationsTab'));
+const SettingsTab = lazy(() => import('../components/SettingsTab'));
+const ActivityTab = lazy(() => import('../components/ActivityTab'));
+const InviteMemberModal = lazy(() => import('../components/InviteMemberModal'));
+const CreateBoardModal = lazy(() => import('../../board/components/CreateBoardModal'));
+const RenameBoardModal = lazy(() => import('../../board/components/RenameBoardModal'));
+
 export const WorkspaceDetailPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
-  const { setCurrentWorkspace, workspaces, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
+  const { setCurrentWorkspace, currentWorkspace, workspaces, refreshWorkspaces, deleteWorkspaceAndSync } = useWorkspace();
 
-  const [loading, setLoading] = useState(true);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  // Initialize workspace immediately from context cache to prevent render blocking
+  const initialWorkspace = useMemo(() => {
+    if (!workspaceId) return null;
+    return (
+      workspaces.find((w) => String(w._id || w.id) === String(workspaceId)) ||
+      (currentWorkspace && String(currentWorkspace._id || currentWorkspace.id) === String(workspaceId)
+        ? currentWorkspace
+        : null)
+    );
+  }, [workspaceId, workspaces, currentWorkspace]);
+
+  const [workspace, setWorkspace] = useState<Workspace | null>(initialWorkspace);
   const [boards, setBoards] = useState<Board[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
+
+  // Sync workspace if found in workspaces list later
+  useEffect(() => {
+    if (!workspace && workspaceId && workspaces.length > 0) {
+      const matched = workspaces.find((w) => String(w._id || w.id) === String(workspaceId));
+      if (matched) {
+        setWorkspace(matched);
+      }
+    }
+  }, [workspace, workspaceId, workspaces]);
 
   const tabParam = searchParams.get('tab') as 'boards' | 'members' | 'invitations' | 'activity' | 'settings' | null;
   const [activeTab, setActiveTabState] = useState<'boards' | 'members' | 'invitations' | 'activity' | 'settings'>(tabParam || 'boards');
@@ -62,65 +84,79 @@ export const WorkspaceDetailPage: React.FC = () => {
 
   const loadWorkspaceData = useCallback(async () => {
     if (!workspaceId) return;
-    try {
-      setLoading(true);
-      const wsDetails = await workspaceService.getWorkspaceDetails(workspaceId);
-      setWorkspace(wsDetails);
-      setCurrentWorkspace(wsDetails);
 
+    // Parallelize critical requests (workspace details & boards) without sequential waterfall
+    const fetchCriticalData = async () => {
       try {
-        const bList = await boardService.listWorkspaceBoards(workspaceId);
-        setBoards(bList);
-      } catch {
-        setBoards([]);
-      }
+        const [wsResult, boardsResult] = await Promise.allSettled([
+          workspaceService.getWorkspaceDetails(workspaceId),
+          boardService.listWorkspaceBoards(workspaceId),
+        ]);
 
-      try {
-        const memList = await workspaceService.listMembers(workspaceId);
-        setMembers(memList);
-      } catch {
-        setMembers([]);
-      }
-
-      try {
-        const invList = await workspaceService.listPendingInvites(workspaceId);
-        setInvites(invList);
-      } catch {
-        setInvites([]);
-      }
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Workspace not found or unavailable');
-
-      // Purge invalid workspace from state, localStorage, and query cache
-      const lastStored = localStorage.getItem('taskflow_last_workspace_id');
-      if (lastStored === workspaceId) {
-        localStorage.removeItem('taskflow_last_workspace_id');
-      }
-      queryClient.removeQueries({ queryKey: ['workspace', workspaceId] });
-      queryClient.removeQueries({ queryKey: ['workspace-boards', workspaceId] });
-      queryClient.removeQueries({ queryKey: ['workspace-members', workspaceId] });
-      queryClient.removeQueries({ queryKey: ['workspace-invites', workspaceId] });
-      queryClient.removeQueries({ queryKey: ['workspace-activities', workspaceId] });
-
-      // Check remaining workspaces and navigate safely
-      const res = await workspaceService.listWorkspaces().catch(() => []);
-      const remaining = Array.isArray(res) ? res : [];
-      if (remaining.length > 0) {
-        setCurrentWorkspace(remaining[0]);
-        const remId = remaining[0]._id || remaining[0].id;
-        if (remId) {
-          localStorage.setItem('taskflow_last_workspace_id', remId);
+        if (wsResult.status === 'fulfilled' && wsResult.value) {
+          setWorkspace(wsResult.value);
+          setCurrentWorkspace(wsResult.value);
+        } else if (wsResult.status === 'rejected') {
+          throw wsResult.reason;
         }
-        navigate('/workspace-select', { replace: true });
-      } else {
-        setCurrentWorkspace(null);
-        localStorage.removeItem('taskflow_last_workspace_id');
-        navigate('/onboarding', { replace: true });
+
+        if (boardsResult.status === 'fulfilled' && Array.isArray(boardsResult.value)) {
+          setBoards(boardsResult.value);
+        }
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error.response?.data?.message || 'Workspace not found or unavailable');
+
+        // Purge invalid workspace from state, localStorage, and query cache
+        const lastStored = localStorage.getItem('taskflow_last_workspace_id');
+        if (lastStored === workspaceId) {
+          localStorage.removeItem('taskflow_last_workspace_id');
+        }
+        queryClient.removeQueries({ queryKey: ['workspace', workspaceId] });
+        queryClient.removeQueries({ queryKey: ['workspace-boards', workspaceId] });
+        queryClient.removeQueries({ queryKey: ['workspace-members', workspaceId] });
+        queryClient.removeQueries({ queryKey: ['workspace-invites', workspaceId] });
+        queryClient.removeQueries({ queryKey: ['workspace-activities', workspaceId] });
+
+        // Check remaining workspaces and navigate safely
+        const res = await workspaceService.listWorkspaces().catch(() => []);
+        const remaining = Array.isArray(res) ? res : [];
+        if (remaining.length > 0) {
+          setCurrentWorkspace(remaining[0]);
+          const remId = remaining[0]._id || remaining[0].id;
+          if (remId) {
+            localStorage.setItem('taskflow_last_workspace_id', remId);
+          }
+          navigate('/workspace-select', { replace: true });
+        } else {
+          setCurrentWorkspace(null);
+          localStorage.removeItem('taskflow_last_workspace_id');
+          navigate('/onboarding', { replace: true });
+        }
       }
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    // Concurrently fetch non-critical secondary data in background
+    const fetchSecondaryData = async () => {
+      try {
+        const [memResult, invResult] = await Promise.allSettled([
+          workspaceService.listMembers(workspaceId),
+          workspaceService.listPendingInvites(workspaceId),
+        ]);
+
+        if (memResult.status === 'fulfilled' && Array.isArray(memResult.value)) {
+          setMembers(memResult.value);
+        }
+        if (invResult.status === 'fulfilled' && Array.isArray(invResult.value)) {
+          setInvites(invResult.value);
+        }
+      } catch {
+        // Non-blocking secondary fetch failure handled gracefully
+      }
+    };
+
+    fetchCriticalData();
+    fetchSecondaryData();
   }, [workspaceId, navigate, setCurrentWorkspace, queryClient]);
 
   useEffect(() => {
@@ -294,20 +330,6 @@ export const WorkspaceDetailPage: React.FC = () => {
     }
   };
 
-  if (loading && !workspace) {
-    return (
-      <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
-        <Sidebar />
-        <main className="flex-1 min-w-0 h-screen flex flex-col items-center justify-center gap-3 p-6">
-          <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-medium text-neutral-400">Loading workspace…</span>
-        </main>
-      </div>
-    );
-  }
-
-  if (!workspace) return null;
-
   const tabs = [
     { id: 'boards', label: 'Boards', icon: 'layoutGrid' },
     { id: 'members', label: 'Members', icon: 'users' },
@@ -315,6 +337,18 @@ export const WorkspaceDetailPage: React.FC = () => {
     { id: 'activity', label: 'Activity Logs', icon: 'activity' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
+
+  const displayWorkspace: Workspace = workspace || {
+    _id: workspaceId || '',
+    id: workspaceId || '',
+    name: 'Workspace',
+    description: '',
+    ownerId: currentUser?._id || '',
+    membersCount: 0,
+    boardsCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
@@ -335,20 +369,20 @@ export const WorkspaceDetailPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-neutral-200 dark:border-neutral-800">
             <div className="flex items-center gap-3.5 min-w-0 flex-1">
               <WorkspaceAvatar
-                name={workspace.name}
-                logoUrl={workspace.logoUrl}
-                color={workspace.accentColor || workspace.settings?.color || workspace.color}
+                name={displayWorkspace.name}
+                logoUrl={displayWorkspace.logoUrl}
+                color={displayWorkspace.accentColor || displayWorkspace.settings?.color || displayWorkspace.color}
                 size={56}
                 roundedClassName="rounded-2xl"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-bold font-display text-neutral-900 dark:text-neutral-100 truncate max-w-full break-all">
-                    {workspace.name}
+                    {displayWorkspace.name}
                   </h1>
                 </div>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 truncate max-w-xl">
-                  {workspace.description || 'No description provided.'}
+                  {displayWorkspace.description || 'No description provided.'}
                 </p>
               </div>
             </div>
@@ -368,7 +402,7 @@ export const WorkspaceDetailPage: React.FC = () => {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setActiveTab(t.id as 'boards' | 'members' | 'invitations' | 'settings')}
+                onClick={() => setActiveTab(t.id as 'boards' | 'members' | 'invitations' | 'activity' | 'settings')}
                 className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
                   activeTab === t.id
                     ? 'border-orange-500 text-orange-600 dark:text-orange-400'
@@ -456,7 +490,7 @@ export const WorkspaceDetailPage: React.FC = () => {
                       Welcome to your new workspace!
                     </h3>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-md mx-auto mb-6 leading-relaxed">
-                      There are no boards in <strong className="text-neutral-800 dark:text-neutral-200 font-semibold break-all">{workspace.name}</strong> yet. Create your first board to start tracking tasks and collaborating with your team.
+                      There are no boards in <strong className="text-neutral-800 dark:text-neutral-200 font-semibold break-all">{displayWorkspace.name}</strong> yet. Create your first board to start tracking tasks and collaborating with your team.
                     </p>
                     <button
                       type="button"
@@ -496,68 +530,78 @@ export const WorkspaceDetailPage: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'members' && (
-            <MembersTab
-              members={members}
-              currentUserId={currentUser?._id}
-              creatorId={ownerIdStr}
-              canManage={canManage}
-              onUpdateRole={handleUpdateRole}
-              onRemoveMember={handleRemoveMember}
-              onOpenInvite={() => setInviteModalOpen(true)}
-            />
-          )}
+          <Suspense fallback={<div className="p-8 text-center text-xs text-neutral-400">Loading tab…</div>}>
+            {activeTab === 'members' && (
+              <MembersTab
+                members={members}
+                currentUserId={currentUser?._id}
+                creatorId={ownerIdStr}
+                canManage={canManage}
+                onUpdateRole={handleUpdateRole}
+                onRemoveMember={handleRemoveMember}
+                onOpenInvite={() => setInviteModalOpen(true)}
+              />
+            )}
 
-          {activeTab === 'invitations' && (
-            <InvitationsTab
-              invites={invites}
-              canManage={canManage}
-              onRevokeInvite={handleRevokeInvite}
-              onOpenInvite={() => setInviteModalOpen(true)}
-            />
-          )}
+            {activeTab === 'invitations' && (
+              <InvitationsTab
+                invites={invites}
+                canManage={canManage}
+                onRevokeInvite={handleRevokeInvite}
+                onOpenInvite={() => setInviteModalOpen(true)}
+              />
+            )}
 
-          {activeTab === 'activity' && (
-            <ActivityTab workspaceId={workspaceId || ''} />
-          )}
+            {activeTab === 'activity' && (
+              <ActivityTab workspaceId={workspaceId || ''} />
+            )}
 
-          {activeTab === 'settings' && (
-            <SettingsTab
-              ws={workspace}
-              myRole={myRole}
-              canManage={canManage}
-              onRename={handleRenameWorkspace}
-              onDelete={handleDeleteWorkspace}
-              onLeave={handleLeaveWorkspace}
-              onRefresh={loadWorkspaceData}
-              onUpdateWorkspace={updateWorkspaceState}
-            />
-          )}
+            {activeTab === 'settings' && (
+              <SettingsTab
+                ws={displayWorkspace}
+                myRole={myRole}
+                canManage={canManage}
+                onRename={handleRenameWorkspace}
+                onDelete={handleDeleteWorkspace}
+                onLeave={handleLeaveWorkspace}
+                onRefresh={loadWorkspaceData}
+                onUpdateWorkspace={updateWorkspaceState}
+              />
+            )}
+          </Suspense>
         </div>
       </main>
 
-      <InviteMemberModal
-        open={inviteModalOpen}
-        onClose={() => setInviteModalOpen(false)}
-        onInvite={handleSendInvite}
-        sending={sendingInvite}
-      />
+      <Suspense fallback={null}>
+        {inviteModalOpen && (
+          <InviteMemberModal
+            open={inviteModalOpen}
+            onClose={() => setInviteModalOpen(false)}
+            onInvite={handleSendInvite}
+            sending={sendingInvite}
+          />
+        )}
 
-      <CreateBoardModal
-        open={createBoardOpen}
-        onClose={() => setCreateBoardOpen(false)}
-        onCreate={handleCreateBoard}
-        workspaces={workspaces.length > 0 ? workspaces : workspace ? [workspace] : []}
-        defaultWorkspaceId={workspace._id || workspace.id}
-        creating={creatingBoard}
-      />
+        {createBoardOpen && (
+          <CreateBoardModal
+            open={createBoardOpen}
+            onClose={() => setCreateBoardOpen(false)}
+            onCreate={handleCreateBoard}
+            workspaces={workspaces.length > 0 ? workspaces : [displayWorkspace]}
+            defaultWorkspaceId={displayWorkspace._id || displayWorkspace.id}
+            creating={creatingBoard}
+          />
+        )}
 
-      <RenameBoardModal
-        board={renameBoardTarget}
-        onClose={() => setRenameBoardTarget(null)}
-        onSave={handleRenameBoard}
-        saving={renamingBoard}
-      />
+        {renameBoardTarget && (
+          <RenameBoardModal
+            board={renameBoardTarget}
+            onClose={() => setRenameBoardTarget(null)}
+            onSave={handleRenameBoard}
+            saving={renamingBoard}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };

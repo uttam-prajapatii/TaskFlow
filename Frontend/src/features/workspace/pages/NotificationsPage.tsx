@@ -8,21 +8,7 @@ import Badge from '../../../components/UI/Badge';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import notificationService, { type NotificationItem } from '../../../services/notification.service';
 
-const formatRelativeTime = (dateStr?: string): string => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diffInSeconds < 60) return 'Just now';
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 30) return `${diffInDays}d ago`;
-  return date.toLocaleDateString();
-};
+import { formatRelativeTime } from '../../../utils/date';
 
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -227,7 +213,7 @@ export const NotificationsPage: React.FC = () => {
             /* Empty State */
             <div className="text-center py-16 px-4 bg-white dark:bg-neutral-900 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl shadow-2xs">
               <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 flex items-center justify-center mx-auto mb-3">
-                <Icon name="bell-off" size={24} />
+                <Icon name="bell-off" size={24} className="w-6 h-6 text-neutral-400 dark:text-neutral-500 shrink-0" />
               </div>
               <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100 mb-1">
                 No notifications found

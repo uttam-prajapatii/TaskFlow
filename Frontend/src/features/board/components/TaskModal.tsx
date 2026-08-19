@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Task, BoardList, PriorityLevel, CreateTaskPayload, Label } from '../types';
-import { PRIORITY_CONFIG, getLabelMeta } from './KanbanTaskCard';
+import { PRIORITY_CONFIG, PRESET_LABEL_COLORS } from '../../../constants/task.constants';
 import Modal from '../../../components/UI/Modal';
 import Icon from '../../../components/UI/Icon';
-import Avatar from '../../../components/UI/Avatar';
 import workspaceService from '../../../services/workspace.service';
 import labelService from '../../../services/label.service';
 import useAuth from '../../../hooks/useAuth';
 import { toast } from 'sonner';
+
+import TaskLabelPicker from './modal/TaskLabelPicker';
+import TaskAssigneePicker from './modal/TaskAssigneePicker';
 
 interface TaskModalProps {
   open: boolean;
@@ -21,17 +23,6 @@ interface TaskModalProps {
   workspaceId?: string;
   boardId?: string;
 }
-
-const PRESET_LABEL_COLORS = [
-  '#FF501E', // TaskFlow Orange
-  '#8B5CF6', // Purple
-  '#0284C7', // Sky Blue
-  '#F43F5E', // Rose
-  '#14B8A6', // Teal
-  '#EC4899', // Pink
-  '#F59E0B', // Amber
-  '#10B981', // Emerald
-];
 
 export const TaskModal: React.FC<TaskModalProps> = ({
   open,
@@ -85,7 +76,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     isLoading: isLoadingLabels,
   } = useQuery<Label[]>({
     queryKey: ['labels', boardId],
-    queryFn: () => labelService.getBoardLabels(boardId!),
+    queryFn: () => (boardId ? labelService.getBoardLabels(boardId) : Promise.resolve([])),
     enabled: !!boardId && open,
   });
 
@@ -95,6 +86,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       labelService.createLabel(boardId!, payload),
     onSuccess: (createdLabel) => {
       queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
       toast.success(`Label "${createdLabel.name}" created`);
       setForm((f) => ({
         ...f,
@@ -112,8 +105,44 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     },
   });
 
-  const handleCreateLabel = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Update Label mutation
+  const updateLabelMutation = useMutation({
+    mutationFn: ({ labelId, payload }: { labelId: string; payload: { name: string; color: string } }) =>
+      labelService.updateLabel(labelId, payload),
+    onSuccess: (updatedLabel) => {
+      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['task-details'] });
+      toast.success(`Label "${updatedLabel.name}" updated`);
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to update label');
+    },
+  });
+
+  // Delete Label mutation
+  const deleteLabelMutation = useMutation({
+    mutationFn: (labelId: string) => labelService.deleteLabel(labelId),
+    onSuccess: (_, deletedLabelId) => {
+      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['task-details'] });
+      setForm((f) => ({
+        ...f,
+        labels: f.labels.filter((id) => id !== deletedLabelId),
+      }));
+      toast.success('Label deleted');
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to delete label');
+    },
+  });
+
+  const handleCreateLabel = () => {
     const trimmed = newLabelName.trim();
     if (!trimmed) {
       setCreateLabelError('Label name is required');
@@ -140,7 +169,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const fetchMembers = useCallback(async () => {
     if (!workspaceId) {
       if (currentUser?._id) {
-        setTeamMembers([{ id: currentUser._id, name: currentUser.fullName || currentUser.email || 'You', email: currentUser.email }]);
+        setTeamMembers([
+          {
+            id: currentUser._id,
+            name: currentUser.fullName || currentUser.email || 'You',
+            email: currentUser.email,
+          },
+        ]);
       }
       return;
     }
@@ -149,19 +184,31 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       const formatted = members.map((m) => {
         const uObj = typeof m.userId === 'object' && m.userId !== null ? m.userId : null;
         const id = uObj ? uObj._id : (m.userId as string);
-        const name = uObj ? (uObj.fullName || uObj.name || uObj.email || 'Member') : 'Team Member';
+        const name = uObj
+          ? uObj.fullName || uObj.name || uObj.email || 'Member'
+          : 'Team Member';
         const email = uObj ? uObj.email : undefined;
         return { id, name, email };
       });
 
       if (formatted.length === 0 && currentUser?._id) {
-        formatted.push({ id: currentUser._id, name: currentUser.fullName || currentUser.email || 'You', email: currentUser.email });
+        formatted.push({
+          id: currentUser._id,
+          name: currentUser.fullName || currentUser.email || 'You',
+          email: currentUser.email,
+        });
       }
 
       setTeamMembers(formatted);
     } catch {
       if (currentUser?._id) {
-        setTeamMembers([{ id: currentUser._id, name: currentUser.fullName || currentUser.email || 'You', email: currentUser.email }]);
+        setTeamMembers([
+          {
+            id: currentUser._id,
+            name: currentUser.fullName || currentUser.email || 'You',
+            email: currentUser.email,
+          },
+        ]);
       }
     }
   }, [workspaceId, currentUser]);
@@ -182,16 +229,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         const mappedLabels = (initial.labels || []).map((l) =>
           typeof l === 'object' && l !== null ? l._id : (l as string)
         );
-        const listIdStr = typeof initial.listId === 'object' && initial.listId !== null ? initial.listId._id : (initial.listId as string);
+        const listIdStr =
+          typeof initial.listId === 'object' && initial.listId !== null
+            ? initial.listId._id
+            : (initial.listId as string);
 
         const existingCol = columns.find(
           (c) => (c._id || c.id) === listIdStr || (c._id || c.id) === initial.status
         );
         const initialStatus = existingCol
-          ? (existingCol._id || existingCol.id || '')
-          : (defaultColumnId && columns.some((c) => (c._id || c.id) === defaultColumnId)
-            ? defaultColumnId
-            : '');
+          ? existingCol._id || existingCol.id || ''
+          : defaultColumnId && columns.some((c) => (c._id || c.id) === defaultColumnId)
+          ? defaultColumnId
+          : '';
 
         setForm({
           title: initial.title || '',
@@ -223,11 +273,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   }, [open, initial, defaultColumnId, columns, fetchMembers]);
 
   if (!open) return null;
-
-  const filteredMembers = teamMembers.filter((m) => {
-    const query = assigneeSearch.toLowerCase();
-    return m.name.toLowerCase().includes(query) || (m.email || '').toLowerCase().includes(query);
-  });
 
   const validate = () => {
     const e: { title?: string; dueDate?: string; status?: string } = {};
@@ -304,7 +349,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400"
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 cursor-pointer"
           >
             <Icon name="x" size={16} />
           </button>
@@ -450,282 +495,54 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             {errors.dueDate && <p className="text-[11px] text-rose-500 mt-1">{errors.dueDate}</p>}
           </div>
 
-          {/* Dynamic Labels */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400">
-                Labels
-              </label>
-              {boardId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateLabel((v) => !v);
-                    setCreateLabelError(null);
-                    setNewLabelName('');
-                  }}
-                  className="text-[11.5px] font-semibold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Icon name={showCreateLabel ? 'minus' : 'plus'} size={12} />
-                  {showCreateLabel ? 'Cancel' : 'Create label'}
-                </button>
-              )}
-            </div>
+          {/* Dynamic Labels using TaskLabelPicker */}
+          <TaskLabelPicker
+            boardLabels={boardLabels}
+            selectedLabels={form.labels}
+            onToggleLabel={toggleLabel}
+            showCreateLabel={showCreateLabel}
+            setShowCreateLabel={setShowCreateLabel}
+            newLabelName={newLabelName}
+            setNewLabelName={setNewLabelName}
+            newLabelColor={newLabelColor}
+            setNewLabelColor={setNewLabelColor}
+            createLabelError={createLabelError}
+            setCreateLabelError={setCreateLabelError}
+            onCreateLabel={handleCreateLabel}
+            isCreatingLabel={createLabelMutation.isPending}
+            onUpdateLabel={(labelId, payload) =>
+              updateLabelMutation.mutate({ labelId, payload })
+            }
+            isUpdatingLabel={updateLabelMutation.isPending}
+            onDeleteLabel={(labelId) => deleteLabelMutation.mutate(labelId)}
+            isDeletingLabel={deleteLabelMutation.isPending}
+            isLoadingLabels={isLoadingLabels}
+          />
 
-            {/* Create Label Inline Form */}
-            {showCreateLabel && (
-              <div className="mb-3 p-3 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl border border-neutral-200 dark:border-neutral-700 space-y-2.5 animate-[fadeUp_0.15s_ease]">
-                <div className="flex items-center justify-between text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-                  <span>Create new label</span>
-                  <span className="text-[10.5px] font-normal text-neutral-400">
-                    {newLabelName.length}/50
-                  </span>
-                </div>
-
-                <input
-                  autoFocus
-                  type="text"
-                  maxLength={50}
-                  placeholder="Label name (e.g. Frontend, Critical, Ops)"
-                  value={newLabelName}
-                  onChange={(e) => {
-                    setNewLabelName(e.target.value);
-                    if (createLabelError) setCreateLabelError(null);
-                  }}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40"
-                />
-
-                {createLabelError && (
-                  <p className="text-[11px] text-rose-500 font-medium flex items-center gap-1">
-                    <Icon name="alert-circle" size={12} /> {createLabelError}
-                  </p>
-                )}
-
-                {/* Color Selection */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] font-medium text-neutral-500 mr-1">Color:</span>
-                  {PRESET_LABEL_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setNewLabelColor(c)}
-                      className={`w-5 h-5 rounded-full transition-transform cursor-pointer ${
-                        newLabelColor === c ? 'scale-125 ring-2 ring-offset-1 ring-orange-500' : 'hover:scale-110'
-                      }`}
-                      style={{ backgroundColor: c }}
-                      title={c}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2 pt-1 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateLabel(false);
-                      setCreateLabelError(null);
-                    }}
-                    className="px-2.5 py-1 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCreateLabel}
-                    disabled={createLabelMutation.isPending || !newLabelName.trim()}
-                    className="px-3 py-1 text-[11px] font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition disabled:opacity-50 cursor-pointer flex items-center gap-1"
-                  >
-                    {createLabelMutation.isPending ? (
-                      'Saving…'
-                    ) : (
-                      <>
-                        <Icon name="check" size={12} /> Add Label
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Dynamic Label List */}
-            {isLoadingLabels ? (
-              <div className="flex flex-wrap gap-1.5 py-1">
-                {[1, 2, 3].map((n) => (
-                  <div key={n} className="h-6 w-16 bg-neutral-200 dark:bg-neutral-800 rounded-full animate-pulse" />
-                ))}
-              </div>
-            ) : boardLabels.length === 0 && form.labels.length === 0 ? (
-              <div className="py-2 text-[12px] text-neutral-400 dark:text-neutral-500 italic">
-                No labels on this board yet. Click "Create label" to add one!
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {(() => {
-                  const allKnownLabels = [...boardLabels];
-                  if (initial?.labels) {
-                    initial.labels.forEach((l) => {
-                      if (typeof l === 'object' && l !== null && l._id) {
-                        if (!allKnownLabels.some((known) => known._id === l._id)) {
-                          allKnownLabels.push(l as Label);
-                        }
-                      }
-                    });
-                  }
-
-                  return allKnownLabels.map((l) => {
-                    const isSelected = form.labels.includes(l._id);
-                    const meta = getLabelMeta(l);
-                    return (
-                      <div
-                        key={l._id}
-                        style={isSelected ? meta.style : undefined}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium transition select-none ${
-                          isSelected
-                            ? meta.className + ' ring-2 ring-orange-500/50 shadow-2xs font-semibold'
-                            : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => toggleLabel(l._id)}
-                          className="inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          {isSelected && <Icon name="check" size={11} className="text-orange-500 shrink-0" />}
-                          <span>{meta.name}</span>
-                        </button>
-
-                        {isSelected && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleLabel(l._id);
-                            }}
-                            className="p-0.5 -mr-1 rounded-full hover:bg-black/10 dark:hover:bg-white/20 text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-100 transition cursor-pointer"
-                            title={`Remove ${meta.name}`}
-                            aria-label={`Remove ${meta.name}`}
-                          >
-                            <Icon name="x" size={12} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            )}
-          </div>
-
-          {/* Searchable Assignees Dropdown */}
-          <div className="relative">
-            <label className="block text-[12px] font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-              Assignees
-            </label>
-
-            {/* Selected Assignees Pill Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-2">
-              {form.assignees.map((id) => {
-                const member = teamMembers.find((m) => m.id === id);
-                const name = member ? member.name : 'Assignee';
-                return (
-                  <span
-                    key={id}
-                    className="inline-flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-[11.5px] font-medium"
-                  >
-                    <Avatar name={name} size={16} ring={false} />
-                    <span>{name}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleAssignee(id)}
-                      className="text-orange-400 hover:text-orange-600 p-0.5 rounded-full"
-                    >
-                      <Icon name="x" size={12} />
-                    </button>
-                  </span>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => setAssigneeMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-dashed border-neutral-300 dark:border-neutral-700 hover:border-orange-400 text-neutral-600 dark:text-neutral-300 hover:text-orange-600 text-[11.5px] font-semibold transition-all cursor-pointer"
-              >
-                <Icon name="plus" size={13} />
-                <span>Add assignee</span>
-                <Icon name="chevron-down" size={12} className="text-neutral-400" />
-              </button>
-            </div>
-
-            {/* Searchable Dropdown Popover */}
-            {assigneeMenuOpen && (
-              <div className="absolute left-0 right-0 z-20 mt-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl shadow-xl p-2.5 space-y-2">
-                {/* Search Bar */}
-                <div className="relative">
-                  <Icon
-                    name="search"
-                    size={14}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
-                  />
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="Search members by name or email…"
-                    value={assigneeSearch}
-                    onChange={(e) => setAssigneeSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40"
-                  />
-                </div>
-
-                {/* Filtered Members List */}
-                <div className="max-h-44 overflow-y-auto space-y-0.5">
-                  {filteredMembers.length === 0 ? (
-                    <div className="py-3 text-center text-xs text-neutral-400">
-                      No members match "{assigneeSearch}"
-                    </div>
-                  ) : (
-                    filteredMembers.map((m) => {
-                      const isSelected = form.assignees.includes(m.id);
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => toggleAssignee(m.id)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition cursor-pointer ${
-                            isSelected
-                              ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold'
-                              : 'hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Avatar name={m.name} size={22} ring={false} />
-                            <div className="truncate">
-                              <p className="font-semibold leading-tight truncate">{m.name}</p>
-                              {m.email && <p className="text-[10.5px] text-neutral-400 truncate">{m.email}</p>}
-                            </div>
-                          </div>
-                          {isSelected && <Icon name="check" size={14} className="text-orange-500 shrink-0" />}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Searchable Assignees using TaskAssigneePicker */}
+          <TaskAssigneePicker
+            teamMembers={teamMembers}
+            selectedAssignees={form.assignees}
+            onToggleAssignee={toggleAssignee}
+            assigneeMenuOpen={assigneeMenuOpen}
+            setAssigneeMenuOpen={setAssigneeMenuOpen}
+            assigneeSearch={assigneeSearch}
+            setAssigneeSearch={setAssigneeSearch}
+          />
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-neutral-100 dark:border-neutral-800">
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-2 text-[13px] font-medium rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition"
+            className="px-3.5 py-2 text-[13px] font-medium rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || columns.length === 0}
-            className="px-4 py-2 text-[13px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-[13px] font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-sm shadow-orange-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {saving ? 'Saving…' : initial ? 'Save changes' : 'Create task'}
           </button>
@@ -736,4 +553,3 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 };
 
 export default TaskModal;
-
