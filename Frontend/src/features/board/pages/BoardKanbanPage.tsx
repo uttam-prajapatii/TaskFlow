@@ -6,19 +6,20 @@ import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
 import WorkspaceAvatar from '../../../components/UI/WorkspaceAvatar';
-import DropdownMenu, { type MenuItem } from '../../../components/UI/DropdownMenu';
 import KanbanColumn from '../components/KanbanColumn';
 import TaskModal from '../components/TaskModal';
 import TaskDrawer from '../components/TaskDrawer';
 import RenameListModal from '../components/RenameListModal';
 import BoardSkeleton from '../components/BoardSkeleton';
 import ConfirmModal from '../../../components/UI/ConfirmModal';
+import BoardToolbar from '../components/BoardToolbar';
 import boardService from '../../../services/board.service';
 import listService from '../../../services/list.service';
 import taskService from '../../../services/task.service';
 import workspaceService from '../../../services/workspace.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
 import useSocketBoard from '../../../hooks/useSocketBoard';
+import type { TaskSortOption } from '../../../constants/task.constants';
 import type { Board, BoardList, Task, CreateTaskPayload, PriorityLevel } from '../types';
 
 export const BoardKanbanPage: React.FC = () => {
@@ -50,7 +51,7 @@ export const BoardKanbanPage: React.FC = () => {
   // Search, filter & sort state
   const [search, setSearch] = useState('');
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'position' | 'newest' | 'oldest' | 'priority' | 'dueDate' | 'alpha'>('position');
+  const [sortBy, setSortBy] = useState<TaskSortOption>('position');
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -68,51 +69,61 @@ export const BoardKanbanPage: React.FC = () => {
 
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
 
-  const loadBoardData = useCallback(async (silent = false) => {
-    if (!boardId) return;
-    try {
-      if (!silent) setLoading(true);
-      const bDetails = await boardService.getBoardDetails(boardId);
-      setBoard(bDetails);
-      setIsStarred(!!(bDetails as { isStarred?: boolean }).isStarred);
-
+  const loadBoardData = useCallback(
+    async (silent = false) => {
+      if (!boardId) return;
       try {
-        const lists = await listService.getBoardLists(boardId);
-        const mappedLists: BoardList[] = (lists || []).map((l: unknown, i: number) => {
-          const item = l as { _id?: string; id?: string; name?: string; title?: string; boardId?: string; position?: number };
-          return {
-            ...item,
-            _id: item._id || item.id || `list-${i}`,
-            title: item.name || item.title || `List ${i + 1}`,
-            boardId: item.boardId || boardId,
-          };
-        });
-        setColumns(mappedLists);
-      } catch {
-        // preserve columns on minor error
-      }
+        if (!silent) setLoading(true);
+        const bDetails = await boardService.getBoardDetails(boardId);
+        setBoard(bDetails);
+        setIsStarred(!!(bDetails as { isStarred?: boolean }).isStarred);
 
-      try {
-        const taskList = await taskService.getBoardTasks(boardId);
-        setTasks(taskList);
-      } catch {
-        // preserve tasks on minor error
-      }
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      toast.error(error.response?.data?.message || 'Board not found or unavailable');
-      if (!silent) {
-        const remainingWs = await workspaceService.listWorkspaces().catch(() => []);
-        if (remainingWs.length > 0) {
-          navigate('/boards', { replace: true });
-        } else {
-          navigate('/onboarding', { replace: true });
+        try {
+          const lists = await listService.getBoardLists(boardId);
+          const mappedLists: BoardList[] = (lists || []).map((l: unknown, i: number) => {
+            const item = l as {
+              _id?: string;
+              id?: string;
+              name?: string;
+              title?: string;
+              boardId?: string;
+              position?: number;
+            };
+            return {
+              ...item,
+              _id: item._id || item.id || `list-${i}`,
+              title: item.name || item.title || `List ${i + 1}`,
+              boardId: item.boardId || boardId,
+            };
+          });
+          setColumns(mappedLists);
+        } catch {
+          // preserve columns on minor error
         }
+
+        try {
+          const taskList = await taskService.getBoardTasks(boardId);
+          setTasks(taskList);
+        } catch {
+          // preserve tasks on minor error
+        }
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { message?: string } } };
+        toast.error(error.response?.data?.message || 'Board not found or unavailable');
+        if (!silent) {
+          const remainingWs = await workspaceService.listWorkspaces().catch(() => []);
+          if (remainingWs.length > 0) {
+            navigate('/boards', { replace: true });
+          } else {
+            navigate('/onboarding', { replace: true });
+          }
+        }
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [boardId, navigate]);
+    },
+    [boardId, navigate]
+  );
 
   // Live socket updates & watchers list
   const { watchers } = useSocketBoard(boardId, setBoard, setColumns, setTasks, loadBoardData);
@@ -157,7 +168,6 @@ export const BoardKanbanPage: React.FC = () => {
       const created = await listService.createList(boardId!, { name: trimmed });
       toast.success(`List "${trimmed}" created`);
 
-      // Optimistic update
       const newCol: BoardList = {
         _id: created?._id || created?.id || `list-${Date.now()}`,
         title: trimmed,
@@ -169,7 +179,6 @@ export const BoardKanbanPage: React.FC = () => {
       setNewListTitleError(null);
       setAddingList(false);
 
-      // Silent refresh without triggering full-screen skeleton loader
       loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -179,19 +188,16 @@ export const BoardKanbanPage: React.FC = () => {
     }
   };
 
-  // Open theme-aware Rename List modal
   const handleRenameColumn = (columnId: string, currentName: string) => {
     setRenameListTarget({ id: columnId, title: currentName });
   };
 
-  // Save list title from RenameListModal
   const handleSaveRenameList = async (newName: string) => {
     if (!renameListTarget) return;
     const colId = renameListTarget.id;
     try {
       setRenamingList(true);
 
-      // Optimistic update locally
       setColumns((prev) =>
         prev.map((c) => ((c._id || c.id) === colId ? { ...c, title: newName } : c))
       );
@@ -200,7 +206,6 @@ export const BoardKanbanPage: React.FC = () => {
       toast.success(`List renamed to "${newName}"`);
       setRenameListTarget(null);
 
-      // Silent refresh without triggering skeleton loader
       loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -211,24 +216,24 @@ export const BoardKanbanPage: React.FC = () => {
     }
   };
 
-  // Delete List trigger (opens ConfirmModal)
   const handleDeleteColumn = (columnId: string) => {
     const col = columns.find((c) => (c._id || c.id) === columnId);
     const colName = col?.title || 'List';
     setDeleteListTarget({ id: columnId, name: colName });
   };
 
-  // Confirmed Delete List handler
   const handleConfirmDeleteList = async () => {
     if (!deleteListTarget) return;
     const colId = deleteListTarget.id;
     try {
       setDeletingList(true);
-      // Optimistic update locally
       setColumns((prev) => prev.filter((c) => (c._id || c.id) !== colId));
       setTasks((prev) =>
         prev.filter((t) => {
-          const tListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
+          const tListId =
+            typeof t.listId === 'object' && t.listId !== null
+              ? (t.listId as { _id?: string })._id
+              : t.listId;
           return String(tListId) !== String(colId) && String(t.status) !== String(colId);
         })
       );
@@ -237,7 +242,6 @@ export const BoardKanbanPage: React.FC = () => {
       toast.success(`List "${deleteListTarget.name}" deleted`);
       setDeleteListTarget(null);
 
-      // Silent refresh without triggering skeleton loader
       loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -248,7 +252,6 @@ export const BoardKanbanPage: React.FC = () => {
     }
   };
 
-  // Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     const tId = task._id || task.id!;
     setDraggingTaskId(tId);
@@ -268,30 +271,50 @@ export const BoardKanbanPage: React.FC = () => {
 
     if (!taskId) return;
 
-    // Filter existing tasks in destination column (excluding dropped task)
     const targetColTasks = tasks
       .filter((t) => {
-        const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
-        return (String(taskListId) === String(targetColumnId) || String(t.status) === String(targetColumnId)) && (t._id || t.id) !== taskId;
+        const taskListId =
+          typeof t.listId === 'object' && t.listId !== null
+            ? (t.listId as { _id?: string })._id
+            : t.listId;
+        return (
+          (String(taskListId) === String(targetColumnId) ||
+            String(t.status) === String(targetColumnId)) &&
+          (t._id || t.id) !== taskId
+        );
       })
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-    const safePosition = targetIndex !== undefined ? Math.max(0, Math.min(targetIndex, targetColTasks.length)) : targetColTasks.length;
+    const safePosition =
+      targetIndex !== undefined
+        ? Math.max(0, Math.min(targetIndex, targetColTasks.length))
+        : targetColTasks.length;
 
-    // Optimistic UI update with re-calculated position index
     setTasks((prev) => {
       const movedTask = prev.find((t) => (t._id || t.id) === taskId);
       if (!movedTask) return prev;
 
-      const updatedMoved = { ...movedTask, status: targetColumnId, listId: targetColumnId, position: safePosition };
+      const updatedMoved = {
+        ...movedTask,
+        status: targetColumnId,
+        listId: targetColumnId,
+        position: safePosition,
+      };
       const listCopy = [...targetColTasks];
       listCopy.splice(safePosition, 0, updatedMoved);
 
       const reindexedTarget = listCopy.map((t, idx) => ({ ...t, position: idx }));
 
       const otherColTasks = prev.filter((t) => {
-        const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
-        return String(taskListId) !== String(targetColumnId) && String(t.status) !== String(targetColumnId) && (t._id || t.id) !== taskId;
+        const taskListId =
+          typeof t.listId === 'object' && t.listId !== null
+            ? (t.listId as { _id?: string })._id
+            : t.listId;
+        return (
+          String(taskListId) !== String(targetColumnId) &&
+          String(t.status) !== String(targetColumnId) &&
+          (t._id || t.id) !== taskId
+        );
       });
 
       return [...otherColTasks, ...reindexedTarget];
@@ -310,12 +333,10 @@ export const BoardKanbanPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
       toast.success('Task position updated');
     } catch {
-      // Revert on error
       loadBoardData();
     }
   };
 
-  // Filtered & sorted task calculation
   const processedTasks = useMemo(() => {
     let list = tasks.filter((t) => {
       const query = search.toLowerCase();
@@ -348,7 +369,6 @@ export const BoardKanbanPage: React.FC = () => {
     return list;
   }, [tasks, search, filterPriority, sortBy]);
 
-  // Task save handler (create or edit)
   const handleSaveTask = async (payload: CreateTaskPayload) => {
     if (!boardId) return;
     try {
@@ -408,22 +428,6 @@ export const BoardKanbanPage: React.FC = () => {
     }
   };
 
-  const filterItems: MenuItem[] = [
-    { label: 'All priorities', icon: !filterPriority ? 'check' : undefined, onClick: () => setFilterPriority(null) },
-    { label: 'Urgent', icon: filterPriority === 'urgent' ? 'check' : undefined, onClick: () => setFilterPriority('urgent') },
-    { label: 'High', icon: filterPriority === 'high' ? 'check' : undefined, onClick: () => setFilterPriority('high') },
-    { label: 'Medium', icon: filterPriority === 'medium' ? 'check' : undefined, onClick: () => setFilterPriority('medium') },
-    { label: 'Low', icon: filterPriority === 'low' ? 'check' : undefined, onClick: () => setFilterPriority('low') },
-  ];
-
-  const sortItems: MenuItem[] = [
-    { label: 'Custom position', icon: sortBy === 'position' ? 'check' : undefined, onClick: () => setSortBy('position') },
-    { label: 'Newest first', icon: sortBy === 'newest' ? 'check' : undefined, onClick: () => setSortBy('newest') },
-    { label: 'Oldest first', icon: sortBy === 'oldest' ? 'check' : undefined, onClick: () => setSortBy('oldest') },
-    { label: 'Priority', icon: sortBy === 'priority' ? 'check' : undefined, onClick: () => setSortBy('priority') },
-    { label: 'Alphabetical', icon: sortBy === 'alpha' ? 'check' : undefined, onClick: () => setSortBy('alpha') },
-  ];
-
   const handleToggleStar = async () => {
     if (!boardId) return;
     try {
@@ -468,7 +472,11 @@ export const BoardKanbanPage: React.FC = () => {
               <WorkspaceAvatar
                 name={currentWorkspace?.name || 'Workspace'}
                 logoUrl={currentWorkspace?.logoUrl}
-                color={currentWorkspace?.accentColor || currentWorkspace?.settings?.color || currentWorkspace?.color}
+                color={
+                  currentWorkspace?.accentColor ||
+                  currentWorkspace?.settings?.color ||
+                  currentWorkspace?.color
+                }
                 size={20}
                 roundedClassName="rounded-md"
               />
@@ -492,10 +500,7 @@ export const BoardKanbanPage: React.FC = () => {
                         className="inline-block rounded-full ring-2 ring-white dark:ring-neutral-900 shrink-0"
                         title={`${watcher.name} is online`}
                       >
-                        <Avatar
-                          name={watcher.name}
-                          size={24}
-                        />
+                        <Avatar name={watcher.name} size={24} />
                       </div>
                     ))}
                   </div>
@@ -514,7 +519,11 @@ export const BoardKanbanPage: React.FC = () => {
               <button
                 type="button"
                 disabled={columns.length === 0}
-                title={columns.length === 0 ? 'Create a list/column before adding a task.' : 'Add task'}
+                title={
+                  columns.length === 0
+                    ? 'Create a list/column before adding a task.'
+                    : 'Add task'
+                }
                 onClick={() => {
                   if (columns.length === 0) return;
                   setEditingTask(null);
@@ -541,64 +550,27 @@ export const BoardKanbanPage: React.FC = () => {
                 className="p-1 rounded-lg text-amber-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
                 title={isStarred ? 'Unstar board' : 'Star board'}
               >
-                <Icon name="star" size={18} className={isStarred ? 'fill-amber-400 text-amber-500' : 'text-neutral-400'} />
+                <Icon
+                  name="sparkles"
+                  size={18}
+                  className={isStarred ? 'fill-amber-400 text-amber-500' : 'text-neutral-400'}
+                />
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Search */}
-              <div className="relative">
-                <Icon
-                  name="search"
-                  size={14}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
-                />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search tasks…"
-                  className="pl-8 pr-3 py-1.5 w-48 sm:w-56 text-[12.5px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/60 dark:text-neutral-100 outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-400 transition"
-                />
-              </div>
-
-              {/* Filter */}
-              <DropdownMenu
-                open={filterOpen}
-                setOpen={setFilterOpen}
-                trigger={
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen((v) => !v)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium border transition ${
-                      filterPriority
-                        ? 'border-orange-300 text-orange-600 bg-orange-50 dark:bg-orange-500/10'
-                        : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-                    }`}
-                  >
-                    <Icon name="filter" size={13} /> Filter
-                  </button>
-                }
-                items={filterItems}
-              />
-
-              {/* Sort */}
-              <DropdownMenu
-                open={sortOpen}
-                setOpen={setSortOpen}
-                trigger={
-                  <button
-                    type="button"
-                    onClick={() => setSortOpen((v) => !v)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12.5px] font-medium border border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition"
-                  >
-                    Sort: {sortBy}
-                    <Icon name="chevron-down" size={12} />
-                  </button>
-                }
-                items={sortItems}
-              />
-            </div>
+            <BoardToolbar
+              search={search}
+              onSearchChange={setSearch}
+              filterPriority={filterPriority}
+              onSelectPriority={setFilterPriority}
+              sortBy={sortBy}
+              onSelectSortBy={setSortBy}
+              filterOpen={filterOpen}
+              setFilterOpen={setFilterOpen}
+              sortOpen={sortOpen}
+              setSortOpen={setSortOpen}
+              onAddListClick={() => setAddingList(true)}
+            />
           </div>
         </div>
 
@@ -630,8 +602,13 @@ export const BoardKanbanPage: React.FC = () => {
               {columns.map((col) => {
                 const colId = col._id || col.id!;
                 const colTasks = processedTasks.filter((t) => {
-                  const taskListId = typeof t.listId === 'object' && t.listId !== null ? (t.listId as { _id?: string })._id : t.listId;
-                  return String(taskListId) === String(colId) || String(t.status) === String(colId);
+                  const taskListId =
+                    typeof t.listId === 'object' && t.listId !== null
+                      ? (t.listId as { _id?: string })._id
+                      : t.listId;
+                  return (
+                    String(taskListId) === String(colId) || String(t.status) === String(colId)
+                  );
                 });
 
                 return (
@@ -741,7 +718,11 @@ export const BoardKanbanPage: React.FC = () => {
         columns={columns}
         defaultColumnId={defaultColForTask}
         saving={savingTask}
-        workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
+        workspaceId={
+          typeof board?.workspaceId === 'object' && board?.workspaceId !== null
+            ? board.workspaceId._id
+            : (board?.workspaceId as string)
+        }
         boardId={boardId}
       />
 
@@ -757,7 +738,7 @@ export const BoardKanbanPage: React.FC = () => {
         onTaskUpdate={(updatedTask) => {
           setTasks((prev) =>
             prev.map((t) =>
-              (t._id === updatedTask._id || t.id === updatedTask._id)
+              t._id === updatedTask._id || t.id === updatedTask._id
                 ? { ...t, ...updatedTask }
                 : t
             )
@@ -765,7 +746,11 @@ export const BoardKanbanPage: React.FC = () => {
           setDrawerTask((prev) => (prev ? { ...prev, ...updatedTask } : null));
         }}
         columns={columns}
-        workspaceId={typeof board?.workspaceId === 'object' && board?.workspaceId !== null ? board.workspaceId._id : board?.workspaceId}
+        workspaceId={
+          typeof board?.workspaceId === 'object' && board?.workspaceId !== null
+            ? board.workspaceId._id
+            : (board?.workspaceId as string)
+        }
         boardId={boardId}
       />
 

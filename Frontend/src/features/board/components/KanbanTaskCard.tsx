@@ -1,89 +1,13 @@
 import React, { useState } from 'react';
-import type { Task, PriorityLevel, Label } from '../types';
+import type { Task } from '../types';
 import Icon from '../../../components/UI/Icon';
 import Avatar from '../../../components/UI/Avatar';
+import { PRIORITY_CONFIG, LABEL_COLORS } from '../../../constants/task.constants';
+import { isOverdue, formatDate } from '../../../utils/date';
+import { getLabelMeta } from '../utils/label.utils';
 
-export const PRIORITY_CONFIG: Record<
-  PriorityLevel,
-  { label: string; dot: string; text: string; bg: string; ring: string }
-> = {
-  urgent: {
-    label: 'Urgent',
-    dot: 'bg-rose-500',
-    text: 'text-rose-700 dark:text-rose-300',
-    bg: 'bg-rose-50 dark:bg-rose-500/10',
-    ring: 'ring-rose-200 dark:ring-rose-500/20',
-  },
-  high: {
-    label: 'High',
-    dot: 'bg-orange-500',
-    text: 'text-orange-700 dark:text-orange-300',
-    bg: 'bg-orange-50 dark:bg-orange-500/10',
-    ring: 'ring-orange-200 dark:ring-orange-500/20',
-  },
-  medium: {
-    label: 'Medium',
-    dot: 'bg-amber-400',
-    text: 'text-amber-700 dark:text-amber-300',
-    bg: 'bg-amber-50 dark:bg-amber-500/10',
-    ring: 'ring-amber-200 dark:ring-amber-500/20',
-  },
-  low: {
-    label: 'Low',
-    dot: 'bg-emerald-500',
-    text: 'text-emerald-700 dark:text-emerald-300',
-    bg: 'bg-emerald-50 dark:bg-emerald-500/10',
-    ring: 'ring-emerald-200 dark:ring-emerald-500/20',
-  },
-};
-
-export const LABEL_COLORS: Record<string, string> = {
-  design: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
-  backend: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
-  frontend: 'bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300',
-  bug: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
-  research: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300',
-  marketing: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300',
-};
-
-export const getLabelMeta = (label: string | Label): { name: string; style?: React.CSSProperties; className: string } => {
-  if (typeof label === 'object' && label !== null) {
-    const name = label.name || 'Label';
-    const color = label.color || '#4F46E5';
-    if (/^#([0-9a-fA-F]{3}){1,2}$/.test(color)) {
-      return {
-        name,
-        style: {
-          backgroundColor: `${color}1A`,
-          color: color,
-          borderColor: `${color}33`,
-        },
-        className: 'border font-medium',
-      };
-    }
-    return {
-      name,
-      className: LABEL_COLORS[name.toLowerCase()] || 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300',
-    };
-  }
-
-  const labelStr = String(label);
-  return {
-    name: labelStr,
-    className: LABEL_COLORS[labelStr.toLowerCase()] || 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300',
-  };
-};
-
-const TODAY = new Date();
-export const isOverdue = (dueDate?: string | null) => {
-  if (!dueDate) return false;
-  return new Date(dueDate) < TODAY;
-};
-
-export const formatDate = (dueDate?: string | null) => {
-  if (!dueDate) return null;
-  return new Date(dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
+// Backward compatible re-exports for existing imports
+export { PRIORITY_CONFIG, LABEL_COLORS, isOverdue, formatDate, getLabelMeta };
 
 interface KanbanTaskCardProps {
   task: Task;

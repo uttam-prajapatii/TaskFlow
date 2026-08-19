@@ -8,7 +8,9 @@ import TaskDrawer from '../components/TaskDrawer';
 import taskService from '../../../services/task.service';
 import listService from '../../../services/list.service';
 import { useWorkspace } from '../../../context/WorkspaceContext';
-import { PRIORITY_CONFIG, getLabelMeta, isOverdue, formatDate } from '../components/KanbanTaskCard';
+import { PRIORITY_CONFIG } from '../../../constants/task.constants';
+import { isOverdue, formatDate } from '../../../utils/date';
+import { getLabelMeta } from '../utils/label.utils';
 import type { Task, BoardList, PriorityLevel, Label } from '../types';
 import { isTaskDone } from '../types';
 
