@@ -41,11 +41,15 @@ export const BoardKanbanPage: React.FC = () => {
   const [creatingList, setCreatingList] = useState(false);
 
   // List rename modal state
-  const [renameListTarget, setRenameListTarget] = useState<{ id: string; title: string } | null>(null);
+  const [renameListTarget, setRenameListTarget] = useState<{ id: string; title: string } | null>(
+    null
+  );
   const [renamingList, setRenamingList] = useState(false);
 
   // List delete confirm modal state
-  const [deleteListTarget, setDeleteListTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteListTarget, setDeleteListTarget] = useState<{ id: string; name: string } | null>(
+    null
+  );
   const [deletingList, setDeletingList] = useState(false);
 
   // Search, filter & sort state
@@ -80,23 +84,57 @@ export const BoardKanbanPage: React.FC = () => {
 
         try {
           const lists = await listService.getBoardLists(boardId);
-          const mappedLists: BoardList[] = (lists || []).map((l: unknown, i: number) => {
-            const item = l as {
-              _id?: string;
-              id?: string;
-              name?: string;
-              title?: string;
-              boardId?: string;
-              position?: number;
-            };
-            return {
-              ...item,
-              _id: item._id || item.id || `list-${i}`,
-              title: item.name || item.title || `List ${i + 1}`,
-              boardId: item.boardId || boardId,
-            };
-          });
-          setColumns(mappedLists);
+          if (Array.isArray(lists) && lists.length > 0) {
+            const mappedLists: BoardList[] = lists.map((l: unknown, i: number) => {
+              const item = l as {
+                _id?: string;
+                id?: string;
+                name?: string;
+                title?: string;
+                boardId?: string;
+                position?: number;
+              };
+              return {
+                ...item,
+                _id: item._id || item.id || `list-${i}`,
+                title: item.name || item.title || `List ${i + 1}`,
+                boardId: item.boardId || boardId,
+                position: item.position ?? i,
+              };
+            });
+            setColumns(mappedLists);
+          } else if (
+            bDetails &&
+            Array.isArray((bDetails as unknown as { listOrder?: unknown[] }).listOrder) &&
+            ((bDetails as unknown as { listOrder: unknown[] }).listOrder.length > 0)
+          ) {
+            const populated = (bDetails as unknown as { listOrder: unknown[] }).listOrder
+              .filter(Boolean)
+              .map((rawItem: unknown, i: number) => {
+                const item = rawItem as {
+                  _id?: string;
+                  id?: string;
+                  name?: string;
+                  title?: string;
+                  boardId?: string;
+                  position?: number;
+                };
+                return {
+                  ...item,
+                  _id: item._id || item.id || `list-${i}`,
+                  title: item.name || item.title || `List ${i + 1}`,
+                  boardId: item.boardId || boardId,
+                  position: item.position ?? i,
+                };
+              });
+            if (populated.length > 0) {
+              setColumns(populated);
+            } else if (Array.isArray(lists)) {
+              setColumns([]);
+            }
+          } else if (Array.isArray(lists)) {
+            setColumns([]);
+          }
         } catch {
           // preserve columns on minor error
         }
@@ -168,23 +206,132 @@ export const BoardKanbanPage: React.FC = () => {
       const created = await listService.createList(boardId!, { name: trimmed });
       toast.success(`List "${trimmed}" created`);
 
-      const newCol: BoardList = {
-        _id: created?._id || created?.id || `list-${Date.now()}`,
-        title: trimmed,
-        boardId: boardId!,
-      };
-      setColumns((prev) => [...prev, newCol]);
+      const createdId = created?._id || created?.id;
+      const createdTitle =
+        (created as unknown as { name?: string })?.name || created?.title || trimmed;
+
+      if (createdId) {
+        setColumns((prev) => {
+          if (prev.some((c) => (c._id || c.id) === createdId)) {
+            return prev;
+          }
+          const newCol: BoardList = {
+            ...created,
+            _id: createdId,
+            title: createdTitle,
+            boardId: boardId!,
+          };
+          return [...prev, newCol];
+        });
+      }
 
       setNewListTitle('');
       setNewListTitleError(null);
       setAddingList(false);
 
-      loadBoardData(true);
+      queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
+
+      await loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       toast.error(error.response?.data?.message || 'Failed to create list');
     } finally {
       setCreatingList(false);
+    }
+  };
+
+  const handleCopyColumn = async (columnId: string, currentName: string) => {
+    if (!boardId) return;
+    try {
+      let copyName = `${currentName} (Copy)`;
+      if (copyName.length > 50) {
+        copyName = copyName.slice(0, 50).trim();
+      }
+      let counter = 1;
+      while (
+        columns.some(
+          (c) =>
+            (c.title || (c as unknown as { name?: string }).name || '').toLowerCase() ===
+            copyName.toLowerCase()
+        )
+      ) {
+        counter++;
+        copyName = `${currentName} (Copy ${counter})`;
+        if (copyName.length > 50) {
+          copyName = `${currentName.slice(0, 40)} (Copy ${counter})`;
+        }
+      }
+
+      const created = await listService.createList(boardId, { name: copyName });
+      toast.success(`List "${copyName}" created`);
+
+      const createdId = created?._id || created?.id;
+      const createdTitle =
+        (created as unknown as { name?: string })?.name || created?.title || copyName;
+
+      if (createdId) {
+        setColumns((prev) => {
+          if (prev.some((c) => (c._id || c.id) === createdId)) return prev;
+          const newCol: BoardList = {
+            ...created,
+            _id: createdId,
+            title: createdTitle,
+            boardId: boardId,
+          };
+          return [...prev, newCol];
+        });
+
+        // Copy tasks from original column to new column
+        const tasksToCopy = tasks.filter((t) => {
+          const tListId =
+            typeof t.listId === 'object' && t.listId !== null
+              ? (t.listId as { _id?: string })._id
+              : t.listId;
+          return String(tListId) === String(columnId) || String(t.status) === String(columnId);
+        });
+
+        if (tasksToCopy.length > 0) {
+          for (const task of tasksToCopy) {
+            try {
+              const labelIds = (task.labels || []).map((l) =>
+                typeof l === 'object' && l !== null
+                  ? (l as { _id: string })._id
+                  : (l as string)
+              );
+              const assigneeIds = (task.assignees || []).map((a) =>
+                typeof a === 'object' && a !== null
+                  ? (a as { _id: string })._id
+                  : (a as string)
+              );
+
+              await taskService.createTask(createdId, {
+                title: task.title,
+                description: task.description,
+                priority: task.priority,
+                status: createdId,
+                dueDate: task.dueDate ? String(task.dueDate).slice(0, 10) : null,
+                labels: labelIds,
+                assignees: assigneeIds,
+              });
+            } catch {
+              // Ignore individual task copy issues
+            }
+          }
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
+
+      await loadBoardData(true);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'Failed to copy list');
     }
   };
 
@@ -206,6 +353,8 @@ export const BoardKanbanPage: React.FC = () => {
       toast.success(`List renamed to "${newName}"`);
       setRenameListTarget(null);
 
+      queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
       loadBoardData(true);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -241,6 +390,11 @@ export const BoardKanbanPage: React.FC = () => {
       await listService.deleteList(colId);
       toast.success(`List "${deleteListTarget.name}" deleted`);
       setDeleteListTarget(null);
+
+      queryClient.invalidateQueries({ queryKey: ['board-lists', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boardTasks', boardId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', boardId] });
 
       loadBoardData(true);
     } catch (err: unknown) {
@@ -385,7 +539,9 @@ export const BoardKanbanPage: React.FC = () => {
         }
         await taskService.createTask(targetListId, {
           ...payload,
-          ...(typeof targetPositionForTask === 'number' ? { position: targetPositionForTask } : {}),
+          ...(typeof targetPositionForTask === 'number'
+            ? { position: targetPositionForTask }
+            : {}),
         });
         toast.success('Task created');
       }
@@ -631,6 +787,7 @@ export const BoardKanbanPage: React.FC = () => {
                     }}
                     onMenuAction={handleMenuAction}
                     onRenameColumn={handleRenameColumn}
+                    onCopyColumn={handleCopyColumn}
                     onDeleteColumn={handleDeleteColumn}
                   />
                 );
