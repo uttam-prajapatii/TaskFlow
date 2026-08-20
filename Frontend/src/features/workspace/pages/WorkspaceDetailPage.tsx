@@ -90,7 +90,11 @@ export const WorkspaceDetailPage: React.FC = () => {
       try {
         const [wsResult, boardsResult] = await Promise.allSettled([
           workspaceService.getWorkspaceDetails(workspaceId),
-          boardService.listWorkspaceBoards(workspaceId),
+          queryClient.fetchQuery({
+            queryKey: ['workspace-boards', workspaceId],
+            queryFn: () => boardService.listWorkspaceBoards(workspaceId),
+            staleTime: 1000 * 60,
+          }),
         ]);
 
         if (wsResult.status === 'fulfilled' && wsResult.value) {

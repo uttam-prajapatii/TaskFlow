@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import boardService from '../services/board.service';
 import workspaceService from '../services/workspace.service';
 import type { Workspace } from '../features/workspace/types';
 import type { Board } from '../features/board/types';
@@ -9,6 +8,7 @@ import useAuth from '../hooks/useAuth';
 import { useWorkspaces, useWorkspaceMutations } from '../hooks/useWorkspaces';
 
 const EMPTY_WORKSPACES: Workspace[] = [];
+const EMPTY_BOARDS: Board[] = [];
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -35,8 +35,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { deleteWorkspaceMutation } = useWorkspaceMutations();
 
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace | null>(null);
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [boardsLoading, setBoardsLoading] = useState<boolean>(false);
 
   const currentWorkspaceId = currentWorkspace?._id || currentWorkspace?.id || null;
 
@@ -57,7 +55,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!isAuthenticated) {
       setCurrentWorkspaceState((prev) => (prev !== null ? null : prev));
       localStorage.removeItem('taskflow_last_workspace_id');
-      setBoards((prev) => (prev.length > 0 ? [] : prev));
       return;
     }
 
@@ -101,36 +98,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [isAuthenticated, fetchedWorkspaces, wsLoading, navigate, location.pathname]);
 
-  const fetchBoards = useCallback(async () => {
-    if (!currentWorkspaceId) {
-      setBoards((prev) => (prev.length > 0 ? [] : prev));
-      return;
-    }
-    try {
-      setBoardsLoading(true);
-      const bList = await boardService.listWorkspaceBoards(currentWorkspaceId);
-      setBoards(bList);
-    } catch (err) {
-      console.error('Failed to fetch boards for workspace:', err);
-      setBoards((prev) => (prev.length > 0 ? [] : prev));
-    } finally {
-      setBoardsLoading(false);
-    }
-  }, [currentWorkspaceId]);
-
-  useEffect(() => {
-    if (currentWorkspaceId) {
-      fetchBoards();
-    }
-  }, [currentWorkspaceId, fetchBoards]);
-
   const refreshWorkspaces = useCallback(async () => {
     await refetchWorkspaces();
   }, [refetchWorkspaces]);
 
   const refreshBoards = useCallback(async () => {
-    await fetchBoards();
-  }, [fetchBoards]);
+    // No-op for global context; boards are managed per-page via React Query useWorkspaceBoards
+  }, []);
 
   const deleteWorkspaceAndSync = useCallback(
     async (workspaceId: string) => {
@@ -195,8 +169,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       currentWorkspace,
       currentWorkspaceId,
       setCurrentWorkspace,
-      boards,
-      loading: wsLoading || boardsLoading,
+      boards: EMPTY_BOARDS,
+      loading: wsLoading, // Only workspace loading, does not block on non-critical boards!
       refreshWorkspaces,
       refreshBoards,
       deleteWorkspaceAndSync,
@@ -207,9 +181,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       currentWorkspace,
       currentWorkspaceId,
       setCurrentWorkspace,
-      boards,
       wsLoading,
-      boardsLoading,
       refreshWorkspaces,
       refreshBoards,
       deleteWorkspaceAndSync,

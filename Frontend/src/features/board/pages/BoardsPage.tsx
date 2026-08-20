@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Sidebar from '../../../components/layout/Sidebar';
 import Icon from '../../../components/UI/Icon';
@@ -17,19 +18,29 @@ const RenameBoardModal = lazy(() => import('../components/RenameBoardModal'));
 
 export const BoardsPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { currentWorkspace, setCurrentWorkspace, workspaces: contextWorkspaces } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(contextWorkspaces);
   const [boards, setBoards] = useState<Board[]>([]);
   const [search, setSearch] = useState('');
-  const [selectedWsId, setSelectedWsId] = useState<string>('all');
+  const [selectedWsId, setSelectedWsId] = useState<string>(
+    () => currentWorkspace?._id || currentWorkspace?.id || 'all'
+  );
 
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const [renameTarget, setRenameTarget] = useState<Board | null>(null);
   const [renaming, setRenaming] = useState(false);
+
+  // Sync workspaces from context when available
+  useEffect(() => {
+    if (contextWorkspaces.length > 0) {
+      setWorkspaces(contextWorkspaces);
+    }
+  }, [contextWorkspaces]);
 
   // Bind workspace WebSocket event listeners
   useSocketWorkspaces(workspaces, setBoards);
@@ -48,10 +59,18 @@ export const BoardsPage: React.FC = () => {
         return;
       }
 
-      // Parallelize workspace board queries to eliminate sequential waterfall
-      const boardPromises = wsList.map((ws) => {
+      // Fetch boards with React Query caching & parallelization
+      const targetWorkspaces = selectedWsId !== 'all'
+        ? wsList.filter((w) => (w._id || w.id) === selectedWsId)
+        : wsList;
+
+      const boardPromises = targetWorkspaces.map(async (ws) => {
         const wsId = ws._id || ws.id!;
-        return boardService.listWorkspaceBoards(wsId).catch(() => [] as Board[]);
+        return queryClient.fetchQuery({
+          queryKey: ['workspace-boards', wsId],
+          queryFn: () => boardService.listWorkspaceBoards(wsId),
+          staleTime: 1000 * 60, // 1 minute
+        }).catch(() => [] as Board[]);
       });
 
       const results = await Promise.allSettled(boardPromises);
@@ -68,7 +87,7 @@ export const BoardsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [contextWorkspaces, navigate]);
+  }, [contextWorkspaces, navigate, queryClient, selectedWsId]);
 
   useEffect(() => {
     loadData();
@@ -112,8 +131,9 @@ export const BoardsPage: React.FC = () => {
     async (payload: CreateBoardPayload) => {
       try {
         setCreating(true);
-        const targetWsId = payload.workspaceId || selectedWsId || '';
+        const targetWsId = payload.workspaceId || (selectedWsId !== 'all' ? selectedWsId : currentWorkspace?._id) || '';
         const created = await boardService.createBoard(targetWsId, payload);
+        queryClient.invalidateQueries({ queryKey: ['workspace-boards', targetWsId] });
         toast.success(`Board "${created.name || created.title}" created successfully!`);
         setCreateOpen(false);
         navigate(`/boards/${created._id || created.id}`);
@@ -124,14 +144,18 @@ export const BoardsPage: React.FC = () => {
         setCreating(false);
       }
     },
-    [navigate, selectedWsId]
+    [currentWorkspace?._id, navigate, queryClient, selectedWsId]
   );
 
   const handleDeleteBoard = useCallback(
     async (b: Board) => {
       const bId = b._id || b.id!;
+      const wsId = typeof b.workspaceId === 'object' && b.workspaceId !== null ? b.workspaceId._id : b.workspaceId;
       try {
         await boardService.deleteBoard(bId);
+        if (wsId) {
+          queryClient.invalidateQueries({ queryKey: ['workspace-boards', wsId] });
+        }
         toast.success('Board deleted');
         loadData();
       } catch (err: unknown) {
@@ -139,14 +163,18 @@ export const BoardsPage: React.FC = () => {
         toast.error(error.response?.data?.message || 'Failed to delete board');
       }
     },
-    [loadData]
+    [loadData, queryClient]
   );
 
   const handleRenameBoard = useCallback(
     async (boardId: string, newName: string) => {
       try {
         setRenaming(true);
-        await boardService.updateBoard(boardId, { name: newName });
+        const updated = await boardService.updateBoard(boardId, { name: newName });
+        const wsId = typeof updated.workspaceId === 'object' && updated.workspaceId !== null ? updated.workspaceId._id : updated.workspaceId;
+        if (wsId) {
+          queryClient.invalidateQueries({ queryKey: ['workspace-boards', wsId] });
+        }
         toast.success('Board renamed successfully');
         setRenameTarget(null);
         loadData();
@@ -157,7 +185,7 @@ export const BoardsPage: React.FC = () => {
         setRenaming(false);
       }
     },
-    [loadData]
+    [loadData, queryClient]
   );
 
   const handleOpenBoard = useCallback(

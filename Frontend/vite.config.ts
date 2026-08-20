@@ -14,5 +14,14 @@ export default defineConfig({
     minify: 'esbuild',
     cssMinify: true,
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-http': ['axios'],
+        },
+      },
+    },
   },
 });

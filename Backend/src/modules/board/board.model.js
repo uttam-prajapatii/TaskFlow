@@ -54,6 +54,8 @@ const BoardSchema = new Schema({
 });
 
 BoardSchema.index({ workspaceId: 1, isArchived: 1 });
+BoardSchema.index({ workspaceId: 1, isDeleted: 1, isArchived: 1, createdAt: -1 });
+BoardSchema.index({ workspaceId: 1, isDeleted: 1, visibility: 1, createdBy: 1 });
 
 BoardSchema.pre('save', function (next) {
   if(this.isDeleted){
