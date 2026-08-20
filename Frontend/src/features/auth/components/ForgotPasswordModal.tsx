@@ -72,12 +72,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   return (
     <Modal open={open} onClose={onClose} width={440}>
       {/* Header */}
-      <div className="p-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+      <div className="p-5 border-b border-neutral-100 flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
+          <h2 className="text-base font-bold text-neutral-900">
             Reset Password
           </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+          <p className="text-xs text-neutral-500 mt-0.5">
             Enter your email to receive password reset instructions.
           </p>
         </div>
@@ -85,7 +85,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
           type="button"
           onClick={onClose}
           disabled={isSubmitting}
-          className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+          className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
         >
           <Icon name="x" size={16} />
         </button>
@@ -98,12 +98,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-2">
               <Icon name="mail" size={24} />
             </div>
-            <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100">
+            <h3 className="text-sm font-bold text-neutral-900">
               Check Your Inbox
             </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-xs mx-auto">
+            <p className="text-xs text-neutral-500 leading-relaxed max-w-xs mx-auto">
               We sent password reset instructions to{' '}
-              <strong className="text-neutral-900 dark:text-neutral-100 font-semibold">
+              <strong className="text-neutral-900 font-semibold">
                 {successEmail}
               </strong>
               .
@@ -122,18 +122,19 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+              <label className="block text-xs font-semibold text-neutral-700 mb-1.5">
                 Work Email Address <span className="text-orange-500">*</span>
               </label>
               <input
                 autoFocus
                 type="email"
                 placeholder="you@company.com"
+                style={{ colorScheme: 'light' }}
                 {...register('email')}
-                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none transition ${
+                className={`w-full px-3.5 py-2.5 rounded-xl text-sm border bg-neutral-50 text-neutral-900 placeholder-neutral-400 outline-none transition ${
                   errors.email || apiError
-                    ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
-                    : 'border-neutral-200 dark:border-neutral-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                    ? 'border-rose-500 bg-rose-50/60 focus:ring-2 focus:ring-rose-500/20'
+                    : 'border-neutral-200 focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
                 }`}
               />
               {errors.email && (
@@ -154,12 +155,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100 dark:border-neutral-800/80">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-neutral-100">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-neutral-200 bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>

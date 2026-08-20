@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 
 import ProtectedRoute from '../../features/auth/components/ProtectedRoute';
 import PostLoginRedirect from '../../features/auth/components/PostLoginRedirect';
+import AuthLayout from '../../features/auth/components/AuthLayout';
 
 import WorkspaceDetailPage from '../../features/workspace/pages/WorkspaceDetailPage';
 
@@ -36,12 +37,14 @@ export const AppRoutes: React.FC = () => {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route path="/login" element={<AuthPage mode="signin" />} />
-        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
-        <Route path="/register" element={<AuthPage mode="signup" />} />
-        <Route path="/verify-otp" element={<AuthPage mode="verify-otp" />} />
-        <Route path="/forgot-password" element={<AuthPage mode="signin" />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<AuthPage mode="signin" />} />
+          <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+          <Route path="/register" element={<AuthPage mode="signup" />} />
+          <Route path="/verify-otp" element={<AuthPage mode="verify-otp" />} />
+          <Route path="/forgot-password" element={<AuthPage mode="signin" />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+        </Route>
         <Route
           path="/settings/password"
           element={

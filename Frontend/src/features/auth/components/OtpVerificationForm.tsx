@@ -184,6 +184,7 @@ export const OtpVerificationForm: React.FC = () => {
               onChange={(e) => handleChange(idx, e.target.value)}
               onKeyDown={(e) => handleKeyDown(idx, e)}
               onPaste={handlePaste}
+              style={{ colorScheme: 'light' }}
               className={`w-11 h-13 sm:w-12 sm:h-14 text-center font-display font-bold text-xl rounded-xl border bg-paper-dim/40 text-ink transition-all duration-200 outline-none select-all ${
                 errorMessage
                   ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'

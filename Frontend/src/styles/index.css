@@ -102,6 +102,35 @@ body.dark {
   color: #fafafa;
 }
 
+/* ---------------------------------------------------------
+   Theme-Independent Auth Layout System
+   Enforces permanent light theme on all authentication pages
+   --------------------------------------------------------- */
+.tf-auth-theme {
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #20140F;
+}
+
+/* Chrome / Safari / Edge Autofill Light Theme Enforcement */
+.tf-auth-theme input:-webkit-autofill,
+.tf-auth-theme input:-webkit-autofill:hover,
+.tf-auth-theme input:-webkit-autofill:focus,
+.tf-auth-theme input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #fafafa inset;
+  -webkit-text-fill-color: #171717;
+  caret-color: #171717;
+  transition: background-color 5000s ease-in-out 0s;
+  background-color: #fafafa;
+  color: #171717;
+}
+
+.tf-auth-theme input:focus:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset;
+  -webkit-text-fill-color: #171717;
+  background-color: #ffffff;
+}
+
 @utility node {
   fill: none;
   stroke: rgba(255, 255, 255, 0.55);
