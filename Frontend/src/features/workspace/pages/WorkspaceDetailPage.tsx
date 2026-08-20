@@ -344,8 +344,7 @@ export const WorkspaceDetailPage: React.FC = () => {
     name: 'Workspace',
     description: '',
     ownerId: currentUser?._id || '',
-    membersCount: 0,
-    boardsCount: 0,
+    members: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

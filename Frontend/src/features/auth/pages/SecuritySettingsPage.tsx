@@ -251,6 +251,7 @@ export const SecuritySettingsPage: React.FC = () => {
                 placeholder="Enter current password"
                 autoComplete="current-password"
                 containerClassName=""
+                variant="settings"
                 {...register('currentPassword')}
                 error={errors.currentPassword?.message}
               />
@@ -263,6 +264,7 @@ export const SecuritySettingsPage: React.FC = () => {
                   placeholder="Enter new password"
                   autoComplete="new-password"
                   containerClassName=""
+                  variant="settings"
                   {...register('newPassword', { deps: ['confirmNewPassword'] })}
                   error={errors.newPassword?.message}
                 />
@@ -297,6 +299,7 @@ export const SecuritySettingsPage: React.FC = () => {
                 placeholder="Confirm new password"
                 autoComplete="new-password"
                 containerClassName=""
+                variant="settings"
                 {...register('confirmNewPassword', { deps: ['newPassword'] })}
                 error={errors.confirmNewPassword?.message}
               />

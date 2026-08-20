@@ -418,7 +418,7 @@ const SignUpForm: React.FC = () => {
         {errors.form && (
           <div
             role="alert"
-            className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-2 animate-[fadeUp_0.15s_ease]"
+            className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-medium text-rose-600 flex items-center gap-2 animate-[fadeUp_0.15s_ease]"
           >
             <svg className="w-4 h-4 shrink-0 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" />

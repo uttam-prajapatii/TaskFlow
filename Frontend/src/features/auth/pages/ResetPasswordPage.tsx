@@ -105,15 +105,15 @@ export const ResetPasswordPage: React.FC = () => {
 
           {!token ? (
             /* Missing Token Error State */
-            <div className="p-5 rounded-2xl border border-rose-200 bg-rose-50/50 dark:bg-rose-950/20 text-center space-y-4">
+            <div className="p-5 rounded-2xl border border-rose-200 bg-rose-50/50 text-center space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
                 <Icon name="alert-circle" size={24} />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+                <h3 className="text-sm font-bold text-neutral-900 mb-1">
                   Invalid or Missing Reset Link
                 </h3>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                <p className="text-xs text-neutral-600 leading-relaxed">
                   The password reset link is invalid or has expired. Please request a new password reset email.
                 </p>
               </div>
@@ -127,7 +127,7 @@ export const ResetPasswordPage: React.FC = () => {
                 </button>
                 <Link
                   to="/login"
-                  className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white py-1 transition text-center"
+                  className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 py-1 transition text-center"
                 >
                   Back to Sign In
                 </Link>
@@ -135,15 +135,15 @@ export const ResetPasswordPage: React.FC = () => {
             </div>
           ) : success ? (
             /* Success State */
-            <div className="p-6 rounded-2xl border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 text-center space-y-4">
+            <div className="p-6 rounded-2xl border border-emerald-200 bg-emerald-50/50 text-center space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
                 <Icon name="check-circle" size={24} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+                <h3 className="text-base font-bold text-neutral-900 mb-1">
                   Password Reset Successfully
                 </h3>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                <p className="text-xs text-neutral-600 leading-relaxed">
                   Your password has been updated. You can now sign in to your TaskFlow account with your new credentials.
                 </p>
               </div>

@@ -18,9 +18,9 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
   return (
     <Modal open={open} onClose={onClose} width={540}>
       {/* Modal Header */}
-      <div className="p-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between sticky top-0 bg-white dark:bg-neutral-900 z-10">
+      <div className="p-5 border-b border-neutral-100 flex items-center justify-between sticky top-0 bg-white z-10">
         <div>
-          <h2 className="text-base font-bold text-neutral-900 dark:text-neutral-100">
+          <h2 className="text-base font-bold text-neutral-900">
             {title}
           </h2>
           <p className="text-[11px] text-neutral-400 mt-0.5">{lastUpdated}</p>
@@ -28,18 +28,18 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
         <button
           type="button"
           onClick={onClose}
-          className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
+          className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
         >
           <Icon name="x" size={16} />
         </button>
       </div>
 
       {/* Modal Body / Scrollable Content */}
-      <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed font-sans select-text">
+      <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto text-xs text-neutral-600 leading-relaxed font-sans select-text">
         {isTerms ? (
           <>
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 1. Acceptance of Terms
               </h3>
               <p>
@@ -48,7 +48,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 2. User Accounts & Responsibilities
               </h3>
               <p>
@@ -57,7 +57,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 3. Acceptable Use Policy
               </h3>
               <p>
@@ -66,7 +66,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 4. Data Ownership & Intellectual Property
               </h3>
               <p>
@@ -75,7 +75,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 5. Termination & Service Availability
               </h3>
               <p>
@@ -86,7 +86,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
         ) : (
           <>
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 1. Information We Collect
               </h3>
               <p>
@@ -95,7 +95,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 2. How We Use Your Data
               </h3>
               <p>
@@ -104,7 +104,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 3. Data Security & Storage
               </h3>
               <p>
@@ -113,7 +113,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 4. Third-Party Sharing
               </h3>
               <p>
@@ -122,7 +122,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
             </section>
 
             <section>
-              <h3 className="text-sm font-bold text-neutral-900 dark:text-neutral-100 mb-1">
+              <h3 className="text-sm font-bold text-neutral-900 mb-1">
                 5. Your Privacy Rights
               </h3>
               <p>
@@ -134,7 +134,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ open, type, onClose })
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-neutral-100 dark:border-neutral-800 flex justify-end">
+      <div className="p-4 border-t border-neutral-100 flex justify-end">
         <button
           type="button"
           onClick={onClose}

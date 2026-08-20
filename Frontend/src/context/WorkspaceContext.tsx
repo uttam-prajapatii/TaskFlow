@@ -189,7 +189,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, []);
 
-  const contextValue = React.useMemo<WorkspaceContextType>(
+  const contextValue = useMemo<WorkspaceContextType>(
     () => ({
       workspaces: fetchedWorkspaces,
       currentWorkspace,
