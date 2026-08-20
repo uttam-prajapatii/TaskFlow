@@ -111,24 +111,25 @@ class BoardService {
       ];
     }
 
-    const result = await boardRepository.listBoards(workspace._id, filters, { page, limit });
+    const [result, starred] = await Promise.all([
+      boardRepository.listBoards(workspace._id, filters, { page, limit }),
+      StarredBoard.find({ userId }).select('boardId').lean().exec()
+    ]);
 
-    // Fetch user starred board IDs for lookups
-    const starred = await StarredBoard.find({ userId }).select('boardId').exec();
     const starredIds = new Set(starred.map((s) => s.boardId.toString()));
 
     if (Array.isArray(result)) {
       return result.map((b) => {
-        const obj = b.toObject();
-        obj.isStarred = starredIds.has(b._id.toString());
+        const obj = typeof b.toObject === 'function' ? b.toObject() : b;
+        obj.isStarred = starredIds.has((b._id || b.id).toString());
         return obj;
       });
     }
 
     if (result.boards) {
       result.boards = result.boards.map((b) => {
-        const obj = b.toObject();
-        obj.isStarred = starredIds.has(b._id.toString());
+        const obj = typeof b.toObject === 'function' ? b.toObject() : b;
+        obj.isStarred = starredIds.has((b._id || b.id).toString());
         return obj;
       });
     }

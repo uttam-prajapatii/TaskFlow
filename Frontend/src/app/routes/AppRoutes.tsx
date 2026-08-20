@@ -5,9 +5,8 @@ import ProtectedRoute from '../../features/auth/components/ProtectedRoute';
 import PostLoginRedirect from '../../features/auth/components/PostLoginRedirect';
 import AuthLayout from '../../features/auth/components/AuthLayout';
 
-import WorkspaceDetailPage from '../../features/workspace/pages/WorkspaceDetailPage';
-
 // Route-level code splitting
+const WorkspaceDetailPage = lazy(() => import('../../features/workspace/pages/WorkspaceDetailPage'));
 const AuthPage = lazy(() => import('../../features/auth/pages/AuthPage'));
 const ResetPasswordPage = lazy(() => import('../../features/auth/pages/ResetPasswordPage'));
 const SecuritySettingsPage = lazy(() => import('../../features/auth/pages/SecuritySettingsPage'));
