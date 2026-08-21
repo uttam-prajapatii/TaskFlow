@@ -13,6 +13,14 @@
 - Do not create random new folders
 - Respect module-based architecture (feature-based)
 
+## 🛠️ Tech Stack & Package Manager Rules
+
+- **Use Bun**: Always use `bun` as the package manager and runtime environment instead of `npm` or `yarn`.
+- Run all commands (dependency installation, script execution, building, and running servers) using `bun` (e.g., `bun install`, `bun run dev`, `bun run build`).
+- Do NOT generate or run commands with `npm` or `yarn` (e.g., do not use `npm install` or `npm run`).
+- Keep and maintain the `bun.lock` file as the lockfile.
+
+
 ## 🎯 Backend Rules (Node.js - ES Modules)
 
 - Use ES Modules (import/export), NOT CommonJS
