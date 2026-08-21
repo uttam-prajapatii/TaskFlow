@@ -55,7 +55,7 @@ export const useBoardMutations = () => {
   });
 
   const deleteBoardMutation = useMutation({
-    mutationFn: ({ boardId, workspaceId }: { boardId: string; workspaceId?: string }) =>
+    mutationFn: ({ boardId }: { boardId: string; workspaceId?: string }) =>
       boardService.deleteBoard(boardId),
     onSuccess: (_data, { boardId, workspaceId }) => {
       if (workspaceId) {
